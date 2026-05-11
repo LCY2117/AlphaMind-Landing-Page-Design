@@ -17,6 +17,50 @@ const PAGE_NAV_ITEMS = [
   { label: PAGE_NAMES[3], page: 3, icon: Sparkles },
 ];
 
+const PAGE_TRANSITION = {
+  duration: 0.36,
+  ease: [0.25, 1, 0.5, 1],
+};
+
+const pageStackVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? '100%' : '-20%',
+    zIndex: direction > 0 ? 2 : 1,
+  }),
+  center: (direction: number) => ({
+    x: '0%',
+    zIndex: direction > 0 ? 2 : 1,
+  }),
+  exit: (direction: number) => ({
+    x: direction > 0 ? '-20%' : '100%',
+    zIndex: direction > 0 ? 1 : 2,
+  }),
+};
+
+const pageDimVariants = {
+  enter: (direction: number) => ({
+    opacity: direction > 0 ? 0 : 0.28,
+  }),
+  center: {
+    opacity: 0,
+  },
+  exit: (direction: number) => ({
+    opacity: direction > 0 ? 0.28 : 0,
+  }),
+};
+
+const pageEdgeShadowVariants = {
+  enter: (direction: number) => ({
+    opacity: direction > 0 ? 1 : 0,
+  }),
+  center: {
+    opacity: 0,
+  },
+  exit: (direction: number) => ({
+    opacity: direction > 0 ? 0 : 1,
+  }),
+};
+
 interface DesktopSidebarProps {
   currentPage: number;
   onNavigate: (page: number) => void;
@@ -71,6 +115,28 @@ function DesktopSidebar({ currentPage, onNavigate, onNewChat }: DesktopSidebarPr
   );
 }
 
+interface PageShellProps {
+  children: React.ReactNode;
+  currentPage: number;
+  onNavigate: (page: number) => void;
+  onNewChat: () => void;
+}
+
+function PageShell({ children, currentPage, onNavigate, onNewChat }: PageShellProps) {
+  return (
+    <div className="flex min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)]">
+      <DesktopSidebar
+        currentPage={currentPage}
+        onNavigate={onNavigate}
+        onNewChat={onNewChat}
+      />
+      <div className="min-w-0 flex-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -91,7 +157,18 @@ export default function App() {
   }, [handleNavigate]);
 
   const pages = [
-    { component: <HeroSection />, name: PAGE_NAMES[0] },
+    {
+      component: (
+        <PageShell
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          onNewChat={handleNewChat}
+        >
+          <HeroSection />
+        </PageShell>
+      ),
+      name: PAGE_NAMES[0],
+    },
     {
       component: (
         <AIAdvisorDemo
@@ -102,8 +179,30 @@ export default function App() {
       ),
       name: PAGE_NAMES[1],
     },
-    { component: <RiskAssessment />, name: PAGE_NAMES[2] },
-    { component: <FeatureCards />, name: PAGE_NAMES[3] },
+    {
+      component: (
+        <PageShell
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          onNewChat={handleNewChat}
+        >
+          <RiskAssessment />
+        </PageShell>
+      ),
+      name: PAGE_NAMES[2],
+    },
+    {
+      component: (
+        <PageShell
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          onNewChat={handleNewChat}
+        >
+          <FeatureCards />
+        </PageShell>
+      ),
+      name: PAGE_NAMES[3],
+    },
   ];
 
   // Keyboard navigation
@@ -142,48 +241,37 @@ export default function App() {
         <Navigation />
 
         {/* Page Content with Transitions */}
-        <div className="relative w-full min-h-screen pt-14 sm:pt-16">
-          <div className="flex min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)]">
-            {currentPage !== 1 && (
-              <DesktopSidebar
-                currentPage={currentPage}
-                onNavigate={handleNavigate}
-                onNewChat={handleNewChat}
-              />
-            )}
-
-            <div className="min-w-0 flex-1">
-              <AnimatePresence mode="wait" custom={direction}>
-                <motion.div
-                  key={currentPage}
-                  custom={direction}
-                  initial={{
-                    opacity: 0,
-                    x: direction > 0 ? '100%' : '-100%',
-                    scale: 0.9
-                  }}
-                  animate={{
-                    opacity: 1,
-                    x: 0,
-                    scale: 1
-                  }}
-                  exit={{
-                    opacity: 0,
-                    x: direction > 0 ? '-100%' : '100%',
-                    scale: 0.9
-                  }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 80,
-                    damping: 18,
-                    mass: 0.8
-                  }}
-                  className="w-full min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)]"
-                >
+        <div className="relative w-full min-h-screen pt-14 sm:pt-16 bg-[#1F1410]">
+          <div className="relative h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden">
+            <AnimatePresence initial={false} custom={direction}>
+              <motion.div
+                key={currentPage}
+                custom={direction}
+                variants={pageStackVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={PAGE_TRANSITION}
+                className="absolute inset-0 min-w-0 overflow-hidden bg-[#1F1410] will-change-transform [backface-visibility:hidden] [transform:translate3d(0,0,0)]"
+              >
+                <div className="relative z-0 h-full overflow-y-auto">
                   {pages[currentPage].component}
-                </motion.div>
-              </AnimatePresence>
-            </div>
+                </div>
+
+                <motion.div
+                  custom={direction}
+                  variants={pageDimVariants}
+                  transition={PAGE_TRANSITION}
+                  className="pointer-events-none absolute inset-0 z-10 bg-black"
+                />
+                <motion.div
+                  custom={direction}
+                  variants={pageEdgeShadowVariants}
+                  transition={PAGE_TRANSITION}
+                  className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-black/45 to-transparent"
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
