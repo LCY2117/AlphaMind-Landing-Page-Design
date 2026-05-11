@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.env
+.env.*
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+coverage/
+vite.svg
