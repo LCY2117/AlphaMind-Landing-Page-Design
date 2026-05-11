@@ -179,3 +179,207 @@
     line-height: 1.5;
   }
 }
+
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+@keyframes alphamind-orbit-pulse {
+  0%, 100% {
+    opacity: 0.2;
+    stroke-dashoffset: 18;
+  }
+  50% {
+    opacity: 0.44;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes alphamind-nebula-breathe {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes alphamind-data-flow {
+  from {
+    stroke-dashoffset: 92;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes alphamind-core-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 42px rgba(196,69,54,0.58), inset 0 0 24px rgba(255,255,255,0.16);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow: 0 0 76px rgba(249,115,22,0.74), inset 0 0 34px rgba(255,255,255,0.24);
+  }
+}
+
+@keyframes alphamind-pulse-ring {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  55% {
+    opacity: 0.18;
+    transform: scale(1.45);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@keyframes alphamind-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes alphamind-satellite-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--float-y, -8px));
+  }
+}
+
+@layer utilities {
+  html.light .bg-\[\#1F1410\],
+  html.light .bg-\[\#121212\] {
+    background-color: #f7f4ef !important;
+  }
+
+  html.light .bg-\[\#1E1E1E\],
+  html.light .bg-\[rgba\(18\,18\,18\,0\.82\)\] {
+    background-color: rgba(255, 252, 246, 0.9) !important;
+  }
+
+  html.light .from-\[\#1F1410\],
+  html.light .from-\[\#1F1410\]\/90,
+  html.light .from-\[\#1F1410\]\/95 {
+    --tw-gradient-from: #fff8ef var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: rgb(255 248 239 / 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to) !important;
+  }
+
+  html.light .via-\[\#2D1B13\],
+  html.light .via-\[\#2D1B13\]\/90,
+  html.light .via-\[\#2D1B13\]\/95,
+  html.light .via-\[\#261812\] {
+    --tw-gradient-via: #f2e4d3 var(--tw-gradient-via-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to) !important;
+  }
+
+  html.light .to-\[\#1F1410\],
+  html.light .to-\[\#1F1410\]\/90,
+  html.light .to-\[\#1F1410\]\/95,
+  html.light .to-\[\#121212\] {
+    --tw-gradient-to: #f7f4ef var(--tw-gradient-to-position) !important;
+  }
+
+  html.light .text-white,
+  html.light .text-white\/90,
+  html.light .text-white\/80,
+  html.light .text-white\/70,
+  html.light .text-white\/60 {
+    color: #241713 !important;
+  }
+
+  html.light .text-white\/50,
+  html.light .text-white\/40,
+  html.light .text-white\/35,
+  html.light .text-white\/30,
+  html.light .text-gray-300,
+  html.light .text-gray-400,
+  html.light .text-gray-500 {
+    color: #6f6159 !important;
+  }
+
+  html.light .placeholder-white\/40::placeholder,
+  html.light .placeholder-white\/30::placeholder,
+  html.light .placeholder-gray-500::placeholder {
+    color: rgba(111, 97, 89, 0.72) !important;
+  }
+
+  html.light .bg-white\/5,
+  html.light .bg-white\/\[0\.035\] {
+    background-color: rgba(255, 255, 255, 0.68) !important;
+  }
+
+  html.light .bg-white\/10 {
+    background-color: rgba(255, 255, 255, 0.84) !important;
+  }
+
+  html.light .bg-black\/60,
+  html.light .bg-black\/70 {
+    background-color: rgba(42, 28, 22, 0.22) !important;
+  }
+
+  html.light .border-white\/5,
+  html.light .border-white\/10,
+  html.light .border-white\/20 {
+    border-color: rgba(92, 68, 56, 0.16) !important;
+  }
+
+  html.light .hover\:bg-white\/5:hover {
+    background-color: rgba(196, 69, 54, 0.08) !important;
+  }
+
+  html.light .hover\:bg-white\/10:hover,
+  html.light .hover\:bg-white\/20:hover {
+    background-color: rgba(196, 69, 54, 0.12) !important;
+  }
+
+  html.light .hover\:text-white:hover,
+  html.light .hover\:text-white\/80:hover,
+  html.light .hover\:text-white\/90:hover {
+    color: #241713 !important;
+  }
+
+  html.light .shadow-\[0_-18px_40px_rgba\(18\,18\,18\,0\.45\)\] {
+    box-shadow: 0 -18px 40px rgba(120, 86, 62, 0.12) !important;
+  }
+
+  html.light .bg-\[\#1F1410\]\/80,
+  html.light .bg-\[\#1F1410\]\/90,
+  html.light .bg-\[\#1F1410\]\/95 {
+    background-color: rgba(255, 248, 239, 0.9) !important;
+  }
+
+  html.light .bg-\[\#1E1E1E\]\/95 {
+    background-color: rgba(255, 252, 246, 0.94) !important;
+  }
+
+  html.light .bg-gradient-to-br.from-\[\#1F1410\].via-\[\#2D1B13\].to-\[\#1F1410\] {
+    background-image: linear-gradient(to bottom right, #fff8ef, #f2e4d3, #f7f4ef) !important;
+  }
+
+  html.light .bg-gradient-to-br.from-\[\#1F1410\].via-\[\#261812\].to-\[\#121212\] {
+    background-image: linear-gradient(to bottom right, #fff8ef, #f1e1ce, #f7f4ef) !important;
+  }
+
+  html.light .bg-gradient-to-br.from-\[\#1F1410\]\/90.via-\[\#2D1B13\]\/90.to-\[\#1F1410\]\/90 {
+    background-image: linear-gradient(to bottom right, rgba(255, 248, 239, 0.92), rgba(242, 228, 211, 0.92), rgba(247, 244, 239, 0.92)) !important;
+  }
+
+  html.light .bg-transparent {
+    background-color: transparent !important;
+  }
+}

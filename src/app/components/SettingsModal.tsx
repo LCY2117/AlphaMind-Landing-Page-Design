@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Sun, Moon, Monitor, Globe, User, Database, FileText, Settings as SettingsIcon, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeMode, useThemeMode } from '../contexts/ThemeContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,8 +13,8 @@ type TabType = 'general' | 'account' | 'data' | 'terms';
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, isAuthenticated, openLoginModal, logout } = useAuth();
+  const { theme, resolvedTheme, setTheme } = useThemeMode();
   const [activeTab, setActiveTab] = useState<TabType>('general');
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('dark');
   const [language, setLanguage] = useState<'zh-CN' | 'en-US'>('zh-CN');
 
   const tabs = [
@@ -24,9 +25,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   ];
 
   const themes = [
-    { id: 'light' as const, label: '浅色', icon: Sun },
-    { id: 'dark' as const, label: '深色', icon: Moon },
-    { id: 'system' as const, label: '跟随系统', icon: Monitor },
+    { id: 'light' as ThemeMode, label: '浅色', icon: Sun },
+    { id: 'dark' as ThemeMode, label: '深色', icon: Moon },
+    { id: 'system' as ThemeMode, label: '跟随系统', icon: Monitor },
   ];
 
   const languages = [
@@ -97,6 +98,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <Sun size={20} className="text-[#C44536]" />
                         主题设置
+                        <span className="text-xs font-normal text-gray-400">
+                          当前为{resolvedTheme === 'dark' ? '深色' : '浅色'}
+                        </span>
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {themes.map((themeOption) => {

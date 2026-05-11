@@ -1,3 +1,4 @@
+import { CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { Activity, Brain, Shield, Target, TrendingUp } from 'lucide-react';
 import { DataStream, HexGrid } from './TechVisualization';
@@ -92,38 +93,29 @@ function CognitiveTopology() {
         </defs>
 
         {orbitPaths.map((path, index) => (
-          <motion.path
+          <path
             key={path}
             d={path}
             fill="none"
             stroke={index === 0 ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)'}
             strokeWidth={index === 0 ? 0.32 : 0.22}
             strokeDasharray={index === 0 ? '2.5 4.5' : '1.2 5.4'}
-            initial={{ pathLength: 0.4, opacity: 0.2 }}
-            animate={{
-              pathLength: [0.62, 1, 0.62],
-              opacity: [0.2, 0.44, 0.2],
-            }}
-            transition={{
-              duration: 6 + index * 1.2,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: index * 0.4,
+            pathLength={1}
+            style={{
+              animation: `alphamind-orbit-pulse ${6 + index * 1.2}s ease-in-out ${index * 0.4}s infinite`,
             }}
           />
         ))}
 
-        <motion.circle
+        <circle
           cx="50"
           cy="52"
           r="21"
           fill="url(#coreNebula)"
-          animate={{
-            opacity: [0.55, 0.95, 0.55],
-            scale: [0.95, 1.08, 0.95],
+          style={{
+            animation: 'alphamind-nebula-breathe 3.4s ease-in-out infinite',
+            transformOrigin: '50% 52%',
           }}
-          transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ transformOrigin: '50% 52%' }}
         />
 
         {satellites.map((node) => (
@@ -136,19 +128,15 @@ function CognitiveTopology() {
               strokeLinecap="round"
               opacity="0.42"
             />
-            <motion.path
+            <path
               d={node.path}
               fill="none"
               stroke={node.color}
               strokeWidth="0.82"
               strokeLinecap="round"
               strokeDasharray="6 86"
-              animate={{ strokeDashoffset: [92, 0] }}
-              transition={{
-                duration: 2.2,
-                repeat: Infinity,
-                ease: 'easeInOut',
-                delay: node.delay,
+              style={{
+                animation: `alphamind-data-flow 2.2s ease-in-out ${node.delay}s infinite`,
               }}
               opacity="0.9"
               filter="drop-shadow(0 0 5px currentColor)"
@@ -158,34 +146,24 @@ function CognitiveTopology() {
       </svg>
 
       <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2">
-        <motion.div
-          animate={{
-            scale: [1, 1.035, 1],
-            boxShadow: [
-              '0 0 42px rgba(196,69,54,0.58), inset 0 0 24px rgba(255,255,255,0.16)',
-              '0 0 76px rgba(249,115,22,0.74), inset 0 0 34px rgba(255,255,255,0.24)',
-              '0 0 42px rgba(196,69,54,0.58), inset 0 0 24px rgba(255,255,255,0.16)',
-            ],
-          }}
-          transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+        <div
           className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_28%,rgba(255,255,255,0.95),rgba(249,115,22,0.74)_24%,rgba(196,69,54,0.94)_58%,rgba(80,28,22,0.94)_100%)]"
+          style={{ animation: 'alphamind-core-pulse 3.2s ease-in-out infinite' }}
         >
           <Brain size={46} strokeWidth={1.25} className="text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.45)]" />
-          <motion.div
+          <div
             className="absolute inset-0 rounded-full border border-white/35"
-            animate={{ scale: [1, 1.45, 1.8], opacity: [0.5, 0.18, 0] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: 'easeOut' }}
+            style={{ animation: 'alphamind-pulse-ring 2.8s ease-out infinite' }}
           />
-          <motion.div
+          <div
             className="absolute inset-2 rounded-full border border-orange-200/30"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+            style={{ animation: 'alphamind-spin 12s linear infinite' }}
           />
           <div className="absolute -bottom-9 text-center">
             <div className="text-xs font-medium tracking-[0.18em] text-white/90">AI CORE</div>
             <div className="mt-1 h-px w-14 bg-gradient-to-r from-transparent via-orange-300/80 to-transparent" />
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {satellites.map((node, index) => {
@@ -197,20 +175,15 @@ function CognitiveTopology() {
             className="absolute -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${node.left}%`, top: `${node.top}%` }}
           >
-            <motion.div
-              animate={{ y: [0, index % 2 === 0 ? -8 : 8, 0] }}
-              transition={{
-                duration: 4.2 + index * 0.4,
-                repeat: Infinity,
-                ease: 'easeInOut',
-                delay: node.delay,
-              }}
+            <div
               className="relative flex flex-col items-center justify-center rounded-full bg-[linear-gradient(145deg,rgba(255,255,255,0.16),rgba(255,255,255,0.035))] backdrop-blur-xl"
               style={{
+                '--float-y': `${index % 2 === 0 ? -8 : 8}px`,
+                animation: `alphamind-satellite-float ${4.2 + index * 0.4}s ease-in-out ${node.delay}s infinite`,
                 width: node.size,
                 height: node.size,
                 boxShadow: `0 0 28px ${node.glow}, inset 0 0 18px rgba(255,255,255,0.1), inset 0 -14px 24px rgba(0,0,0,0.22)`,
-              }}
+              } as CSSProperties}
             >
               <div
                 className="absolute inset-0 rounded-full opacity-65"
@@ -231,7 +204,7 @@ function CognitiveTopology() {
                 <div className="text-[11px] font-medium text-white/82">{node.label}</div>
                 <div className="mt-1 text-[8px] uppercase tracking-[0.16em] text-white/38">{node.subtitle}</div>
               </div>
-            </motion.div>
+            </div>
           </div>
         );
       })}

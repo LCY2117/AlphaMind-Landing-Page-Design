@@ -8,6 +8,7 @@ import { AIAdvisorDemo } from './components/AIAdvisorDemo';
 import { RiskAssessment } from './components/RiskAssessment';
 import { LoginModal } from './components/LoginModal';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const PAGE_NAMES = ['首页', '对话投顾', '风险测试', '核心功能'];
 const PAGE_NAV_ITEMS = [
@@ -235,49 +236,51 @@ export default function App() {
 
 
   return (
-    <AuthProvider>
-      <div className="relative w-full min-h-screen bg-[#1F1410] text-white font-sans">
-        {/* Navigation - always visible */}
-        <Navigation />
+    <ThemeProvider>
+      <AuthProvider>
+        <div className="relative w-full min-h-screen bg-[#1F1410] text-white font-sans">
+          {/* Navigation - always visible */}
+          <Navigation />
 
-        {/* Page Content with Transitions */}
-        <div className="relative w-full min-h-screen pt-14 sm:pt-16 bg-[#1F1410]">
-          <div className="relative h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden">
-            <AnimatePresence initial={false} custom={direction}>
-              <motion.div
-                key={currentPage}
-                custom={direction}
-                variants={pageStackVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={PAGE_TRANSITION}
-                className="absolute inset-0 min-w-0 overflow-hidden bg-[#1F1410] will-change-transform [backface-visibility:hidden] [transform:translate3d(0,0,0)]"
-              >
-                <div className="relative z-0 h-full overflow-y-auto">
-                  {pages[currentPage].component}
-                </div>
+          {/* Page Content with Transitions */}
+          <div className="relative w-full min-h-screen pt-14 sm:pt-16 bg-[#1F1410]">
+            <div className="relative h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden">
+              <AnimatePresence initial={false} custom={direction}>
+                <motion.div
+                  key={currentPage}
+                  custom={direction}
+                  variants={pageStackVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={PAGE_TRANSITION}
+                  className="absolute inset-0 min-w-0 overflow-hidden bg-[#1F1410] will-change-transform [backface-visibility:hidden] [transform:translate3d(0,0,0)]"
+                >
+                  <div className="relative z-0 h-full overflow-y-auto">
+                    {pages[currentPage].component}
+                  </div>
 
-                <motion.div
-                  custom={direction}
-                  variants={pageDimVariants}
-                  transition={PAGE_TRANSITION}
-                  className="pointer-events-none absolute inset-0 z-10 bg-black"
-                />
-                <motion.div
-                  custom={direction}
-                  variants={pageEdgeShadowVariants}
-                  transition={PAGE_TRANSITION}
-                  className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-black/45 to-transparent"
-                />
-              </motion.div>
-            </AnimatePresence>
+                  <motion.div
+                    custom={direction}
+                    variants={pageDimVariants}
+                    transition={PAGE_TRANSITION}
+                    className="pointer-events-none absolute inset-0 z-10 bg-black"
+                  />
+                  <motion.div
+                    custom={direction}
+                    variants={pageEdgeShadowVariants}
+                    transition={PAGE_TRANSITION}
+                    className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-black/45 to-transparent"
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
 
-        {/* Global Login Modal */}
-        <LoginModal />
-      </div>
-    </AuthProvider>
+          {/* Global Login Modal */}
+          <LoginModal />
+        </div>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
