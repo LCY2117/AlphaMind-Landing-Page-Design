@@ -1,6 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, Image as ImageIcon, Send, Plus, MessageSquare, Trash2, Menu, ArrowUp } from 'lucide-react';
+import {
+  Home,
+  Image as ImageIcon,
+  Menu,
+  Mic,
+  Plus,
+  MessageSquare,
+  Sparkles,
+  Target,
+  Trash2,
+  ArrowUp,
+  X,
+} from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const mockMessages = [
@@ -58,10 +70,23 @@ interface Session {
   };
 }
 
+interface AIAdvisorDemoProps {
+  currentPage?: number;
+  onNavigate?: (page: number) => void;
+  newChatRequest?: number;
+}
+
 const mockSessions: Session[] = [
   { id: '089', title: '股票投资咨询', timestamp: '2小时前', messages: mockMessages, userProfile: { age: 30, amount: 200000 } },
   { id: '092', title: '退休规划', timestamp: '昨天', messages: [] },
   { id: '093', title: '基金定投', timestamp: '3天前', messages: [] },
+];
+
+const globalNavItems = [
+  { label: '首页', page: 0, icon: Home },
+  { label: '对话投顾', page: 1, icon: MessageSquare },
+  { label: '风险测试', page: 2, icon: Target },
+  { label: '核心功能', page: 3, icon: Sparkles },
 ];
 
 const quickQuestions = [
@@ -103,7 +128,7 @@ const getSmartGreeting = () => {
   return '晚上好';
 };
 
-export function AIAdvisorDemo() {
+export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 }: AIAdvisorDemoProps) {
   const [sessions, setSessions] = useState<Session[]>(() => {
     try {
       const saved = localStorage.getItem('alphamind_sessions');
@@ -131,10 +156,11 @@ export function AIAdvisorDemo() {
   const [typingText, setTypingText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastNewChatRequestRef = useRef(newChatRequest);
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
+      if (window.innerWidth < 768) {
         setShowSidebar(false);
       }
     };
@@ -161,6 +187,17 @@ export function AIAdvisorDemo() {
     ];
   };
 
+  const closeMobileSidebar = () => {
+    if (window.innerWidth < 768) {
+      setShowSidebar(false);
+    }
+  };
+
+  const handlePageNavigate = (page: number) => {
+    onNavigate?.(page);
+    closeMobileSidebar();
+  };
+
   const createNewSession = () => {
     const newSession: Session = {
       id: String(Math.floor(Math.random() * 900) + 100),
@@ -181,6 +218,13 @@ export function AIAdvisorDemo() {
       console.error('Failed to save sessions:', e);
     }
   };
+
+  useEffect(() => {
+    if (newChatRequest === lastNewChatRequestRef.current) return;
+
+    lastNewChatRequestRef.current = newChatRequest;
+    createNewSession();
+  }, [newChatRequest]);
 
   const switchSession = (sessionId: string) => {
     const session = sessions.find(s => s.id === sessionId);
@@ -387,7 +431,7 @@ export function AIAdvisorDemo() {
   };
 
   return (
-    <section id="demo" className="w-full h-screen bg-[#121212] flex overflow-hidden">
+    <section id="demo" className="w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] bg-[#121212] flex overflow-hidden">
       {/* Backdrop for mobile sidebar */}
       <AnimatePresence>
         {showSidebar && (
@@ -409,18 +453,37 @@ export function AIAdvisorDemo() {
             animate={{ x: 0 }}
             exit={{ x: -280 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed lg:relative left-0 top-0 bottom-0 w-64 bg-[#1E1E1E] border-r border-white/5 z-50 lg:z-auto flex flex-col"
+            className="fixed md:relative left-0 top-0 bottom-0 w-64 bg-[#1E1E1E] border-r border-white/5 z-50 md:z-auto flex flex-col"
           >
-            {/* New Chat Button */}
-            <div className="p-3">
+            <div className="p-3 border-b border-white/5">
+              <div className="space-y-1">
+                {globalNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPage === item.page;
+
+                  return (
+                    <button
+                      key={item.label}
+                      onClick={() => handlePageNavigate(item.page)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                        isActive
+                          ? 'bg-[#C44536]/15 text-white'
+                          : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+                      }`}
+                    >
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <button
                 onClick={() => {
                   createNewSession();
-                  if (window.innerWidth < 1024) {
-                    setShowSidebar(false);
-                  }
+                  closeMobileSidebar();
                 }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/90 rounded-lg transition-all"
+                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/90 rounded-lg transition-all"
               >
                 <Plus size={18} />
                 <span className="text-sm font-medium">开启新对话</span>
@@ -428,7 +491,8 @@ export function AIAdvisorDemo() {
             </div>
 
             {/* Sessions List */}
-            <div className="flex-1 overflow-y-auto px-2">
+            <div className="flex-1 overflow-y-auto px-2 py-3">
+              <div className="px-2 pb-2 text-xs font-medium text-white/35">历史记录</div>
               <div className="space-y-1">
                 {sessions.map((session) => (
                   <motion.div
@@ -438,9 +502,7 @@ export function AIAdvisorDemo() {
                     <button
                       onClick={() => {
                         switchSession(session.id);
-                        if (window.innerWidth < 1024) {
-                          setShowSidebar(false);
-                        }
+                        closeMobileSidebar();
                       }}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
                         currentSessionId === session.id
@@ -473,9 +535,9 @@ export function AIAdvisorDemo() {
       </AnimatePresence>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-screen">
+      <div className="flex-1 flex flex-col h-full min-h-0">
         {/* Mobile Menu Button */}
-        <div className="lg:hidden p-3 border-b border-white/5">
+        <div className="md:hidden p-3 border-b border-white/5">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             className="p-2 hover:bg-white/5 rounded-lg transition-colors"
@@ -485,8 +547,8 @@ export function AIAdvisorDemo() {
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 pt-8 pb-40 sm:pb-44">
             {messages.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -691,8 +753,8 @@ export function AIAdvisorDemo() {
           </div>
         </div>
 
-        {/* Fixed Input Area */}
-        <div className="border-t border-white/5 bg-[#121212]/80 backdrop-blur-xl">
+        {/* Sticky Input Area */}
+        <div className="sticky bottom-0 z-20 border-t border-white/5 bg-[rgba(18,18,18,0.82)] backdrop-blur-xl shadow-[0_-18px_40px_rgba(18,18,18,0.45)]">
           <div className="max-w-3xl mx-auto px-4 py-4">
             {uploadedImage && (
               <div className="mb-3 relative inline-block">
