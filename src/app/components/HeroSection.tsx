@@ -1,36 +1,45 @@
 import { motion } from 'motion/react';
 import { TrendingUp, Brain, Shield } from 'lucide-react';
 import { CodeRain, StockLines, DataStream, HexGrid } from './TechVisualization';
+import { useAuth } from '../contexts/AuthContext';
 
 export function HeroSection() {
+  const { isAuthenticated, openLoginModal } = useAuth();
+
+  const handleStartExperience = () => {
+    if (!isAuthenticated) {
+      openLoginModal();
+    } else {
+      const event = new CustomEvent('navigate-to-page', { detail: 1 });
+      window.dispatchEvent(event);
+    }
+  };
+
   return (
-    <section id="home" className="w-full h-full flex items-center bg-gradient-to-br from-[#1F1410] via-[#2D1B13] to-[#1F1410]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+    <section id="home" className="w-full min-h-screen flex items-center bg-gradient-to-br from-[#1F1410] via-[#2D1B13] to-[#1F1410]">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20">
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 md:gap-10 lg:gap-12 items-center">
           {/* Left: Text Content */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
-            className="space-y-6"
+            className="space-y-3 sm:space-y-4 md:space-y-6 order-2 lg:order-1"
           >
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
               认知驱动的<span className="text-[#C44536]">财富管理</span>
               <br />
               从工具到伴侣的进化
             </h1>
-            <p className="text-lg sm:text-xl text-gray-400">
+            <p className="text-base sm:text-lg md:text-xl text-gray-400">
               基于千亿级金融语料大模型，精准捕捉动态交易意图
             </p>
-            <div className="flex flex-wrap gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  const event = new CustomEvent('navigate-to-page', { detail: 1 });
-                  window.dispatchEvent(event);
-                }}
-                className="px-8 py-4 bg-[#C44536] text-white rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.5)] transition-shadow"
+                onClick={handleStartExperience}
+                className="px-6 sm:px-8 py-3 sm:py-4 bg-[#C44536] text-white rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.5)] transition-shadow text-sm sm:text-base"
               >
                 开始体验
               </motion.button>
@@ -41,7 +50,7 @@ export function HeroSection() {
                   const event = new CustomEvent('navigate-to-page', { detail: 3 });
                   window.dispatchEvent(event);
                 }}
-                className="px-8 py-4 border-2 border-[#C44536] text-[#C44536] rounded-lg font-semibold hover:bg-[#C44536]/10 transition-colors"
+                className="px-6 sm:px-8 py-3 sm:py-4 border-2 border-[#C44536] text-[#C44536] rounded-lg font-semibold hover:bg-[#C44536]/10 transition-colors text-sm sm:text-base"
               >
                 了解更多
               </motion.button>
@@ -53,9 +62,9 @@ export function HeroSection() {
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative"
+            className="relative order-1 lg:order-2"
           >
-            <div className="relative w-full aspect-square max-w-md mx-auto">
+            <div className="relative w-full aspect-square max-w-[280px] sm:max-w-sm md:max-w-md mx-auto">
               {/* Tech background effects */}
               <HexGrid />
               <CodeRain />

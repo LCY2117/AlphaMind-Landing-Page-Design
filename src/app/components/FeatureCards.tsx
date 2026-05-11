@@ -24,19 +24,19 @@ const features = [
 
 export function FeatureCards() {
   return (
-    <section className="w-full h-full flex items-center bg-[#1F1410] overflow-y-auto">
-      <div className="w-full py-20">
+    <section className="w-full min-h-screen flex items-center bg-[#1F1410]">
+      <div className="w-full py-12 sm:py-16 lg:py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-3xl sm:text-4xl font-bold text-center text-white mb-12"
+          className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center text-white mb-8 sm:mb-10 lg:mb-12"
         >
           核心功能
         </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
@@ -49,16 +49,16 @@ export function FeatureCards() {
                 whileHover={{ y: -10 }}
                 className="relative group"
               >
-                <div className="relative bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10 hover:border-[#C44536]/50 transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(196,69,54,0.2)]">
-                  <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                    <Icon size={32} className="text-white" />
+                <div className="relative bg-white/5 backdrop-blur-lg rounded-2xl p-6 sm:p-8 border border-white/10 hover:border-[#C44536]/50 transition-all duration-300 shadow-lg hover:shadow-[0_0_30px_rgba(196,69,54,0.2)]">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 sm:mb-6 group-hover:scale-110 transition-transform`}>
+                    <Icon size={28} className="text-white sm:w-8 sm:h-8" />
                   </div>
 
-                  <h3 className="text-xl font-bold text-white mb-3">
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">
                     {feature.title}
                   </h3>
 
-                  <p className="text-gray-400 leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-400 leading-relaxed">
                     {feature.description}
                   </p>
 

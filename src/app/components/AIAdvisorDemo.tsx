@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mic, Image as ImageIcon, History, Send, HelpCircle, AlertCircle, Upload, X, CheckCircle, Plus, MessageSquare, Trash2 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Area, AreaChart } from 'recharts';
+import { Mic, Image as ImageIcon, Send, Plus, MessageSquare, Trash2, Menu, ArrowUp } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 const mockMessages = [
   {
@@ -37,15 +37,6 @@ const mockMessages = [
   },
 ];
 
-const riskTrendData = [
-  { month: '1月', risk: 45 },
-  { month: '2月', risk: 52 },
-  { month: '3月', risk: 48 },
-  { month: '4月', risk: 55 },
-  { month: '5月', risk: 65 },
-];
-
-// Market trend data for inline charts
 const marketTrendData = [
   { date: '1/1', value: 3200 },
   { date: '2/1', value: 3350 },
@@ -80,7 +71,6 @@ const quickQuestions = [
   { icon: '💎', text: '推荐适合我的基金', category: 'product' },
 ];
 
-// Smart intent detection
 const detectIntent = (text: string) => {
   const lowerText = text.toLowerCase();
   if (lowerText.includes('风险') || lowerText.includes('波动')) return 'risk_assessment';
@@ -91,30 +81,21 @@ const detectIntent = (text: string) => {
   return 'general';
 };
 
-// Extract user info from text
 const extractUserInfo = (text: string) => {
   const info: any = {};
-
-  // Extract age
   const ageMatch = text.match(/(\d+)岁|年龄\s*(\d+)|我\s*(\d+)/);
   if (ageMatch) {
     info.age = parseInt(ageMatch[1] || ageMatch[2] || ageMatch[3]);
   }
-
-  // Extract amount
   const amountMatch = text.match(/(\d+)万/);
   if (amountMatch) {
     info.amount = parseInt(amountMatch[1]) * 10000;
   }
-
-  // Risk tolerance
   if (text.includes('保守') || text.includes('稳健')) info.riskTolerance = '保守型';
   if (text.includes('波动') || text.includes('激进') || text.includes('进取')) info.riskTolerance = '进取型';
-
   return info;
 };
 
-// Get smart greeting based on time
 const getSmartGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return '早上好';
@@ -123,7 +104,6 @@ const getSmartGreeting = () => {
 };
 
 export function AIAdvisorDemo() {
-  // Load sessions from localStorage on mount
   const [sessions, setSessions] = useState<Session[]>(() => {
     try {
       const saved = localStorage.getItem('alphamind_sessions');
@@ -142,14 +122,30 @@ export function AIAdvisorDemo() {
   const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(() => {
+    return typeof window !== 'undefined' && window.innerWidth >= 1024;
+  });
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [userProfile, setUserProfile] = useState<any>({});
   const [isTyping, setIsTyping] = useState(false);
   const [typingText, setTypingText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Generate smart suggested questions based on conversation context
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setShowSidebar(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
   const generateSuggestions = (lastMessage: any) => {
     if (lastMessage.type === 'analysis') {
       return [
@@ -179,7 +175,6 @@ export function AIAdvisorDemo() {
     setMessages([]);
     setUserProfile({});
 
-    // Save to localStorage
     try {
       localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
     } catch (e) {
@@ -198,21 +193,17 @@ export function AIAdvisorDemo() {
 
   const deleteSession = (sessionId: string, event: React.MouseEvent) => {
     event.stopPropagation();
-
-    // Don't delete if it's the only session
     if (sessions.length <= 1) return;
 
     const updatedSessions = sessions.filter(s => s.id !== sessionId);
     setSessions(updatedSessions);
 
-    // Save to localStorage
     try {
       localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
     } catch (e) {
       console.error('Failed to save sessions:', e);
     }
 
-    // If deleting current session, switch to first available
     if (currentSessionId === sessionId) {
       const firstSession = updatedSessions[0];
       setCurrentSessionId(firstSession.id);
@@ -224,13 +215,11 @@ export function AIAdvisorDemo() {
   const handleSend = (questionText?: string) => {
     const messageText = questionText || input;
     if (messageText.trim() || uploadedImage) {
-      // Extract user information intelligently
       const extractedInfo = extractUserInfo(messageText);
       if (Object.keys(extractedInfo).length > 0) {
         setUserProfile({ ...userProfile, ...extractedInfo });
       }
 
-      // Detect intent
       const intent = detectIntent(messageText);
 
       const userMessage: any = {
@@ -248,12 +237,10 @@ export function AIAdvisorDemo() {
       setSuggestedQuestions([]);
       setIsAnalyzing(true);
 
-      // Simulate typing effect and intelligent response
       setTimeout(() => {
         setIsTyping(true);
         const shouldShowChart = intent === 'allocation' || Math.random() > 0.6;
 
-        // Generate personalized response based on intent and user profile
         let responseContent = '';
         let reasons = [];
 
@@ -287,7 +274,6 @@ export function AIAdvisorDemo() {
           ];
         }
 
-        // Simulate typing
         let currentIndex = 0;
         const typingInterval = setInterval(() => {
           if (currentIndex <= responseContent.length) {
@@ -297,7 +283,6 @@ export function AIAdvisorDemo() {
             clearInterval(typingInterval);
             setIsTyping(false);
 
-            // Generate analysis message
             const riskScore = Math.floor(Math.random() * 40) + 50;
             const analysisMessage = {
               role: 'assistant',
@@ -320,7 +305,6 @@ export function AIAdvisorDemo() {
               ],
             };
 
-            // Ensure portfolio values sum to 100
             const total = analysisMessage.portfolio.reduce((sum, item) => sum + item.value, 0);
             analysisMessage.portfolio = analysisMessage.portfolio.map(item => ({
               ...item,
@@ -330,10 +314,8 @@ export function AIAdvisorDemo() {
             const updatedMessages = [...newMessages, analysisMessage];
             setMessages(updatedMessages);
 
-            // Generate smart suggestions for next question
             setSuggestedQuestions(generateSuggestions(analysisMessage));
 
-            // Update session with persistence
             const updatedSessions = sessions.map(s =>
               s.id === currentSessionId
                 ? {
@@ -347,7 +329,6 @@ export function AIAdvisorDemo() {
             );
             setSessions(updatedSessions);
 
-            // Save to localStorage for persistence
             try {
               localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
             } catch (e) {
@@ -389,7 +370,6 @@ export function AIAdvisorDemo() {
 
       recognition.start();
     } else {
-      // Fallback for browsers without speech recognition
       setInput('我想投资股票和债券');
     }
   };
@@ -400,7 +380,6 @@ export function AIAdvisorDemo() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setUploadedImage(reader.result as string);
-        // Simulate OCR recognition
         setInput('识别到：资产负债表 - 总资产: ¥500,000, 负债: ¥100,000');
       };
       reader.readAsDataURL(file);
@@ -408,301 +387,254 @@ export function AIAdvisorDemo() {
   };
 
   return (
-    <section id="demo" className="w-full h-full bg-gradient-to-b from-[#1F1410] to-[#2D1B13] overflow-y-auto">
-      <div className="w-full py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.h2
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-3xl sm:text-4xl font-bold text-center text-white mb-12"
-        >
-          对话式智能投顾
-        </motion.h2>
+    <section id="demo" className="w-full h-screen bg-[#121212] flex overflow-hidden">
+      {/* Backdrop for mobile sidebar */}
+      <AnimatePresence>
+        {showSidebar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowSidebar(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          />
+        )}
+      </AnimatePresence>
 
-        <div className="flex gap-6">
-          {/* Left Sidebar: Session History */}
-          <AnimatePresence>
-            {showSidebar && (
-              <motion.div
-                initial={{ x: -280, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -280, opacity: 0 }}
-                className="w-64 flex-shrink-0"
+      {/* Left Sidebar */}
+      <AnimatePresence>
+        {showSidebar && (
+          <motion.aside
+            initial={{ x: -280 }}
+            animate={{ x: 0 }}
+            exit={{ x: -280 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed lg:relative left-0 top-0 bottom-0 w-64 bg-[#1E1E1E] border-r border-white/5 z-50 lg:z-auto flex flex-col"
+          >
+            {/* New Chat Button */}
+            <div className="p-3">
+              <button
+                onClick={() => {
+                  createNewSession();
+                  if (window.innerWidth < 1024) {
+                    setShowSidebar(false);
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/90 rounded-lg transition-all"
               >
-                <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 space-y-3">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-gray-400 uppercase">智能投顾</h3>
-                  </div>
+                <Plus size={18} />
+                <span className="text-sm font-medium">开启新对话</span>
+              </button>
+            </div>
 
-                  <button
-                    onClick={createNewSession}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#C44536] to-orange-600 text-white rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.4)] transition-all"
+            {/* Sessions List */}
+            <div className="flex-1 overflow-y-auto px-2">
+              <div className="space-y-1">
+                {sessions.map((session) => (
+                  <motion.div
+                    key={session.id}
+                    className="relative group"
                   >
-                    <Plus size={18} />
-                    <span>新对话</span>
-                  </button>
+                    <button
+                      onClick={() => {
+                        switchSession(session.id);
+                        if (window.innerWidth < 1024) {
+                          setShowSidebar(false);
+                        }
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
+                        currentSessionId === session.id
+                          ? 'bg-white/10 text-white'
+                          : 'text-white/60 hover:bg-white/5 hover:text-white/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <MessageSquare size={14} />
+                        <span className="text-xs opacity-60">#{session.id}</span>
+                      </div>
+                      <p className="text-sm truncate pr-6">{session.title}</p>
+                      <p className="text-xs opacity-40 mt-1">{session.timestamp}</p>
+                    </button>
 
-                  <div className="space-y-2 pt-2">
-                    <p className="text-xs text-gray-500 uppercase px-2">历史会话</p>
-                    {sessions.map((session) => (
-                      <motion.div
-                        key={session.id}
-                        className="relative group"
+                    {sessions.length > 1 && (
+                      <button
+                        className="absolute top-2 right-2 p-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => deleteSession(session.id, e)}
                       >
-                        <motion.button
-                          onClick={() => switchSession(session.id)}
-                          whileHover={{ x: 4 }}
-                          className={`w-full text-left px-3 py-2.5 rounded-lg transition-all ${
-                            currentSessionId === session.id
-                              ? 'bg-[#C44536]/20 border border-[#C44536]/50 text-[#C44536]'
-                              : 'bg-white/5 border border-transparent text-gray-400 hover:bg-white/10'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <MessageSquare size={14} />
-                            <span className="text-xs font-mono">#{session.id}</span>
-                          </div>
-                          <p className="text-sm truncate pr-6">{session.title}</p>
-                          <p className="text-xs text-gray-500 mt-1">{session.timestamp}</p>
-                        </motion.button>
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
-                        {/* Delete button */}
-                        {sessions.length > 1 && (
-                          <motion.button
-                            initial={{ opacity: 0 }}
-                            whileHover={{ scale: 1.1 }}
-                            className="absolute top-2 right-2 p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => deleteSession(session.id, e)}
-                          >
-                            <Trash2 size={12} />
-                          </motion.button>
-                        )}
-                      </motion.div>
-                    ))}
-                  </div>
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-screen">
+        {/* Mobile Menu Button */}
+        <div className="lg:hidden p-3 border-b border-white/5">
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+          >
+            <Menu size={20} className="text-white/60" />
+          </button>
+        </div>
+
+        {/* Messages Container */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 py-8">
+            {messages.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8"
+              >
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center">
+                  <span className="text-3xl">🤖</span>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">{getSmartGreeting()}！我是 AlphaMind AI</h2>
+                  <p className="text-white/50">您的专属智能投资顾问</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md mt-8">
+                  {quickQuestions.map((q, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSend(q.text)}
+                      className="p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-left"
+                    >
+                      <div className="text-2xl mb-2">{q.icon}</div>
+                      <p className="text-sm text-white/70">{q.text}</p>
+                    </button>
+                  ))}
                 </div>
               </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Main Chat Interface */}
-          <div className="flex-1 min-w-0">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white/5 backdrop-blur-lg rounded-2xl border-2 border-[#FFA500]/30 overflow-hidden flex flex-col shadow-[0_0_30px_rgba(255,165,0,0.15)]"
-              style={{ height: '700px' }}
-            >
-              {/* Chat Header */}
-              <div className="bg-gradient-to-r from-[#FFA500]/20 to-transparent px-6 py-4 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowSidebar(!showSidebar)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <History size={20} className="text-[#C44536]" />
-                  </button>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">AI 智能投顾</h3>
-                    <p className="text-xs text-gray-400">会话 #{currentSessionId}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={createNewSession}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-[#C44536] rounded-lg transition-colors text-sm flex items-center gap-2"
-                >
-                  <Plus size={16} />
-                  新对话
-                </button>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
-                {messages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="w-20 h-20 rounded-full bg-gradient-to-br from-[#C44536] to-amber-700 flex items-center justify-center"
-                    >
-                      <span className="text-4xl">🤖</span>
-                    </motion.div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-white mb-2">{getSmartGreeting()}！我是 AlphaMind AI</h3>
-                      <p className="text-gray-400">您的专属智能投资顾问，让我帮您规划财富未来</p>
-                    </div>
-
-                    {/* Quick question cards */}
-                    <div className="grid grid-cols-2 gap-3 max-w-md mt-8">
-                      {quickQuestions.map((q, idx) => (
-                        <motion.button
-                          key={idx}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.1 }}
-                          onClick={() => handleSend(q.text)}
-                          className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#C44536]/50 rounded-xl transition-all text-left group"
-                        >
-                          <div className="text-2xl mb-2">{q.icon}</div>
-                          <p className="text-sm text-gray-300 group-hover:text-white transition-colors">{q.text}</p>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
+            ) : (
+              <div className="space-y-6">
                 {messages.map((message, index) => (
                   <motion.div
-                    key={`message-${index}-${message.role}`}
+                    key={`message-${index}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="space-y-2"
                   >
-                    {/* User/Bot Label */}
-                    <div className={`text-xs font-semibold ${message.role === 'user' ? 'text-[#C44536]' : 'text-[#FFA500]'}`}>
-                      {message.role === 'user' ? 'B:' : 'AI:'}
-                    </div>
-
-                    <div className={`${message.role === 'user' ? '' : 'border-2 border-[#FFA500]/40 rounded-xl p-4 bg-gradient-to-br from-[#FFA500]/5 to-transparent'}`}>
-                      {message.role === 'user' ? (
-                        <div className="bg-[#C44536]/10 border border-[#C44536]/30 text-white px-4 py-3 rounded-xl space-y-2">
+                    {message.role === 'user' ? (
+                      <div className="flex justify-end">
+                        <div className="max-w-[80%] bg-[#C44536]/10 rounded-2xl px-4 py-3">
                           {message.imageUrl && (
-                            <img src={message.imageUrl} alt="Uploaded" className="w-full rounded-lg max-h-32 object-cover" />
+                            <img src={message.imageUrl} alt="Uploaded" className="w-full rounded-lg mb-2 max-h-32 object-cover" />
                           )}
-                          <div>{message.content}</div>
+                          <p className="text-white/90 text-sm">{message.content}</p>
                         </div>
-                      ) : message.type === 'analysis' ? (
-                        <div className="space-y-4">
-                          <div className="text-white">{message.content}</div>
-
-                          {/* Inline Chart - inspired by your classmate's demo */}
-                          {message.showInlineChart && (
-                            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                              <div className="w-full" style={{ height: '150px' }}>
-                                <ResponsiveContainer width="100%" height={150}>
-                                  <AreaChart data={marketTrendData}>
-                                    <defs>
-                                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#C44536" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#C44536" stopOpacity={0}/>
-                                      </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                    <XAxis dataKey="date" stroke="#C44536" style={{ fontSize: '10px' }} />
-                                    <YAxis stroke="#C44536" style={{ fontSize: '10px' }} />
-                                    <Tooltip
-                                      contentStyle={{
-                                        backgroundColor: 'rgba(31, 20, 16, 0.9)',
-                                        border: '1px solid rgba(100, 255, 218, 0.3)',
-                                        borderRadius: '8px',
-                                      }}
-                                    />
-                                    <Area type="monotone" dataKey="value" stroke="#C44536" fillOpacity={1} fill="url(#colorValue)" />
-                                  </AreaChart>
-                                </ResponsiveContainer>
-                              </div>
-                              <p className="text-xs text-gray-400 mt-2 text-center">市场趋势图 - 近6个月</p>
-                            </div>
-                          )}
-
-                          {/* M3 Risk Prediction Badge */}
-                          <div className="flex items-center gap-2 text-xs flex-wrap">
-                            <span className="px-3 py-1.5 bg-amber-600/20 text-amber-400 rounded-full font-semibold border border-amber-600/30">
-                              🎯 M3风险评分: {message.riskScore}/100
-                            </span>
-                            <span className="px-3 py-1.5 bg-[#C44536]/20 text-[#C44536] rounded-full font-semibold border border-[#C44536]/30">
-                              📊 {message.riskLevel}
-                            </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm">🤖</span>
                           </div>
+                          <div className="flex-1 space-y-3">
+                            <p className="text-white/90 text-sm leading-relaxed">{message.content}</p>
 
-                          {/* Inline Portfolio Chart */}
-                          <div className="bg-white/5 rounded-lg p-4 border border-[#FFA500]/20">
-                            <h4 className="text-sm font-semibold text-white mb-3">💼 M4 资产配置建议</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="w-full" style={{ height: '160px' }}>
-                                <ResponsiveContainer width="100%" height={160}>
-                                  <PieChart>
-                                    <Pie
-                                      data={message.portfolio}
-                                      cx="50%"
-                                      cy="50%"
-                                      innerRadius={30}
-                                      outerRadius={60}
-                                      fill="#8884d8"
-                                      dataKey="value"
-                                      label={(entry) => `${entry.value}%`}
-                                    >
-                                      {message.portfolio.map((entry: any, idx: number) => (
-                                        <Cell key={`inline-cell-${entry.name}-${idx}`} fill={entry.color} />
+                            {message.type === 'analysis' && (
+                              <>
+                                {message.showInlineChart && (
+                                  <div className="bg-white/5 rounded-xl p-4">
+                                    <ResponsiveContainer width="100%" height={150}>
+                                      <AreaChart data={marketTrendData}>
+                                        <defs>
+                                          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#C44536" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#C44536" stopOpacity={0}/>
+                                          </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                        <XAxis dataKey="date" stroke="#666" style={{ fontSize: '10px' }} />
+                                        <YAxis stroke="#666" style={{ fontSize: '10px' }} />
+                                        <Tooltip
+                                          contentStyle={{
+                                            backgroundColor: '#1E1E1E',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                          }}
+                                        />
+                                        <Area type="monotone" dataKey="value" stroke="#C44536" fillOpacity={1} fill="url(#colorValue)" />
+                                      </AreaChart>
+                                    </ResponsiveContainer>
+                                    <p className="text-xs text-white/40 mt-2 text-center">市场趋势图 - 近6个月</p>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="px-3 py-1 bg-amber-600/10 text-amber-400 rounded-full text-xs">
+                                    🎯 M3风险评分: {message.riskScore}/100
+                                  </span>
+                                  <span className="px-3 py-1 bg-[#C44536]/10 text-[#C44536] rounded-full text-xs">
+                                    📊 {message.riskLevel}
+                                  </span>
+                                </div>
+
+                                <div className="bg-white/5 rounded-xl p-4">
+                                  <h4 className="text-sm font-medium text-white/90 mb-3">💼 资产配置建议</h4>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <ResponsiveContainer width="100%" height={140}>
+                                      <PieChart>
+                                        <Pie
+                                          data={message.portfolio}
+                                          cx="50%"
+                                          cy="50%"
+                                          innerRadius={25}
+                                          outerRadius={50}
+                                          dataKey="value"
+                                          label={(entry) => `${entry.value}%`}
+                                        >
+                                          {message.portfolio.map((entry: any, idx: number) => (
+                                            <Cell key={`cell-${idx}`} fill={entry.color} />
+                                          ))}
+                                        </Pie>
+                                      </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="flex flex-col justify-center space-y-2">
+                                      {message.portfolio.map((item: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between text-xs">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                                            <span className="text-white/70">{item.name}</span>
+                                          </div>
+                                          <span className="text-white/90 font-medium">{item.value}%</span>
+                                        </div>
                                       ))}
-                                    </Pie>
-                                    <Tooltip />
-                                  </PieChart>
-                                </ResponsiveContainer>
-                              </div>
-                              <div className="flex flex-col justify-center space-y-2">
-                                {message.portfolio.map((item: any, idx: number) => (
-                                  <div key={`inline-legend-${item.name}-${idx}`} className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                                      <span className="text-gray-300">{item.name}</span>
                                     </div>
-                                    <span className="text-white font-semibold">{item.value}%</span>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
+                                </div>
 
-                          {/* LLM Reasoning */}
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-semibold text-white">💡 LLM 决策解释</h4>
-                            {message.reasons.map((reason: any, idx: number) => (
-                              <div
-                                key={`inline-reason-${idx}`}
-                                className="flex items-start gap-2 p-2 bg-white/5 rounded-lg text-sm text-gray-300"
-                              >
-                                <span>{reason.icon}</span>
-                                <p className="flex-1">{reason.text}</p>
-                              </div>
-                            ))}
-                          </div>
+                                <div className="space-y-2">
+                                  <h4 className="text-sm font-medium text-white/90">💡 决策解释</h4>
+                                  {message.reasons.map((reason: any, idx: number) => (
+                                    <div key={idx} className="flex items-start gap-2 text-sm text-white/70 bg-white/5 rounded-lg p-3">
+                                      <span>{reason.icon}</span>
+                                      <p className="flex-1">{reason.text}</p>
+                                    </div>
+                                  ))}
+                                </div>
 
-                          {/* Risk Warnings */}
-                          {message.warnings && message.warnings.length > 0 && (
-                            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                              {message.warnings.map((warning: string, idx: number) => (
-                                <p key={idx} className="text-sm text-red-300">{warning}</p>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Smart Next Steps */}
-                          {message.nextSteps && message.nextSteps.length > 0 && (
-                            <div className="space-y-2">
-                              <h4 className="text-sm font-semibold text-white">🎯 建议后续行动</h4>
-                              <div className="grid gap-2">
-                                {message.nextSteps.map((step: string, idx: number) => (
-                                  <div
-                                    key={`next-step-${idx}`}
-                                    className="flex items-center gap-2 p-2 bg-[#C44536]/5 border border-[#C44536]/20 rounded-lg text-sm text-gray-300"
-                                  >
-                                    <CheckCircle size={14} className="text-[#C44536] flex-shrink-0" />
-                                    <span>{step}</span>
+                                {message.warnings && message.warnings.length > 0 && (
+                                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                    {message.warnings.map((warning: string, idx: number) => (
+                                      <p key={idx} className="text-sm text-red-300">{warning}</p>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="text-white">
-                          {message.content}
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </motion.div>
                 ))}
 
@@ -710,145 +642,116 @@ export function AIAdvisorDemo() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="space-y-2"
+                    className="flex items-start gap-3"
                   >
-                    <div className="text-xs font-semibold text-[#FFA500]">AI:</div>
-                    <div className="border-2 border-[#FFA500]/40 rounded-xl p-4 bg-gradient-to-br from-[#FFA500]/5 to-transparent">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm">🤖</span>
+                    </div>
+                    <div className="flex-1">
                       {isTyping ? (
-                        <div className="text-white">
-                          <p className="text-sm">{typingText}<motion.span
+                        <p className="text-white/90 text-sm">
+                          {typingText}
+                          <motion.span
                             animate={{ opacity: [1, 0] }}
                             transition={{ duration: 0.5, repeat: Infinity }}
-                          >|</motion.span></p>
-                        </div>
+                          >|</motion.span>
+                        </p>
                       ) : (
-                        <div className="flex items-center gap-3 text-white">
+                        <div className="flex items-center gap-2 text-white/50">
                           <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-5 h-5 border-2 border-[#C44536] border-t-transparent rounded-full"
+                            className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full"
                           />
-                          <span className="text-sm">正在调用 M3 风险预测 + M4 资产配置 + LLM 解释...</span>
+                          <span className="text-sm">正在分析...</span>
                         </div>
                       )}
                     </div>
                   </motion.div>
                 )}
 
-                {/* Smart suggested questions */}
                 {suggestedQuestions.length > 0 && !isAnalyzing && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-wrap gap-2"
-                  >
-                    <span className="text-xs text-gray-500">💡 您可能还想问：</span>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-white/40 w-full mb-1">💡 您可能还想问：</span>
                     {suggestedQuestions.map((q, idx) => (
-                      <motion.button
+                      <button
                         key={idx}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         onClick={() => handleSend(q)}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-[#C44536]/10 border border-white/10 hover:border-[#C44536]/30 rounded-full text-xs text-gray-300 hover:text-[#C44536] transition-all"
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs text-white/60 hover:text-white/90 transition-all"
                       >
                         {q}
-                      </motion.button>
+                      </button>
                     ))}
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Input Area */}
-              <div className="p-4 border-t border-[#FFA500]/20 bg-gradient-to-t from-[#FFA500]/5 to-transparent">
-                {uploadedImage && (
-                  <div className="mb-3 relative inline-block">
-                    <img src={uploadedImage} alt="Preview" className="h-20 rounded-lg border-2 border-[#C44536]/30" />
-                    <button
-                      onClick={() => setUploadedImage(null)}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 shadow-lg"
-                    >
-                      <X size={14} />
-                    </button>
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 mb-3">
-                  <motion.button
-                    onClick={handleVoiceInput}
-                    animate={isListening ? { scale: [1, 1.1, 1] } : {}}
-                    transition={{ duration: 0.5, repeat: isListening ? Infinity : 0 }}
-                    className={`p-2.5 rounded-lg transition-all ${
-                      isListening
-                        ? 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                        : 'bg-white/5 text-[#C44536] hover:bg-white/10 border border-white/10'
-                    }`}
-                    title="语音输入"
-                  >
-                    <Mic size={20} />
-                  </motion.button>
-
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2.5 bg-white/5 text-[#C44536] hover:bg-white/10 rounded-lg transition-colors border border-white/10"
-                    title="上传图片 (OCR识别)"
-                  >
-                    <ImageIcon size={20} />
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !isAnalyzing && handleSend()}
-                    placeholder="请输入您的投资问题或需求..."
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#C44536]/50 focus:ring-2 focus:ring-[#C44536]/20"
-                    disabled={isAnalyzing}
-                  />
-                </div>
-
-                {/* Action Buttons - inspired by your classmate */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleSend()}
-                    disabled={isAnalyzing || isTyping || (!input.trim() && !uploadedImage)}
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#C44536] to-orange-600 text-white rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <Send size={18} />
-                    <span>{isTyping ? '正在回复...' : '提交问题'}</span>
-                  </button>
-
-                  <button
-                    onClick={createNewSession}
-                    disabled={isAnalyzing || isTyping}
-                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-[#FFA500] border border-[#FFA500]/30 rounded-lg font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <Plus size={18} />
-                    <span className="hidden sm:inline">开始新对话</span>
-                  </button>
-                </div>
-
-                {/* User Profile Display */}
-                {Object.keys(userProfile).length > 0 && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                    <span>📋 已识别信息：</span>
-                    {userProfile.age && <span className="px-2 py-1 bg-amber-600/10 text-amber-400 rounded">年龄 {userProfile.age}岁</span>}
-                    {userProfile.amount && <span className="px-2 py-1 bg-[#C44536]/10 text-[#C44536] rounded">资金 {(userProfile.amount/10000).toFixed(0)}万</span>}
-                    {userProfile.riskTolerance && <span className="px-2 py-1 bg-orange-500/10 text-orange-300 rounded">{userProfile.riskTolerance}</span>}
-                  </div>
-                )}
+                <div ref={messagesEndRef} />
               </div>
-            </motion.div>
+            )}
           </div>
-
         </div>
-      </div>
+
+        {/* Fixed Input Area */}
+        <div className="border-t border-white/5 bg-[#121212]/80 backdrop-blur-xl">
+          <div className="max-w-3xl mx-auto px-4 py-4">
+            {uploadedImage && (
+              <div className="mb-3 relative inline-block">
+                <img src={uploadedImage} alt="Preview" className="h-16 rounded-lg" />
+                <button
+                  onClick={() => setUploadedImage(null)}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-end gap-2">
+              <div className="flex-1 bg-white/5 rounded-2xl flex items-center gap-2 px-3 py-2">
+                <button
+                  onClick={handleVoiceInput}
+                  className={`p-2 rounded-lg transition-all ${
+                    isListening ? 'bg-red-500 text-white' : 'hover:bg-white/5 text-white/60'
+                  }`}
+                >
+                  <Mic size={18} />
+                </button>
+
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/60"
+                >
+                  <ImageIcon size={18} />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && !isAnalyzing && handleSend()}
+                  placeholder="输入投资问题..."
+                  className="flex-1 bg-transparent text-white/90 placeholder-white/40 focus:outline-none text-sm"
+                  disabled={isAnalyzing}
+                />
+              </div>
+
+              <button
+                onClick={() => handleSend()}
+                disabled={isAnalyzing || isTyping || (!input.trim() && !uploadedImage)}
+                className="p-3 bg-[#C44536] hover:bg-[#C44536]/90 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowUp size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

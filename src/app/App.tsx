@@ -7,6 +7,8 @@ import { AIAdvisorDemo } from './components/AIAdvisorDemo';
 import { RiskAssessment } from './components/RiskAssessment';
 import { PageNavigation } from './components/PageNavigation';
 import { FadeScaleTransition } from './components/PageTransition';
+import { LoginModal } from './components/LoginModal';
+import { AuthProvider } from './contexts/AuthContext';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState(0);
@@ -54,61 +56,65 @@ export default function App() {
 
 
   return (
-    <div className="relative w-full h-screen bg-[#1F1410] text-white font-sans overflow-hidden">
-      {/* Navigation - always visible */}
-      <Navigation />
+    <AuthProvider>
+      <div className="relative w-full min-h-screen bg-[#1F1410] text-white font-sans">
+        {/* Navigation - always visible */}
+        <Navigation />
 
-      {/* Page Content with Transitions */}
-      <div className="relative w-full h-full">
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={currentPage}
-            custom={direction}
-            initial={{
-              opacity: 0,
-              x: direction > 0 ? '100%' : '-100%',
-              scale: 0.9
-            }}
-            animate={{
-              opacity: 1,
-              x: 0,
-              scale: 1
-            }}
-            exit={{
-              opacity: 0,
-              x: direction > 0 ? '-100%' : '100%',
-              scale: 0.9
-            }}
-            transition={{
-              type: 'spring',
-              stiffness: 80,
-              damping: 18,
-              mass: 0.8
-            }}
-            className="absolute inset-0 w-full h-full"
-          >
-            {pages[currentPage].component}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Page Navigation Controls */}
-      <PageNavigation
-        currentPage={currentPage}
-        totalPages={pages.length}
-        onNavigate={handleNavigate}
-        pageNames={pages.map(p => p.name)}
-      />
-
-
-      {/* Footer - always visible */}
-      <footer className="fixed bottom-0 left-0 right-0 z-30 bg-[#1F1410]/50 backdrop-blur-sm border-t border-white/5 py-4">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-gray-500 text-xs">
-            <p>© 2026 AlphaMind. 认知驱动的财富管理平台</p>
-          </div>
+        {/* Page Content with Transitions */}
+        <div className="relative w-full min-h-screen pt-14 sm:pt-16 pb-28 sm:pb-20">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentPage}
+              custom={direction}
+              initial={{
+                opacity: 0,
+                x: direction > 0 ? '100%' : '-100%',
+                scale: 0.9
+              }}
+              animate={{
+                opacity: 1,
+                x: 0,
+                scale: 1
+              }}
+              exit={{
+                opacity: 0,
+                x: direction > 0 ? '-100%' : '100%',
+                scale: 0.9
+              }}
+              transition={{
+                type: 'spring',
+                stiffness: 80,
+                damping: 18,
+                mass: 0.8
+              }}
+              className="w-full min-h-[calc(100vh-10.5rem)] sm:min-h-[calc(100vh-9rem)]"
+            >
+              {pages[currentPage].component}
+            </motion.div>
+          </AnimatePresence>
         </div>
-      </footer>
-    </div>
+
+        {/* Page Navigation Controls */}
+        <PageNavigation
+          currentPage={currentPage}
+          totalPages={pages.length}
+          onNavigate={handleNavigate}
+          pageNames={pages.map(p => p.name)}
+        />
+
+        {/* Footer - always visible */}
+        <footer className="fixed bottom-20 sm:bottom-0 left-0 right-0 z-20 bg-[#1F1410]/80 backdrop-blur-sm border-t border-white/5 py-2 sm:py-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center text-gray-500 text-[10px] sm:text-xs">
+              <p>© 2026 AlphaMind. 认知驱动的财富管理平台</p>
+            </div>
+          </div>
+        </footer>
+
+        {/* Global Login Modal */}
+        <LoginModal />
+      </div>
+    </AuthProvider>
   );
 }
