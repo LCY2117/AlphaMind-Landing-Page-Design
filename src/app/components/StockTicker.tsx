@@ -31,7 +31,7 @@ export function StockTicker() {
   const stocks = generateStockData();
 
   return (
-    <div className="w-full bg-gradient-to-r from-[#1F1410]/90 via-[#2D1B13]/90 to-[#1F1410]/90 border-t border-b border-[#C44536]/20 py-3 overflow-hidden">
+    <div className="w-full am-nav-surface border-t border-b py-3 overflow-hidden">
       <div className="relative flex items-center">
         {/* Scrolling Container */}
         <motion.div
@@ -53,11 +53,11 @@ export function StockTicker() {
             >
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-white">{stock.symbol}</span>
-                  <span className="text-xs text-gray-500">{stock.name}</span>
+                  <span className="text-sm font-semibold am-text-primary">{stock.symbol}</span>
+                  <span className="text-xs am-text-tertiary">{stock.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-white">{stock.price}</span>
+                  <span className="text-sm font-mono am-text-primary">{stock.price}</span>
                   <div className={`flex items-center gap-1 text-xs font-semibold ${
                     stock.isUp ? 'text-[#00ff41]' : 'text-red-400'
                   }`}>
@@ -67,7 +67,7 @@ export function StockTicker() {
                   </div>
                 </div>
               </div>
-              <div className="w-px h-8 bg-white/10" />
+              <div className="w-px h-8 am-card" />
             </div>
           ))}
         </motion.div>

@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingDown, TrendingUp, Minus, Check, Target, Award, Brain, Activity, BarChart3, Zap } from 'lucide-react';
+import { TrendingDown, TrendingUp, Minus, Check, Target, Award, Brain, Activity, BarChart3, Zap, X } from 'lucide-react';
 import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
   Radar,
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -18,7 +16,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend
 } from 'recharts';
 import { StockTicker } from './StockTicker';
 
@@ -28,6 +25,52 @@ interface TestAnswer {
   riskScore: number;
   timestamp: number;
 }
+
+interface RiskProfile {
+  marketVolatility: number;
+  investmentGoal: number;
+  experience: number;
+  liquidity: number;
+  lossAcceptance: number;
+  behaviorPattern: number;
+}
+
+interface RiskAssessmentResult {
+  score: number;
+  profile: RiskProfile;
+  assessedAt: number;
+  answers: TestAnswer[];
+}
+
+const RISK_PROFILE_STORAGE_KEY = 'alphamind_risk_profile';
+
+const loadRiskProfile = (): RiskAssessmentResult | null => {
+  try {
+    const saved = localStorage.getItem(RISK_PROFILE_STORAGE_KEY);
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved);
+    if (
+      typeof parsed?.score === 'number' &&
+      parsed.profile &&
+      typeof parsed.assessedAt === 'number'
+    ) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
+const saveRiskProfile = (result: RiskAssessmentResult) => {
+  try {
+    localStorage.setItem(RISK_PROFILE_STORAGE_KEY, JSON.stringify(result));
+  } catch {
+    // Ignore storage errors in restricted browser contexts.
+  }
+};
 
 // 模拟用户历史行为数据 - 使用固定的模拟数据避免随机性
 const generateBehaviorData = () => {
@@ -272,12 +315,12 @@ export function RiskAssessment() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<TestAnswer[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [totalRiskScore, setTotalRiskScore] = useState(0);
-  const [riskProfile, setRiskProfile] = useState<any>(null);
+  const [assessmentResult, setAssessmentResult] = useState<RiskAssessmentResult | null>(loadRiskProfile);
   const [aiAnalysisSteps, setAiAnalysisSteps] = useState<string[]>([]);
   const [behaviorData] = useState(generateBehaviorData());
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [showCalibrationBanner, setShowCalibrationBanner] = useState(true);
 
   // 每次组件加载时随机选择5道题
   const [questions] = useState(() => selectRandomQuestions(allQuestions, 5));
@@ -357,10 +400,8 @@ export function RiskAssessment() {
       const recentBehaviorAvg = behaviorData.slice(-7).reduce((sum, d) => sum + d.riskScore, 0) / 7;
       const adjustedScore = avgScore * 0.7 + recentBehaviorAvg * 0.3;
 
-      setTotalRiskScore(adjustedScore);
-
       // Generate comprehensive radar chart data
-      const profile = {
+      const profile: RiskProfile = {
         marketVolatility: allAnswers.find(a => a.questionId === 1)?.riskScore || 50,
         investmentGoal: allAnswers.find(a => a.questionId === 2)?.riskScore || 50,
         experience: allAnswers.find(a => a.questionId === 3)?.riskScore || 50,
@@ -369,9 +410,19 @@ export function RiskAssessment() {
         behaviorPattern: recentBehaviorAvg,
       };
 
-      setRiskProfile(profile);
+      const result = {
+        score: adjustedScore,
+        profile,
+        assessedAt: Date.now(),
+        answers: allAnswers,
+      };
+
+      setAssessmentResult(result);
+      saveRiskProfile(result);
       setIsAnalyzing(false);
-      setShowResults(true);
+      setShowTestModal(false);
+      setCurrentQuestion(0);
+      setAnswers([]);
 
       setTimeout(() => {
         setShowAiPanel(false);
@@ -386,14 +437,24 @@ export function RiskAssessment() {
     return { level: '进取型', color: '#EF4444', icon: '🚀', desc: '追求高收益' };
   };
 
-  const radarData = riskProfile ? [
-    { id: 'market-volatility', subject: '市场波动', value: riskProfile.marketVolatility, fullMark: 100 },
-    { id: 'investment-goal', subject: '投资目标', value: riskProfile.investmentGoal, fullMark: 100 },
-    { id: 'experience', subject: '投资经验', value: riskProfile.experience, fullMark: 100 },
-    { id: 'liquidity', subject: '流动性', value: riskProfile.liquidity, fullMark: 100 },
-    { id: 'loss-acceptance', subject: '损失容忍', value: riskProfile.lossAcceptance, fullMark: 100 },
-    { id: 'behavior-pattern', subject: '行为模式', value: riskProfile.behaviorPattern, fullMark: 100 },
-  ] : [];
+  const hasRiskData = Boolean(assessmentResult);
+  const totalRiskScore = assessmentResult?.score ?? 0;
+  const emptyRadarData = [
+    { id: 'market-volatility-empty', subject: '市场波动', value: 58, fullMark: 100 },
+    { id: 'investment-goal-empty', subject: '投资目标', value: 58, fullMark: 100 },
+    { id: 'experience-empty', subject: '投资经验', value: 58, fullMark: 100 },
+    { id: 'liquidity-empty', subject: '流动性', value: 58, fullMark: 100 },
+    { id: 'loss-acceptance-empty', subject: '损失容忍', value: 58, fullMark: 100 },
+    { id: 'behavior-pattern-empty', subject: '行为模式', value: 58, fullMark: 100 },
+  ];
+  const radarData = assessmentResult ? [
+    { id: 'market-volatility', subject: '市场波动', value: assessmentResult.profile.marketVolatility, fullMark: 100 },
+    { id: 'investment-goal', subject: '投资目标', value: assessmentResult.profile.investmentGoal, fullMark: 100 },
+    { id: 'experience', subject: '投资经验', value: assessmentResult.profile.experience, fullMark: 100 },
+    { id: 'liquidity', subject: '流动性', value: assessmentResult.profile.liquidity, fullMark: 100 },
+    { id: 'loss-acceptance', subject: '损失容忍', value: assessmentResult.profile.lossAcceptance, fullMark: 100 },
+    { id: 'behavior-pattern', subject: '行为模式', value: assessmentResult.profile.behaviorPattern, fullMark: 100 },
+  ] : emptyRadarData;
 
   // 资产配置建议数据
   const getAssetAllocation = (score: number) => {
@@ -419,48 +480,56 @@ export function RiskAssessment() {
   };
 
   // 缓存资产配置数据，避免重复计算
-  const assetAllocation = showResults ? getAssetAllocation(totalRiskScore) : [];
+  const assetAllocation = hasRiskData ? getAssetAllocation(totalRiskScore) : [];
 
-  const resetTest = () => {
+  const startTest = () => {
     setCurrentQuestion(0);
     setAnswers([]);
-    setShowResults(false);
-    setTotalRiskScore(0);
-    setRiskProfile(null);
+    setAiAnalysisSteps([]);
+    setShowAiPanel(false);
+    setIsAnalyzing(false);
+    setShowTestModal(true);
+  };
+
+  const closeTestModal = () => {
+    if (isAnalyzing) return;
+    setShowTestModal(false);
+    setCurrentQuestion(0);
+    setAnswers([]);
     setAiAnalysisSteps([]);
     setShowAiPanel(false);
   };
 
   return (
-    <section id="risk-test" className="w-full min-h-screen flex flex-col bg-gradient-to-br from-[#1F1410] via-[#2D1B13] to-[#1F1410]">
+    <section id="risk-test" className="w-full min-h-screen flex flex-col am-page-gradient">
       {/* Stock Ticker - Real-time Market Data Display */}
       <StockTicker />
 
-      <div className="w-full flex-1 flex items-center py-12 sm:py-16 lg:py-20">
+      <div className="w-full flex-1 flex items-center py-8 sm:py-12 lg:py-16">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-6"
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              动态风险感知测试
+            <h2 className="text-3xl sm:text-4xl font-bold am-text-primary mb-4">
+              动态风险数据看板
             </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              基于AI多维度实时分析，结合您的历史行为数据，精准刻画动态风险画像
+            <p className="am-text-secondary max-w-2xl mx-auto">
+              随时查看您的 AI 投资画像、行为曲线与资产配置建议
             </p>
 
             {/* Progress bar */}
-            {!showResults && (
+            {showTestModal && (
               <div className="mt-8 max-w-md mx-auto">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-500">测试进度</span>
+                  <span className="text-sm am-text-tertiary">测试进度</span>
                   <span className="text-sm text-[#C44536] font-semibold">
                     {currentQuestion + 1} / {questions.length}
                   </span>
                 </div>
-                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-2 am-card rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-gradient-to-r from-[#C44536] to-orange-600"
                     initial={{ width: 0 }}
@@ -472,6 +541,38 @@ export function RiskAssessment() {
             )}
           </motion.div>
 
+          <AnimatePresence>
+            {showCalibrationBanner && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="am-banner border rounded-xl px-4 py-3 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-start gap-2 text-sm am-text-primary">
+                  <span aria-hidden="true">💡</span>
+                  <span>
+                    {hasRiskData
+                      ? '市场环境已发生变化，AI 建议您重新校准风险画像以获取更精准的投资策略。'
+                      : '完成动态风险感知测试，解锁您的专属 AI 投资画像。'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 sm:shrink-0">
+                  <button onClick={startTest} className="text-sm font-semibold am-brand">
+                    {hasRiskData ? '立即重新测评 →' : '开始测评 →'}
+                  </button>
+                  <button
+                    onClick={() => setShowCalibrationBanner(false)}
+                    className="p-1 rounded-md am-hover-surface am-text-secondary"
+                    aria-label="关闭提示"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* AI Analysis Panel - Floating */}
           <AnimatePresence>
             {showAiPanel && (
@@ -482,13 +583,10 @@ export function RiskAssessment() {
                 className="fixed bottom-4 left-4 right-4 sm:bottom-8 sm:left-auto sm:right-8 sm:w-96 z-50 bg-gradient-to-br from-[#C44536]/20 to-orange-600/20 backdrop-blur-xl border-2 border-[#C44536]/50 rounded-2xl p-4 sm:p-6 shadow-[0_0_50px_rgba(196,69,54,0.4)]"
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  >
+                  <motion.div className="am-loader-spin">
                     <Brain size={24} className="text-[#C44536]" />
                   </motion.div>
-                  <h4 className="text-white font-semibold">AI 实时分析</h4>
+                  <h4 className="am-text-primary font-semibold">AI 实时分析</h4>
                 </div>
 
                 <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -498,7 +596,7 @@ export function RiskAssessment() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="flex items-start gap-2 text-sm text-gray-300"
+                      className="flex items-start gap-2 text-sm am-text-secondary"
                     >
                       <Check size={16} className="text-green-400 mt-0.5 flex-shrink-0" />
                       <span>{step}</span>
@@ -524,118 +622,52 @@ export function RiskAssessment() {
             )}
           </AnimatePresence>
 
-          <AnimatePresence mode="wait">
-            {!showResults ? (
-              <motion.div
-                key="questions"
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -100 }}
-                className="max-w-4xl mx-auto"
-              >
-                {/* Current Question */}
-                <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6 lg:p-8 mb-8">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                    <div className="px-2 sm:px-3 py-1 bg-[#C44536]/20 text-[#C44536] rounded-full text-xs sm:text-sm font-semibold">
-                      {questions[currentQuestion].category}
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-500">
-                      维度 {currentQuestion + 1}
-                    </div>
-                  </div>
-
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-6 sm:mb-8">
-                    {questions[currentQuestion].question}
-                  </h3>
-
-                  <div className="space-y-3 sm:space-y-4">
-                    {questions[currentQuestion].options.map((option: any) => {
-                      const Icon = option.icon;
-                      return (
-                        <motion.button
-                          key={option.id}
-                          onClick={() => handleAnswer(questions[currentQuestion].id, option.id, option.risk)}
-                          whileHover={{ scale: 1.02, x: 10 }}
-                          whileTap={{ scale: 0.98 }}
-                          disabled={isAnalyzing}
-                          className="w-full p-4 sm:p-5 lg:p-6 bg-white/5 hover:bg-white/10 border-2 border-white/10 hover:border-[#C44536]/50 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <div className="flex items-center gap-3 sm:gap-4">
-                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#C44536]/20 to-orange-600/20 flex items-center justify-center flex-shrink-0">
-                              <Icon size={24} className="text-[#C44536] sm:w-7 sm:h-7" />
-                            </div>
-                            <div className="flex-1 text-left min-w-0">
-                              <p className="text-sm sm:text-base lg:text-lg font-semibold text-white">
-                                {option.id}. {option.text}
-                              </p>
-                            </div>
-                            <div className="text-[#C44536] flex-shrink-0">→</div>
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Progress dots */}
-                {answers.length > 0 && (
-                  <div className="flex items-center justify-center gap-2">
-                    {questions.map((q, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className={`w-3 h-3 rounded-full ${
-                          answers.find(a => a.questionId === q.id)
-                            ? 'bg-[#C44536]'
-                            : idx === currentQuestion
-                            ? 'bg-orange-600'
-                            : 'bg-white/20'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              // Results Screen
-              <motion.div
-                key="results"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="space-y-8"
-              >
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-8"
+          >
                 {/* Risk Score Display */}
-                <div className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-lg rounded-2xl border-2 border-[#C44536]/30 p-6 sm:p-8 text-center">
+                <div className="am-card-strong backdrop-blur-lg rounded-2xl border-2 am-border-brand p-6 sm:p-8 text-center relative overflow-hidden">
+                  <button
+                    onClick={startTest}
+                    className="absolute right-4 top-4 hidden sm:inline-flex px-3 py-1.5 rounded-lg border am-border-brand am-brand am-hover-surface text-sm font-semibold"
+                  >
+                    {hasRiskData ? '↻ 重新评估' : '开始测评'}
+                  </button>
                   <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: 'spring' }}
+                    initial={{ scale: 0.96, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.4 }}
                     className="inline-block"
                   >
                     <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 mx-auto mb-4 sm:mb-6">
-                      <svg className="w-full h-full transform -rotate-90">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 192 192">
                         <circle
                           cx="96"
                           cy="96"
-                          r="88"
+                          r="82"
                           fill="none"
-                          stroke="rgba(255,255,255,0.1)"
+                          stroke={hasRiskData ? 'var(--am-chart-grid)' : 'var(--am-empty-chart-stroke)'}
                           strokeWidth="12"
+                          strokeDasharray={hasRiskData ? undefined : '10 10'}
                         />
-                        <motion.circle
-                          cx="96"
-                          cy="96"
-                          r="88"
-                          fill="none"
-                          stroke="url(#riskScoreGradient)"
-                          strokeWidth="12"
-                          strokeLinecap="round"
-                          initial={{ pathLength: 0 }}
-                          animate={{ pathLength: totalRiskScore / 100 }}
-                          transition={{ duration: 1.5, delay: 0.5 }}
-                          strokeDasharray={`${2 * Math.PI * 88}`}
-                        />
+                        {hasRiskData && (
+                          <motion.circle
+                            cx="96"
+                            cy="96"
+                            r="82"
+                            fill="none"
+                            stroke="url(#riskScoreGradient)"
+                            strokeWidth="12"
+                            strokeLinecap="round"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: totalRiskScore / 100 }}
+                            transition={{ duration: 1.2, delay: 0.1 }}
+                            strokeDasharray={`${2 * Math.PI * 82}`}
+                          />
+                        )}
                         <defs>
                           <linearGradient id="riskScoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                             <stop offset="0%" stopColor="#C44536" key="score-gradient-start" />
@@ -643,20 +675,56 @@ export function RiskAssessment() {
                           </linearGradient>
                         </defs>
                       </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">{Math.round(totalRiskScore)}</div>
-                        <div className="text-xs sm:text-sm text-gray-400 mt-1">风险评分</div>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+                        {hasRiskData ? (
+                          <>
+                            <div className="text-3xl sm:text-4xl lg:text-5xl font-bold am-text-primary">{Math.round(totalRiskScore)}</div>
+                            <div className="text-xs sm:text-sm am-text-secondary mt-1">风险评分</div>
+                          </>
+                        ) : (
+                          <>
+                            <Brain size={30} className="am-text-tertiary mb-2" />
+                            <div className="text-sm font-semibold am-text-primary">未解锁</div>
+                            <div className="text-xs am-text-tertiary mt-1">AI 画像</div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </motion.div>
 
-                  <div className="text-3xl sm:text-4xl mb-2">{getRiskLevel(totalRiskScore).icon}</div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-                    您的风险类型：{getRiskLevel(totalRiskScore).level}
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-400">
-                    {getRiskLevel(totalRiskScore).desc}
-                  </p>
+                  {hasRiskData ? (
+                    <>
+                      <div className="text-3xl sm:text-4xl mb-2">{getRiskLevel(totalRiskScore).icon}</div>
+                      <h3 className="text-xl sm:text-2xl font-bold am-text-primary mb-2">
+                        您的风险类型：{getRiskLevel(totalRiskScore).level}
+                      </h3>
+                      <p className="text-sm sm:text-base am-text-secondary">
+                        {getRiskLevel(totalRiskScore).desc}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="max-w-md mx-auto">
+                      <h3 className="text-xl sm:text-2xl font-bold am-text-primary mb-2">
+                        完成动态风险感知测试
+                      </h3>
+                      <p className="text-sm sm:text-base am-text-secondary mb-5">
+                        解锁您的专属 AI 投资画像、六维风险雷达与资产配置建议
+                      </p>
+                      <button
+                        onClick={startTest}
+                        className="px-5 py-2.5 bg-gradient-to-r from-[#C44536] to-orange-600 am-on-brand rounded-lg font-semibold shadow-lg hover:shadow-[0_0_20px_rgba(196,69,54,0.35)] transition-all text-sm"
+                      >
+                        开始测评
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={startTest}
+                    className="mt-6 sm:hidden px-4 py-2 rounded-lg border am-border-brand am-brand am-hover-surface text-sm font-semibold"
+                  >
+                    {hasRiskData ? '↻ 重新评估' : '开始测评'}
+                  </button>
                 </div>
 
                 {/* Multi-dimensional Analysis */}
@@ -666,20 +734,24 @@ export function RiskAssessment() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
-                    className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6"
+                    className="am-card backdrop-blur-lg rounded-2xl border p-4 sm:p-6 relative"
                   >
-                    <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
+                    <h4 className="text-base sm:text-lg font-semibold am-text-primary mb-3 sm:mb-4 flex items-center gap-2">
                       <Target size={18} className="text-[#C44536] sm:w-5 sm:h-5" />
                       六维风险画像
                     </h4>
                     <div style={{ width: '100%', height: '280px' }} className="sm:h-[350px]">
                       <ResponsiveContainer>
                         <RadarChart data={radarData}>
-                          <PolarGrid key="polar-grid" stroke="rgba(255,255,255,0.1)" />
+                          <PolarGrid
+                            key="polar-grid"
+                            stroke={hasRiskData ? 'var(--am-chart-grid)' : 'var(--am-empty-chart-stroke)'}
+                            strokeDasharray={hasRiskData ? undefined : '5 5'}
+                          />
                           <PolarAngleAxis
                             key="polar-angle-axis"
                             dataKey="subject"
-                            stroke="#fff"
+                            stroke="var(--am-chart-axis)"
                             style={{ fontSize: '10px' }}
                             className="sm:text-xs"
                           />
@@ -687,15 +759,26 @@ export function RiskAssessment() {
                             key="radar-risk-profile"
                             name="风险画像"
                             dataKey="value"
-                            stroke="#C44536"
-                            fill="#C44536"
-                            fillOpacity={0.3}
+                            stroke={hasRiskData ? '#C44536' : 'var(--am-empty-chart-stroke)'}
+                            fill={hasRiskData ? '#C44536' : 'var(--am-empty-chart-fill)'}
+                            fillOpacity={hasRiskData ? 0.3 : 1}
                             strokeWidth={2}
+                            strokeDasharray={hasRiskData ? undefined : '6 6'}
                             animationId="radar-anim"
                           />
                         </RadarChart>
                       </ResponsiveContainer>
                     </div>
+                    {!hasRiskData && (
+                      <div className="absolute inset-x-4 bottom-5 flex justify-center">
+                        <div className="am-surface backdrop-blur-xl border rounded-xl px-4 py-3 text-center max-w-xs">
+                          <p className="text-sm font-semibold am-text-primary">画像待生成</p>
+                          <p className="text-xs am-text-secondary mt-1">
+                            完成测试后，AI 会在这里生成您的六维风险轮廓
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
 
                   {/* 资产配置建议饼图 */}
@@ -703,43 +786,57 @@ export function RiskAssessment() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6"
+                    className="am-card backdrop-blur-lg rounded-2xl border p-4 sm:p-6"
                   >
-                    <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
+                    <h4 className="text-base sm:text-lg font-semibold am-text-primary mb-3 sm:mb-4 flex items-center gap-2">
                       <BarChart3 size={18} className="text-[#C44536] sm:w-5 sm:h-5" />
                       资产配置建议
                     </h4>
                     <div style={{ width: '100%', height: '280px' }} className="sm:h-[350px]">
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie
-                            key="pie-asset-allocation"
-                            data={assetAllocation}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, value }) => `${name} ${value}%`}
-                            outerRadius={80}
-                            className="sm:text-sm md:text-base"
-                            fill="#8884d8"
-                            dataKey="value"
-                            animationId="pie-anim"
-                          >
-                            {assetAllocation.map((entry) => (
-                              <Cell key={`asset-${entry.id}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            key="pie-tooltip"
-                            contentStyle={{
-                              backgroundColor: 'rgba(31, 20, 16, 0.9)',
-                              border: '1px solid rgba(196, 69, 54, 0.3)',
-                              borderRadius: '8px',
-                              color: '#fff'
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      {hasRiskData ? (
+                        <ResponsiveContainer>
+                          <PieChart>
+                            <Pie
+                              key="pie-asset-allocation"
+                              data={assetAllocation}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, value }) => `${name} ${value}%`}
+                              outerRadius={80}
+                              className="sm:text-sm md:text-base"
+                              fill="#8884d8"
+                              dataKey="value"
+                              animationId="pie-anim"
+                            >
+                              {assetAllocation.map((entry) => (
+                                <Cell key={`asset-${entry.id}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              key="pie-tooltip"
+                              contentStyle={{
+                                backgroundColor: 'var(--am-tooltip-bg)',
+                                border: '1px solid var(--am-border-strong)',
+                                borderRadius: '8px',
+                                color: 'var(--am-text-primary)'
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center">
+                          <div className="text-center max-w-xs">
+                            <div className="mx-auto mb-4 h-24 w-24 rounded-full border-2 border-dashed flex items-center justify-center" style={{ borderColor: 'var(--am-empty-chart-stroke)' }}>
+                              <BarChart3 size={30} className="am-text-tertiary" />
+                            </div>
+                            <p className="text-sm font-semibold am-text-primary">资产配置尚未生成</p>
+                            <p className="text-xs am-text-secondary mt-2">
+                              AI 将根据您的风险得分给出可解释的配置比例
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 </div>
@@ -749,9 +846,9 @@ export function RiskAssessment() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
-                  className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 sm:p-6"
+                  className="am-card backdrop-blur-lg rounded-2xl border p-4 sm:p-6"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
+                  <h4 className="text-base sm:text-lg font-semibold am-text-primary mb-3 sm:mb-4 flex items-center gap-2">
                     <Activity size={18} className="text-[#C44536] sm:w-5 sm:h-5" />
                     30天行为模式分析
                   </h4>
@@ -760,38 +857,39 @@ export function RiskAssessment() {
                       <AreaChart data={behaviorData}>
                         <defs>
                           <linearGradient id="behaviorColorRisk" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#C44536" stopOpacity={0.8} key="gradient-risk-start"/>
-                            <stop offset="95%" stopColor="#C44536" stopOpacity={0.1} key="gradient-risk-end"/>
+                            <stop offset="5%" stopColor="#C44536" stopOpacity={hasRiskData ? 0.8 : 0.18} key="gradient-risk-start"/>
+                            <stop offset="95%" stopColor="#C44536" stopOpacity={hasRiskData ? 0.1 : 0.02} key="gradient-risk-end"/>
                           </linearGradient>
                           <linearGradient id="behaviorColorFreq" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8} key="gradient-freq-start"/>
-                            <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1} key="gradient-freq-end"/>
+                            <stop offset="5%" stopColor="#F59E0B" stopOpacity={hasRiskData ? 0.8 : 0.18} key="gradient-freq-start"/>
+                            <stop offset="95%" stopColor="#F59E0B" stopOpacity={hasRiskData ? 0.1 : 0.02} key="gradient-freq-end"/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid key="cartesian-grid" strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <CartesianGrid key="cartesian-grid" strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
                         <XAxis
                           key="x-axis"
                           dataKey="day"
-                          stroke="#888"
+                          stroke="var(--am-chart-axis)"
                           style={{ fontSize: '9px' }}
                           interval={5}
                           className="sm:text-xs"
                         />
-                        <YAxis key="y-axis" stroke="#888" style={{ fontSize: '10px' }} className="sm:text-xs" />
+                        <YAxis key="y-axis" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} className="sm:text-xs" />
                         <Tooltip
                           key="area-tooltip"
                           contentStyle={{
-                            backgroundColor: 'rgba(31, 20, 16, 0.9)',
-                            border: '1px solid rgba(196, 69, 54, 0.3)',
+                            backgroundColor: 'var(--am-tooltip-bg)',
+                            border: '1px solid var(--am-border-strong)',
                             borderRadius: '8px',
-                            color: '#fff'
+                            color: 'var(--am-text-primary)'
                           }}
                         />
                         <Area
                           key="area-risk-score"
                           type="monotone"
                           dataKey="riskScore"
-                          stroke="#C44536"
+                          stroke={hasRiskData ? '#C44536' : 'var(--am-empty-chart-stroke)'}
+                          strokeDasharray={hasRiskData ? undefined : '6 6'}
                           fillOpacity={1}
                           fill="url(#behaviorColorRisk)"
                           name="风险偏好"
@@ -801,7 +899,8 @@ export function RiskAssessment() {
                           key="area-trading-freq"
                           type="monotone"
                           dataKey="tradingFrequency"
-                          stroke="#F59E0B"
+                          stroke={hasRiskData ? '#F59E0B' : 'var(--am-empty-chart-stroke)'}
+                          strokeDasharray={hasRiskData ? undefined : '6 6'}
                           fillOpacity={1}
                           fill="url(#behaviorColorFreq)"
                           name="交易频率"
@@ -813,11 +912,11 @@ export function RiskAssessment() {
                   <div className="mt-3 sm:mt-4 flex items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm">
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#C44536] rounded-full" />
-                      <span className="text-gray-400">风险偏好</span>
+                      <span className="am-text-secondary">风险偏好</span>
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#F59E0B] rounded-full" />
-                      <span className="text-gray-400">交易频率</span>
+                      <span className="am-text-secondary">交易频率</span>
                     </div>
                   </div>
                 </motion.div>
@@ -831,35 +930,38 @@ export function RiskAssessment() {
                 >
                   <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <Brain size={20} className="text-[#C44536] sm:w-6 sm:h-6" />
-                    <h4 className="text-base sm:text-lg font-semibold text-white">AI 深度洞察</h4>
+                    <h4 className="text-base sm:text-lg font-semibold am-text-primary">AI 深度洞察</h4>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                    <div className="p-3 sm:p-4 bg-white/5 rounded-lg border border-[#C44536]/20">
+                    <div className="p-3 sm:p-4 am-card rounded-lg border border-[#C44536]/20">
                       <div className="text-xl sm:text-2xl mb-1 sm:mb-2">📊</div>
-                      <div className="text-xs sm:text-sm font-semibold text-white mb-1">行为一致性</div>
-                      <div className="text-xs text-gray-400 leading-relaxed">
-                        您的问卷答案与历史行为数据匹配度达 {Math.round(75 + (totalRiskScore % 15))}%，
-                        显示出较高的自我认知准确性
+                      <div className="text-xs sm:text-sm font-semibold am-text-primary mb-1">行为一致性</div>
+                      <div className="text-xs am-text-secondary leading-relaxed">
+                        {hasRiskData
+                          ? `您的问卷答案与历史行为数据匹配度达 ${Math.round(75 + (totalRiskScore % 15))}%，显示出较高的自我认知准确性`
+                          : '完成测评后，AI 将校验您的主观答案与历史行为模式是否一致'}
                       </div>
                     </div>
 
-                    <div className="p-3 sm:p-4 bg-white/5 rounded-lg border border-orange-600/20">
+                    <div className="p-3 sm:p-4 am-card rounded-lg border border-orange-600/20">
                       <div className="text-xl sm:text-2xl mb-1 sm:mb-2">🎯</div>
-                      <div className="text-xs sm:text-sm font-semibold text-white mb-1">风险变化趋势</div>
-                      <div className="text-xs text-gray-400 leading-relaxed">
-                        近期您的风险偏好呈{totalRiskScore > 55 ? '上升' : '稳定'}趋势，
-                        建议{totalRiskScore > 70 ? '适当控制仓位' : '保持当前策略'}
+                      <div className="text-xs sm:text-sm font-semibold am-text-primary mb-1">风险变化趋势</div>
+                      <div className="text-xs am-text-secondary leading-relaxed">
+                        {hasRiskData
+                          ? `近期您的风险偏好呈${totalRiskScore > 55 ? '上升' : '稳定'}趋势，建议${totalRiskScore > 70 ? '适当控制仓位' : '保持当前策略'}`
+                          : '画像生成后，这里会持续提示风险偏好变化与策略校准方向'}
                       </div>
                     </div>
 
-                    <div className="p-3 sm:p-4 bg-white/5 rounded-lg border border-amber-600/20">
+                    <div className="p-3 sm:p-4 am-card rounded-lg border border-amber-600/20">
                       <div className="text-xl sm:text-2xl mb-1 sm:mb-2">💡</div>
-                      <div className="text-xs sm:text-sm font-semibold text-white mb-1">优化建议</div>
-                      <div className="text-xs text-gray-400 leading-relaxed">
-                        {totalRiskScore < 40 && '可适当增加权益类资产配比，提升长期收益'}
-                        {totalRiskScore >= 40 && totalRiskScore < 70 && '当前配置较为均衡，建议定期再平衡'}
-                        {totalRiskScore >= 70 && '注意分散投资，避免过度集中于高风险资产'}
+                      <div className="text-xs sm:text-sm font-semibold am-text-primary mb-1">优化建议</div>
+                      <div className="text-xs am-text-secondary leading-relaxed">
+                        {hasRiskData && totalRiskScore < 40 && '可适当增加权益类资产配比，提升长期收益'}
+                        {hasRiskData && totalRiskScore >= 40 && totalRiskScore < 70 && '当前配置较为均衡，建议定期再平衡'}
+                        {hasRiskData && totalRiskScore >= 70 && '注意分散投资，避免过度集中于高风险资产'}
+                        {!hasRiskData && '先完成一次动态感知测试，AI 会给出更贴合您的资产配置建议'}
                       </div>
                     </div>
                   </div>
@@ -870,10 +972,10 @@ export function RiskAssessment() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={resetTest}
-                    className="px-6 sm:px-8 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg transition-all text-sm sm:text-base"
+                    onClick={startTest}
+                    className="px-6 sm:px-8 py-3 am-card am-hover-surface am-text-primary border rounded-lg transition-all text-sm sm:text-base"
                   >
-                    重新测试
+                    {hasRiskData ? '重新测试' : '开始风险测试'}
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -882,16 +984,136 @@ export function RiskAssessment() {
                       const event = new CustomEvent('navigate-to-page', { detail: 1 });
                       window.dispatchEvent(event);
                     }}
-                    className="px-6 sm:px-8 py-3 bg-gradient-to-r from-[#C44536] to-orange-600 text-white rounded-lg font-semibold shadow-lg hover:shadow-[0_0_20px_rgba(196,69,54,0.5)] transition-all text-sm sm:text-base"
+                    className="px-6 sm:px-8 py-3 bg-gradient-to-r from-[#C44536] to-orange-600 am-on-brand rounded-lg font-semibold shadow-lg hover:shadow-[0_0_20px_rgba(196,69,54,0.5)] transition-all text-sm sm:text-base"
                   >
                     开始投资咨询
                   </motion.button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </motion.div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showTestModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeTestModal}
+              className="fixed inset-0 z-[120] am-backdrop backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 26, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 26, scale: 0.96 }}
+              transition={{ duration: 0.34, ease: [0.25, 1, 0.5, 1] }}
+              className="fixed inset-4 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-[min(920px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 z-[130] am-surface rounded-2xl border-2 am-border-brand overflow-hidden flex flex-col max-h-[calc(100vh-2rem)]"
+            >
+              <div className="px-5 sm:px-6 py-4 border-b am-border-subtle flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold am-brand mb-1">动态风险感知测试</div>
+                  <h3 className="text-lg sm:text-xl font-bold am-text-primary">
+                    快速更新您的风险画像
+                  </h3>
+                  <p className="text-sm am-text-secondary mt-1">
+                    5 个问题，完成后看板会自动刷新
+                  </p>
+                </div>
+                <button
+                  onClick={closeTestModal}
+                  disabled={isAnalyzing}
+                  className="p-2 rounded-lg am-hover-surface am-text-secondary disabled:opacity-40"
+                  aria-label="关闭测评"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="px-5 sm:px-6 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm am-text-tertiary">测试进度</span>
+                  <span className="text-sm text-[#C44536] font-semibold">
+                    {currentQuestion + 1} / {questions.length}
+                  </span>
+                </div>
+                <div className="h-2 am-card rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-[#C44536] to-orange-600"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+                    transition={{ duration: 0.4 }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6 overflow-y-auto">
+                <div className="am-card backdrop-blur-lg rounded-2xl border p-4 sm:p-6 lg:p-8">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                    <div className="px-2 sm:px-3 py-1 bg-[#C44536]/20 text-[#C44536] rounded-full text-xs sm:text-sm font-semibold">
+                      {questions[currentQuestion].category}
+                    </div>
+                    <div className="text-xs sm:text-sm am-text-tertiary">
+                      维度 {currentQuestion + 1}
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold am-text-primary mb-6 sm:mb-8">
+                    {questions[currentQuestion].question}
+                  </h3>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {questions[currentQuestion].options.map((option: any) => {
+                      const Icon = option.icon;
+                      return (
+                        <motion.button
+                          key={option.id}
+                          onClick={() => handleAnswer(questions[currentQuestion].id, option.id, option.risk)}
+                          whileHover={{ scale: 1.01, x: 6 }}
+                          whileTap={{ scale: 0.98 }}
+                          disabled={isAnalyzing}
+                          className="w-full p-4 sm:p-5 lg:p-6 am-card am-hover-surface border-2 am-hover-border-brand rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-[#C44536]/20 to-orange-600/20 flex items-center justify-center flex-shrink-0">
+                              <Icon size={24} className="text-[#C44536] sm:w-7 sm:h-7" />
+                            </div>
+                            <div className="flex-1 text-left min-w-0">
+                              <p className="text-sm sm:text-base lg:text-lg font-semibold am-text-primary">
+                                {option.id}. {option.text}
+                              </p>
+                            </div>
+                            <div className="text-[#C44536] flex-shrink-0">→</div>
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {answers.length > 0 && (
+                  <div className="mt-5 flex items-center justify-center gap-2">
+                    {questions.map((q, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className={`w-3 h-3 rounded-full ${
+                          answers.find(a => a.questionId === q.id)
+                            ? 'bg-[#C44536]'
+                            : idx === currentQuestion
+                            ? 'bg-orange-600'
+                            : 'am-card'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { History, Home, MessageSquare, Plus, Sparkles, Target } from 'lucide-react';
+import { History, Home, MessageSquare, Plus, ScanSearch, Sparkles, Target } from 'lucide-react';
 import { Navigation } from './components/Navigation';
 import { HeroSection } from './components/HeroSection';
 import { FeatureCards } from './components/FeatureCards';
 import { AIAdvisorDemo } from './components/AIAdvisorDemo';
 import { RiskAssessment } from './components/RiskAssessment';
+import { AssetXRay } from './components/AssetXRay';
 import { LoginModal } from './components/LoginModal';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
-const PAGE_NAMES = ['首页', '对话投顾', '风险测试', '核心功能'];
+const PAGE_NAMES = ['首页', '对话投顾', '风险测试', '资产透视', '核心功能'];
 const PAGE_NAV_ITEMS = [
   { label: PAGE_NAMES[0], page: 0, icon: Home },
   { label: PAGE_NAMES[1], page: 1, icon: MessageSquare },
   { label: PAGE_NAMES[2], page: 2, icon: Target },
-  { label: PAGE_NAMES[3], page: 3, icon: Sparkles },
+  { label: PAGE_NAMES[3], page: 3, icon: ScanSearch },
+  { label: PAGE_NAMES[4], page: 4, icon: Sparkles },
 ];
 
 const PAGE_TRANSITION = {
@@ -70,8 +72,8 @@ interface DesktopSidebarProps {
 
 function DesktopSidebar({ currentPage, onNavigate, onNewChat }: DesktopSidebarProps) {
   return (
-    <aside className="hidden md:flex w-64 shrink-0 bg-[#1E1E1E] border-r border-white/5 flex-col">
-      <div className="p-3 border-b border-white/5">
+    <aside className="hidden md:flex w-64 shrink-0 am-sidebar-surface border-r flex-col">
+      <div className="p-3 border-b am-border-subtle">
         <div className="space-y-1">
           {PAGE_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -83,8 +85,8 @@ function DesktopSidebar({ currentPage, onNavigate, onNewChat }: DesktopSidebarPr
                 onClick={() => onNavigate(item.page)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
                   isActive
-                    ? 'bg-[#C44536]/15 text-white'
-                    : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+                    ? 'am-brand-soft am-brand'
+                    : 'am-text-secondary am-hover-surface am-hover-text-primary'
                 }`}
               >
                 <Icon size={17} />
@@ -96,7 +98,7 @@ function DesktopSidebar({ currentPage, onNavigate, onNewChat }: DesktopSidebarPr
 
         <button
           onClick={onNewChat}
-          className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/90 rounded-lg transition-all"
+          className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 am-card am-hover-surface am-text-primary rounded-lg transition-all"
         >
           <Plus size={18} />
           <span className="text-sm font-medium">开启新对话</span>
@@ -106,7 +108,7 @@ function DesktopSidebar({ currentPage, onNavigate, onNewChat }: DesktopSidebarPr
       <div className="p-3">
         <button
           onClick={() => onNavigate(1)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:bg-white/5 hover:text-white/90 transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm am-text-secondary am-hover-surface am-hover-text-primary transition-all"
         >
           <History size={17} />
           <span>历史记录</span>
@@ -199,10 +201,22 @@ export default function App() {
           onNavigate={handleNavigate}
           onNewChat={handleNewChat}
         >
-          <FeatureCards />
+          <AssetXRay />
         </PageShell>
       ),
       name: PAGE_NAMES[3],
+    },
+    {
+      component: (
+        <PageShell
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          onNewChat={handleNewChat}
+        >
+          <FeatureCards />
+        </PageShell>
+      ),
+      name: PAGE_NAMES[4],
     },
   ];
 
@@ -238,12 +252,12 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <div className="relative w-full min-h-screen bg-[#1F1410] text-white font-sans">
+        <div className="relative w-full min-h-screen am-app-bg font-sans">
           {/* Navigation - always visible */}
           <Navigation />
 
           {/* Page Content with Transitions */}
-          <div className="relative w-full min-h-screen pt-14 sm:pt-16 bg-[#1F1410]">
+          <div className="relative w-full min-h-screen pt-14 sm:pt-16 am-page-bg">
             <div className="relative h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] overflow-hidden">
               <AnimatePresence initial={false} custom={direction}>
                 <motion.div
@@ -254,7 +268,7 @@ export default function App() {
                   animate="center"
                   exit="exit"
                   transition={PAGE_TRANSITION}
-                  className="absolute inset-0 min-w-0 overflow-hidden bg-[#1F1410] will-change-transform [backface-visibility:hidden] [transform:translate3d(0,0,0)]"
+                  className="absolute inset-0 min-w-0 overflow-hidden am-page-bg will-change-transform [backface-visibility:hidden] [transform:translate3d(0,0,0)]"
                 >
                   <div className="relative z-0 h-full overflow-y-auto">
                     {pages[currentPage].component}

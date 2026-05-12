@@ -18,15 +18,17 @@ const getSystemTheme = (): ResolvedTheme => {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
+const getInitialTheme = (): ThemeMode => {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+  } catch {
+    return 'system';
+  }
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    try {
-      const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'dark';
-    } catch {
-      return 'dark';
-    }
-  });
+  const [theme, setThemeState] = useState<ThemeMode>(getInitialTheme);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
   const resolvedTheme = theme === 'system' ? systemTheme : theme;
 

@@ -68,7 +68,7 @@ const orbitPaths = [
 function CognitiveTopology() {
   return (
     <div className="relative w-full aspect-square max-w-[320px] sm:max-w-[430px] lg:max-w-[500px] mx-auto">
-      <div className="absolute inset-4 rounded-[2rem] border border-white/10 bg-white/[0.035] backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.08)]" />
+      <div className="absolute inset-4 rounded-[2rem] border am-border-subtle am-card backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.08)]" />
       <div className="absolute inset-8 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(196,69,54,0.24),rgba(56,189,248,0.07)_32%,transparent_62%)] blur-2xl" />
       <div className="absolute inset-0 opacity-45">
         <HexGrid />
@@ -225,7 +225,7 @@ export function HeroSection() {
   };
 
   return (
-    <section id="home" className="w-full min-h-screen flex items-center bg-gradient-to-br from-[#1F1410] via-[#261812] to-[#121212]">
+    <section id="home" className="w-full min-h-screen flex items-center am-page-gradient">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20">
         <div className="grid lg:grid-cols-2 gap-8 md:gap-10 lg:gap-12 items-center">
           <motion.div
@@ -234,12 +234,12 @@ export function HeroSection() {
             transition={{ duration: 0.8 }}
             className="space-y-3 sm:space-y-4 md:space-y-6 order-2 lg:order-1"
           >
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight">
-              认知驱动的<span className="text-[#C44536]">财富管理</span>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold am-text-primary leading-tight">
+              认知驱动的<span className="am-brand">财富管理</span>
               <br />
               从工具到伴侣的进化
             </h1>
-            <p className="text-base sm:text-lg md:text-xl text-gray-400">
+            <p className="text-base sm:text-lg md:text-xl am-text-secondary">
               基于千亿级金融语料大模型，精准捕捉动态交易意图
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
@@ -247,7 +247,7 @@ export function HeroSection() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleStartExperience}
-                className="px-6 sm:px-8 py-3 sm:py-4 bg-[#C44536] text-white rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.5)] transition-shadow text-sm sm:text-base"
+                className="px-6 sm:px-8 py-3 sm:py-4 am-brand-bg rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.5)] transition-shadow text-sm sm:text-base"
               >
                 开始体验
               </motion.button>
@@ -255,10 +255,10 @@ export function HeroSection() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  const event = new CustomEvent('navigate-to-page', { detail: 3 });
+                  const event = new CustomEvent('navigate-to-page', { detail: 4 });
                   window.dispatchEvent(event);
                 }}
-                className="px-6 sm:px-8 py-3 sm:py-4 border-2 border-[#C44536] text-[#C44536] rounded-lg font-semibold hover:bg-[#C44536]/10 transition-colors text-sm sm:text-base"
+                className="px-6 sm:px-8 py-3 sm:py-4 border-2 am-border-brand am-brand rounded-lg font-semibold am-hover-surface transition-colors text-sm sm:text-base"
               >
                 了解更多
               </motion.button>

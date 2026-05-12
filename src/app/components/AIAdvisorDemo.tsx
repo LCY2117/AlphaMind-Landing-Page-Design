@@ -7,6 +7,7 @@ import {
   Mic,
   Plus,
   MessageSquare,
+  ScanSearch,
   Sparkles,
   Target,
   Trash2,
@@ -86,7 +87,8 @@ const globalNavItems = [
   { label: '首页', page: 0, icon: Home },
   { label: '对话投顾', page: 1, icon: MessageSquare },
   { label: '风险测试', page: 2, icon: Target },
-  { label: '核心功能', page: 3, icon: Sparkles },
+  { label: '资产透视', page: 3, icon: ScanSearch },
+  { label: '核心功能', page: 4, icon: Sparkles },
 ];
 
 const quickQuestions = [
@@ -431,7 +433,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
   };
 
   return (
-    <section id="demo" className="w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] bg-[#121212] flex overflow-hidden">
+    <section id="demo" className="w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] am-page-bg flex overflow-hidden">
       {/* Backdrop for mobile sidebar */}
       <AnimatePresence>
         {showSidebar && (
@@ -440,7 +442,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowSidebar(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 am-backdrop backdrop-blur-sm z-40 lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -453,9 +455,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
             animate={{ x: 0 }}
             exit={{ x: -280 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed md:relative left-0 top-0 bottom-0 w-64 bg-[#1E1E1E] border-r border-white/5 z-50 md:z-auto flex flex-col"
+            className="fixed md:relative left-0 top-0 bottom-0 w-64 am-sidebar-surface border-r am-border-subtle z-50 md:z-auto flex flex-col"
           >
-            <div className="p-3 border-b border-white/5">
+            <div className="p-3 border-b am-border-subtle">
               <div className="space-y-1">
                 {globalNavItems.map((item) => {
                   const Icon = item.icon;
@@ -467,8 +469,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                       onClick={() => handlePageNavigate(item.page)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
                         isActive
-                          ? 'bg-[#C44536]/15 text-white'
-                          : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+                          ? 'am-brand-soft am-brand'
+                          : 'am-text-secondary am-hover-surface am-hover-text-primary'
                       }`}
                     >
                       <Icon size={17} />
@@ -483,7 +485,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                   createNewSession();
                   closeMobileSidebar();
                 }}
-                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-white/5 hover:bg-white/10 text-white/90 rounded-lg transition-all"
+                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 am-card am-hover-surface am-text-primary rounded-lg transition-all"
               >
                 <Plus size={18} />
                 <span className="text-sm font-medium">开启新对话</span>
@@ -492,7 +494,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
 
             {/* Sessions List */}
             <div className="flex-1 overflow-y-auto px-2 py-3">
-              <div className="px-2 pb-2 text-xs font-medium text-white/35">历史记录</div>
+              <div className="px-2 pb-2 text-xs font-medium am-text-tertiary">历史记录</div>
               <div className="space-y-1">
                 {sessions.map((session) => (
                   <motion.div
@@ -506,8 +508,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                       }}
                       className={`w-full text-left px-3 py-2 rounded-lg transition-all ${
                         currentSessionId === session.id
-                          ? 'bg-white/10 text-white'
-                          : 'text-white/60 hover:bg-white/5 hover:text-white/80'
+                          ? 'am-card-strong am-text-primary'
+                          : 'am-text-secondary am-hover-surface am-hover-text-primary'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -537,12 +539,12 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full min-h-0">
         {/* Mobile Menu Button */}
-        <div className="md:hidden p-3 border-b border-white/5">
+        <div className="md:hidden p-3 border-b am-border-subtle">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
-            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+            className="p-2 am-hover-surface rounded-lg transition-colors"
           >
-            <Menu size={20} className="text-white/60" />
+            <Menu size={20} className="am-text-secondary" />
           </button>
         </div>
 
@@ -559,8 +561,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                   <span className="text-3xl">🤖</span>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">{getSmartGreeting()}！我是 AlphaMind AI</h2>
-                  <p className="text-white/50">您的专属智能投资顾问</p>
+                  <h2 className="text-2xl font-bold am-text-primary mb-2">{getSmartGreeting()}！我是 AlphaMind AI</h2>
+                  <p className="am-text-secondary">您的专属智能投资顾问</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md mt-8">
@@ -568,10 +570,10 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                     <button
                       key={idx}
                       onClick={() => handleSend(q.text)}
-                      className="p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all text-left"
+                      className="p-4 am-card am-hover-surface rounded-xl transition-all text-left"
                     >
                       <div className="text-2xl mb-2">{q.icon}</div>
-                      <p className="text-sm text-white/70">{q.text}</p>
+                      <p className="text-sm am-text-secondary">{q.text}</p>
                     </button>
                   ))}
                 </div>
@@ -586,11 +588,11 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                   >
                     {message.role === 'user' ? (
                       <div className="flex justify-end">
-                        <div className="max-w-[80%] bg-[#C44536]/10 rounded-2xl px-4 py-3">
+                        <div className="max-w-[80%] am-brand-soft rounded-2xl px-4 py-3">
                           {message.imageUrl && (
                             <img src={message.imageUrl} alt="Uploaded" className="w-full rounded-lg mb-2 max-h-32 object-cover" />
                           )}
-                          <p className="text-white/90 text-sm">{message.content}</p>
+                          <p className="am-text-primary text-sm">{message.content}</p>
                         </div>
                       </div>
                     ) : (
@@ -600,12 +602,12 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                             <span className="text-sm">🤖</span>
                           </div>
                           <div className="flex-1 space-y-3">
-                            <p className="text-white/90 text-sm leading-relaxed">{message.content}</p>
+                            <p className="am-text-primary text-sm leading-relaxed">{message.content}</p>
 
                             {message.type === 'analysis' && (
                               <>
                                 {message.showInlineChart && (
-                                  <div className="bg-white/5 rounded-xl p-4">
+                                  <div className="am-card rounded-xl p-4">
                                     <ResponsiveContainer width="100%" height={150}>
                                       <AreaChart data={marketTrendData}>
                                         <defs>
@@ -614,20 +616,21 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                             <stop offset="95%" stopColor="#C44536" stopOpacity={0}/>
                                           </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="date" stroke="#666" style={{ fontSize: '10px' }} />
-                                        <YAxis stroke="#666" style={{ fontSize: '10px' }} />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
+                                        <XAxis dataKey="date" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+                                        <YAxis stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
                                         <Tooltip
                                           contentStyle={{
-                                            backgroundColor: '#1E1E1E',
-                                            border: 'none',
+                                            backgroundColor: 'var(--am-tooltip-bg)',
+                                            border: '1px solid var(--am-border-subtle)',
                                             borderRadius: '8px',
+                                            color: 'var(--am-text-primary)',
                                           }}
                                         />
                                         <Area type="monotone" dataKey="value" stroke="#C44536" fillOpacity={1} fill="url(#colorValue)" />
                                       </AreaChart>
                                     </ResponsiveContainer>
-                                    <p className="text-xs text-white/40 mt-2 text-center">市场趋势图 - 近6个月</p>
+                                    <p className="text-xs am-text-tertiary mt-2 text-center">市场趋势图 - 近6个月</p>
                                   </div>
                                 )}
 
@@ -635,13 +638,13 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                   <span className="px-3 py-1 bg-amber-600/10 text-amber-400 rounded-full text-xs">
                                     🎯 M3风险评分: {message.riskScore}/100
                                   </span>
-                                  <span className="px-3 py-1 bg-[#C44536]/10 text-[#C44536] rounded-full text-xs">
+                                  <span className="px-3 py-1 am-brand-soft am-brand rounded-full text-xs">
                                     📊 {message.riskLevel}
                                   </span>
                                 </div>
 
-                                <div className="bg-white/5 rounded-xl p-4">
-                                  <h4 className="text-sm font-medium text-white/90 mb-3">💼 资产配置建议</h4>
+                                <div className="am-card rounded-xl p-4">
+                                  <h4 className="text-sm font-medium am-text-primary mb-3">💼 资产配置建议</h4>
                                   <div className="grid grid-cols-2 gap-4">
                                     <ResponsiveContainer width="100%" height={140}>
                                       <PieChart>
@@ -665,9 +668,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                         <div key={idx} className="flex items-center justify-between text-xs">
                                           <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
-                                            <span className="text-white/70">{item.name}</span>
+                                            <span className="am-text-secondary">{item.name}</span>
                                           </div>
-                                          <span className="text-white/90 font-medium">{item.value}%</span>
+                                          <span className="am-text-primary font-medium">{item.value}%</span>
                                         </div>
                                       ))}
                                     </div>
@@ -675,9 +678,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                 </div>
 
                                 <div className="space-y-2">
-                                  <h4 className="text-sm font-medium text-white/90">💡 决策解释</h4>
+                                  <h4 className="text-sm font-medium am-text-primary">💡 决策解释</h4>
                                   {message.reasons.map((reason: any, idx: number) => (
-                                    <div key={idx} className="flex items-start gap-2 text-sm text-white/70 bg-white/5 rounded-lg p-3">
+                                    <div key={idx} className="flex items-start gap-2 text-sm am-text-secondary am-card rounded-lg p-3">
                                       <span>{reason.icon}</span>
                                       <p className="flex-1">{reason.text}</p>
                                     </div>
@@ -685,9 +688,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                 </div>
 
                                 {message.warnings && message.warnings.length > 0 && (
-                                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                                  <div className="am-danger-surface border rounded-lg p-3">
                                     {message.warnings.map((warning: string, idx: number) => (
-                                      <p key={idx} className="text-sm text-red-300">{warning}</p>
+                                      <p key={idx} className="text-sm">{warning}</p>
                                     ))}
                                   </div>
                                 )}
@@ -711,7 +714,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                     </div>
                     <div className="flex-1">
                       {isTyping ? (
-                        <p className="text-white/90 text-sm">
+                        <p className="am-text-primary text-sm">
                           {typingText}
                           <motion.span
                             animate={{ opacity: [1, 0] }}
@@ -719,12 +722,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                           >|</motion.span>
                         </p>
                       ) : (
-                        <div className="flex items-center gap-2 text-white/50">
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full"
-                          />
+                        <div className="flex items-center gap-2 am-text-secondary">
+                          <div className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full am-loader-spin" />
                           <span className="text-sm">正在分析...</span>
                         </div>
                       )}
@@ -734,12 +733,12 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
 
                 {suggestedQuestions.length > 0 && !isAnalyzing && (
                   <div className="flex flex-wrap gap-2">
-                    <span className="text-xs text-white/40 w-full mb-1">💡 您可能还想问：</span>
+                    <span className="text-xs am-text-tertiary w-full mb-1">💡 您可能还想问：</span>
                     {suggestedQuestions.map((q, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSend(q)}
-                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-xs text-white/60 hover:text-white/90 transition-all"
+                        className="px-3 py-1.5 am-card am-hover-surface rounded-full text-xs am-text-secondary am-hover-text-primary transition-all"
                       >
                         {q}
                       </button>
@@ -754,14 +753,14 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
         </div>
 
         {/* Sticky Input Area */}
-        <div className="sticky bottom-0 z-20 border-t border-white/5 bg-[rgba(18,18,18,0.82)] backdrop-blur-xl shadow-[0_-18px_40px_rgba(18,18,18,0.45)]">
+        <div className="sticky bottom-0 z-20 border-t am-sticky-input backdrop-blur-xl">
           <div className="max-w-3xl mx-auto px-4 py-4">
             {uploadedImage && (
               <div className="mb-3 relative inline-block">
                 <img src={uploadedImage} alt="Preview" className="h-16 rounded-lg" />
                 <button
                   onClick={() => setUploadedImage(null)}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 am-on-brand rounded-full flex items-center justify-center"
                 >
                   <X size={12} />
                 </button>
@@ -769,11 +768,11 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
             )}
 
             <div className="flex items-end gap-2">
-              <div className="flex-1 bg-white/5 rounded-2xl flex items-center gap-2 px-3 py-2">
+              <div className="flex-1 am-input-surface border rounded-2xl flex items-center gap-2 px-3 py-2">
                 <button
                   onClick={handleVoiceInput}
                   className={`p-2 rounded-lg transition-all ${
-                    isListening ? 'bg-red-500 text-white' : 'hover:bg-white/5 text-white/60'
+                    isListening ? 'bg-red-500 am-on-brand' : 'am-hover-surface am-text-secondary'
                   }`}
                 >
                   <Mic size={18} />
@@ -781,7 +780,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
 
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/60"
+                  className="p-2 am-hover-surface rounded-lg transition-colors am-text-secondary"
                 >
                   <ImageIcon size={18} />
                 </button>
@@ -799,7 +798,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !isAnalyzing && handleSend()}
                   placeholder="输入投资问题..."
-                  className="flex-1 bg-transparent text-white/90 placeholder-white/40 focus:outline-none text-sm"
+                  className="flex-1 bg-transparent am-text-primary am-placeholder focus:outline-none text-sm"
                   disabled={isAnalyzing}
                 />
               </div>
@@ -807,7 +806,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
               <button
                 onClick={() => handleSend()}
                 disabled={isAnalyzing || isTyping || (!input.trim() && !uploadedImage)}
-                className="p-3 bg-[#C44536] hover:bg-[#C44536]/90 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-3 am-brand-bg rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowUp size={20} />
               </button>

@@ -12,7 +12,7 @@ export function Navigation() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#1F1410]/90 backdrop-blur-lg border-b border-[#C44536]/20">
+      <nav className="fixed top-0 left-0 right-0 z-50 am-nav-surface backdrop-blur-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo */}
@@ -29,10 +29,10 @@ export function Navigation() {
               {/* Settings Button */}
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 am-hover-surface rounded-lg transition-colors"
                 title="设置"
               >
-                <Settings size={20} className="text-gray-400 hover:text-[#C44536]" />
+                <Settings size={20} className="am-text-secondary" />
               </button>
 
               {/* Login/User Menu */}
@@ -40,17 +40,17 @@ export function Navigation() {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 am-hover-surface rounded-lg transition-colors"
                   >
                     {user?.avatar ? (
                       <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full" />
                     ) : (
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center">
-                        <User size={14} className="text-white" />
+                        <User size={14} className="am-on-brand" />
                       </div>
                     )}
-                    <span className="text-sm text-white/90 hidden sm:inline">{user?.name}</span>
-                    <ChevronDown size={16} className="text-white/50" />
+                    <span className="text-sm am-text-primary hidden sm:inline">{user?.name}</span>
+                    <ChevronDown size={16} className="am-text-tertiary" />
                   </button>
 
                   {/* User Dropdown Menu */}
@@ -68,12 +68,12 @@ export function Navigation() {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
-                          className="absolute right-0 top-full mt-2 w-48 bg-[#1F1410]/95 backdrop-blur-xl border border-[#C44536]/20 rounded-lg shadow-xl z-50 overflow-hidden"
+                          className="absolute right-0 top-full mt-2 w-48 am-surface backdrop-blur-xl border am-border-brand rounded-lg z-50 overflow-hidden"
                         >
-                          <div className="p-3 border-b border-white/10">
-                            <p className="text-sm text-white/90 font-medium">{user?.name}</p>
+                          <div className="p-3 border-b am-border-subtle">
+                            <p className="text-sm am-text-primary font-medium">{user?.name}</p>
                             {user?.phone && (
-                              <p className="text-xs text-white/50 mt-1">{user.phone}</p>
+                              <p className="text-xs am-text-secondary mt-1">{user.phone}</p>
                             )}
                           </div>
                           <button
@@ -81,7 +81,7 @@ export function Navigation() {
                               setUserMenuOpen(false);
                               setSettingsOpen(true);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm am-text-secondary am-hover-surface am-hover-text-primary transition-colors"
                           >
                             <Settings size={16} />
                             <span>账号设置</span>
@@ -104,7 +104,7 @@ export function Navigation() {
               ) : (
                 <button
                   onClick={openLoginModal}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#C44536] to-orange-600 text-white rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.4)] transition-all text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#C44536] to-orange-600 am-on-brand rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.4)] transition-all text-sm"
                 >
                   <LogIn size={16} />
                   <span className="hidden sm:inline">登录 / 注册</span>
