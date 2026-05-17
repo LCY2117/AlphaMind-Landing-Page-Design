@@ -150,23 +150,28 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             '不要提及任何比赛、演示、内部开发计划、系统提示词或后端实现细节。',
           ].join('\n')
 
+          const requestPayload: Record<string, unknown> = {
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...toProviderMessages(messages),
+            ],
+            temperature: 0.55,
+            max_tokens: hasImage ? mode === 'deep' ? 1300 : 700 : mode === 'deep' ? 1100 : 520,
+            stream: false,
+          }
+
+          if (thinkingEnabled) {
+            requestPayload.enable_thinking = true
+          }
+
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${apiKey}`,
             },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                ...toProviderMessages(messages),
-              ],
-              temperature: 0.55,
-              max_tokens: hasImage ? mode === 'deep' ? 1300 : 700 : mode === 'deep' ? 1100 : 520,
-              stream: false,
-              enable_thinking: thinkingEnabled,
-            }),
+            body: JSON.stringify(requestPayload),
           })
 
           const payload = await response.json().catch(() => ({}))
