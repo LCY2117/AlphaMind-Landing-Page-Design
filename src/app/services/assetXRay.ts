@@ -25,6 +25,8 @@ export interface AssetXRayReport {
     source: string;
     status: 'ok' | 'fallback';
     message?: string;
+    freshnessLabel: string;
+    coverage: Array<{ label: string; value: 'live' | 'mock' | 'derived' | 'pending' }>;
     raw?: unknown;
   };
 }
@@ -80,7 +82,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     changeValue: 2.84,
     marketCap: '$565.1B',
     radar: [
-      { subject: '估值', value: 42 },
+      { subject: '估值吸引力', value: 42 },
       { subject: '成长性', value: 86 },
       { subject: '盈利', value: 68 },
       { subject: '情绪', value: 74 },
@@ -102,6 +104,12 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: 'ok',
+      freshnessLabel: '本地样例数据 · 非实时',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: 'AI结论', value: 'mock' },
+      ],
     },
   },
   {
@@ -114,7 +122,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     changeValue: 1.36,
     marketCap: '$2.27T',
     radar: [
-      { subject: '估值', value: 48 },
+      { subject: '估值吸引力', value: 48 },
       { subject: '成长性', value: 94 },
       { subject: '盈利', value: 91 },
       { subject: '情绪', value: 84 },
@@ -136,6 +144,12 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: 'ok',
+      freshnessLabel: '本地样例数据 · 非实时',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: 'AI结论', value: 'mock' },
+      ],
     },
   },
   {
@@ -148,7 +162,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     changeValue: -0.42,
     marketCap: '$2.91T',
     radar: [
-      { subject: '估值', value: 58 },
+      { subject: '估值吸引力', value: 58 },
       { subject: '成长性', value: 62 },
       { subject: '盈利', value: 88 },
       { subject: '情绪', value: 57 },
@@ -170,6 +184,12 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: 'ok',
+      freshnessLabel: '本地样例数据 · 非实时',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: 'AI结论', value: 'mock' },
+      ],
     },
   },
 ];
@@ -193,13 +213,49 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
     ...report,
     symbol: matchedReport ? report.symbol : normalized,
     name: matchedReport ? report.name : `${normalized} Asset`,
+    market: matchedReport ? report.market : '待同步',
+    price: matchedReport ? report.price : '待同步',
+    change: matchedReport ? report.change : '--',
+    changeValue: matchedReport ? report.changeValue : 0,
     sector: matchedReport ? report.sector : '待同步',
     marketCap: matchedReport ? report.marketCap : '待同步',
+    radar: matchedReport ? report.radar : [
+      { subject: '估值吸引力', value: 8 },
+      { subject: '成长性', value: 8 },
+      { subject: '盈利', value: 8 },
+      { subject: '情绪', value: 8 },
+      { subject: '动量', value: 8 },
+      { subject: '安全边际', value: 8 },
+    ],
+    sentiment: matchedReport ? report.sentiment : 0,
+    sentimentLabel: matchedReport ? report.sentimentLabel : '待同步',
+    conclusion: matchedReport
+      ? report.conclusion
+      : `${normalized} 暂无本地样例或实时后端数据。当前页面仅展示 Asset X-Ray 的分析结构，正式结论需要接入行情、财务与新闻数据源后生成。`,
+    probabilities: matchedReport ? report.probabilities : { up: 0, flat: 0, down: 0 },
+    metrics: matchedReport ? report.metrics : [
+      { label: '样例结构完整度', value: '演示', hint: '暂无该标的本地样例' },
+      { label: '行情状态', value: '待同步', hint: '等待真实数据源接入' },
+      { label: '预测置信度', value: '--', hint: '不输出伪置信度' },
+    ],
+    catalysts: matchedReport ? report.catalysts : ['等待行情源同步', '等待财务数据源同步', '等待新闻与公告源同步'],
     providerMeta: {
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: unsupportedMessage ? 'fallback' : 'ok',
       message: unsupportedMessage,
+      freshnessLabel: matchedReport ? '本地样例数据 · 非实时' : '未连接实时源 · 使用结构演示',
+      coverage: matchedReport
+        ? [
+            { label: '行情', value: 'mock' },
+            { label: 'K线', value: 'mock' },
+            { label: 'AI结论', value: 'mock' },
+          ]
+        : [
+            { label: '行情', value: 'pending' },
+            { label: 'K线', value: 'pending' },
+            { label: 'AI结论', value: 'mock' },
+          ],
     },
   };
 }
@@ -267,7 +323,7 @@ async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>
     changeValue,
     marketCap: meta.marketCap,
     radar: [
-      { subject: '估值', value: clampScore(58 - Math.max(0, changeValue) * 2) },
+      { subject: '估值吸引力', value: clampScore(58 - Math.max(0, changeValue) * 2) },
       { subject: '成长性', value: clampScore(62 + momentumScore * 0.28) },
       { subject: '盈利', value: clampScore(64 + overallScore * 0.18) },
       { subject: '情绪', value: clampScore(sentimentScore) },
@@ -288,6 +344,12 @@ async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>
       mode: 'quantdinger',
       source: config.quantDingerAgentToken ? 'QuantDinger Agent Gateway' : 'QuantDinger indicator API',
       status: 'ok',
+      freshnessLabel: `已连接 QuantDinger · ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
+      coverage: [
+        { label: '行情', value: providerPrice ? 'live' : 'pending' },
+        { label: 'K线', value: klines.length > 0 ? 'live' : 'pending' },
+        { label: 'AI结论', value: analysisData ? 'live' : 'derived' },
+      ],
       raw: { priceData, klineSample: klines.slice(-3), analysisData },
     },
   };

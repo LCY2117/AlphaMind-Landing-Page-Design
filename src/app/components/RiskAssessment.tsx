@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TrendingDown, TrendingUp, Minus, Check, Target, Award, Brain, Activity, BarChart3, Zap, X } from 'lucide-react';
 import {
@@ -303,10 +303,17 @@ const allQuestions = [
   },
 ];
 
-// 从20道题中选择5道题
+const EMPTY_RADAR_DATA = [
+  { id: 'market-volatility-empty', subject: '市场波动', value: 0, fullMark: 100 },
+  { id: 'investment-goal-empty', subject: '投资目标', value: 0, fullMark: 100 },
+  { id: 'experience-empty', subject: '投资经验', value: 0, fullMark: 100 },
+  { id: 'liquidity-empty', subject: '流动性', value: 0, fullMark: 100 },
+  { id: 'loss-acceptance-empty', subject: '损失容忍', value: 0, fullMark: 100 },
+  { id: 'behavior-pattern-empty', subject: '行为模式', value: 0, fullMark: 100 },
+];
+
+// 快速版固定抽取 5 个核心维度，保证每次演示可复现。
 const selectRandomQuestions = (allQuestions: any[], count: number = 5) => {
-  // 使用固定的选择模式，每次选取不同类别的题目以保证全面性
-  // 选择索引: 0, 4, 8, 12, 16 (从20题中均匀分布选择5题)
   const indices = [0, 4, 8, 12, 16];
   return indices.map(i => allQuestions[i]).filter(Boolean);
 };
@@ -321,11 +328,42 @@ export function RiskAssessment() {
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [showCalibrationBanner, setShowCalibrationBanner] = useState(true);
+  const timersRef = useRef<number[]>([]);
 
-  // 每次组件加载时随机选择5道题
   const [questions] = useState(() => selectRandomQuestions(allQuestions, 5));
 
+  const clearAnalysisTimers = useCallback(() => {
+    timersRef.current.forEach((timerId) => {
+      window.clearTimeout(timerId);
+      window.clearInterval(timerId);
+    });
+    timersRef.current = [];
+  }, []);
+
+  const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
+    const timerId = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((id) => id !== timerId);
+      callback();
+    }, delay);
+    timersRef.current.push(timerId);
+  }, []);
+
+  const scheduleInterval = useCallback((callback: () => boolean | void, delay: number) => {
+    const timerId = window.setInterval(() => {
+      const shouldStop = callback();
+      if (shouldStop) {
+        window.clearInterval(timerId);
+        timersRef.current = timersRef.current.filter((id) => id !== timerId);
+      }
+    }, delay);
+    timersRef.current.push(timerId);
+    return timerId;
+  }, []);
+
+  useEffect(() => clearAnalysisTimers, [clearAnalysisTimers]);
+
   const handleAnswer = (questionId: number, answerId: string, riskScore: number) => {
+    clearAnalysisTimers();
     const newAnswer: TestAnswer = {
       questionId,
       answer: answerId,
@@ -346,16 +384,16 @@ export function RiskAssessment() {
     ];
 
     let stepIndex = 0;
-    const stepInterval = setInterval(() => {
+    scheduleInterval(() => {
       if (stepIndex < analysisSteps.length) {
         setAiAnalysisSteps(prev => [...prev, analysisSteps[stepIndex]]);
         stepIndex++;
       } else {
-        clearInterval(stepInterval);
+        return true;
       }
     }, 300);
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setIsAnalyzing(false);
       setAiAnalysisSteps([]);
       setShowAiPanel(false);
@@ -370,33 +408,32 @@ export function RiskAssessment() {
   };
 
   const calculateResults = (allAnswers: TestAnswer[]) => {
+    clearAnalysisTimers();
     setShowAiPanel(true);
     setIsAnalyzing(true);
 
-    // 详细的AI分析步骤
     const finalAnalysisSteps = [
-      '📊 整合5个维度的评估数据...',
-      '🧠 应用千亿参数风险模型...',
-      '📈 分析30天历史行为曲线...',
-      '🎯 计算动态风险容忍度...',
-      '💡 生成个性化资产配置建议...',
-      '✅ 风险画像构建完成！',
+      '整合 5 个核心维度的问卷数据...',
+      '计算风险承受能力与损失容忍度...',
+      '比对本地演示行为序列...',
+      '生成动态风险容忍度...',
+      '生成资产配置参考视图...',
+      '风险画像构建完成',
     ];
 
     let stepIndex = 0;
-    const stepInterval = setInterval(() => {
+    scheduleInterval(() => {
       if (stepIndex < finalAnalysisSteps.length) {
         setAiAnalysisSteps(prev => [...prev, finalAnalysisSteps[stepIndex]]);
         stepIndex++;
       } else {
-        clearInterval(stepInterval);
+        return true;
       }
     }, 400);
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       const avgScore = allAnswers.reduce((sum, a) => sum + a.riskScore, 0) / allAnswers.length;
 
-      // 结合历史行为数据调整风险评分
       const recentBehaviorAvg = behaviorData.slice(-7).reduce((sum, d) => sum + d.riskScore, 0) / 7;
       const adjustedScore = avgScore * 0.7 + recentBehaviorAvg * 0.3;
 
@@ -424,7 +461,7 @@ export function RiskAssessment() {
       setCurrentQuestion(0);
       setAnswers([]);
 
-      setTimeout(() => {
+      scheduleTimeout(() => {
         setShowAiPanel(false);
         setAiAnalysisSteps([]);
       }, 2000);
@@ -439,22 +476,20 @@ export function RiskAssessment() {
 
   const hasRiskData = Boolean(assessmentResult);
   const totalRiskScore = assessmentResult?.score ?? 0;
-  const emptyRadarData = [
-    { id: 'market-volatility-empty', subject: '市场波动', value: 58, fullMark: 100 },
-    { id: 'investment-goal-empty', subject: '投资目标', value: 58, fullMark: 100 },
-    { id: 'experience-empty', subject: '投资经验', value: 58, fullMark: 100 },
-    { id: 'liquidity-empty', subject: '流动性', value: 58, fullMark: 100 },
-    { id: 'loss-acceptance-empty', subject: '损失容忍', value: 58, fullMark: 100 },
-    { id: 'behavior-pattern-empty', subject: '行为模式', value: 58, fullMark: 100 },
-  ];
-  const radarData = assessmentResult ? [
+  const profileAgeDays = assessmentResult
+    ? Math.max(0, Math.floor((Date.now() - assessmentResult.assessedAt) / (24 * 60 * 60 * 1000)))
+    : null;
+  const profileConfidence = assessmentResult
+    ? Math.min(92, Math.max(64, Math.round(62 + assessmentResult.answers.length * 5 + (100 - Math.abs(totalRiskScore - 55)) * 0.12)))
+    : 0;
+  const radarData = useMemo(() => assessmentResult ? [
     { id: 'market-volatility', subject: '市场波动', value: assessmentResult.profile.marketVolatility, fullMark: 100 },
     { id: 'investment-goal', subject: '投资目标', value: assessmentResult.profile.investmentGoal, fullMark: 100 },
     { id: 'experience', subject: '投资经验', value: assessmentResult.profile.experience, fullMark: 100 },
     { id: 'liquidity', subject: '流动性', value: assessmentResult.profile.liquidity, fullMark: 100 },
     { id: 'loss-acceptance', subject: '损失容忍', value: assessmentResult.profile.lossAcceptance, fullMark: 100 },
     { id: 'behavior-pattern', subject: '行为模式', value: assessmentResult.profile.behaviorPattern, fullMark: 100 },
-  ] : emptyRadarData;
+  ] : EMPTY_RADAR_DATA, [assessmentResult]);
 
   // 资产配置建议数据
   const getAssetAllocation = (score: number) => {
@@ -480,7 +515,10 @@ export function RiskAssessment() {
   };
 
   // 缓存资产配置数据，避免重复计算
-  const assetAllocation = hasRiskData ? getAssetAllocation(totalRiskScore) : [];
+  const assetAllocation = useMemo(
+    () => hasRiskData ? getAssetAllocation(totalRiskScore) : [],
+    [hasRiskData, totalRiskScore],
+  );
 
   const startTest = () => {
     setCurrentQuestion(0);
@@ -493,6 +531,7 @@ export function RiskAssessment() {
 
   const closeTestModal = () => {
     if (isAnalyzing) return;
+    clearAnalysisTimers();
     setShowTestModal(false);
     setCurrentQuestion(0);
     setAnswers([]);
@@ -502,7 +541,7 @@ export function RiskAssessment() {
 
   return (
     <section id="risk-test" className="w-full min-h-screen flex flex-col am-page-gradient">
-      {/* Stock Ticker - Real-time Market Data Display */}
+      {/* Stock Ticker - demo market data display */}
       <StockTicker />
 
       <div className="w-full flex-1 flex items-center py-8 sm:py-12 lg:py-16">
@@ -517,7 +556,7 @@ export function RiskAssessment() {
               动态风险数据看板
             </h2>
             <p className="am-text-secondary max-w-2xl mx-auto">
-              随时查看您的 AI 投资画像、行为曲线与资产配置建议
+              随时查看本地风险画像、行为曲线与资产配置参考
             </p>
 
             {/* Progress bar */}
@@ -586,7 +625,7 @@ export function RiskAssessment() {
                   <motion.div className="am-loader-spin">
                     <Brain size={24} className="text-[#C44536]" />
                   </motion.div>
-                  <h4 className="am-text-primary font-semibold">AI 实时分析</h4>
+                  <h4 className="am-text-primary font-semibold">画像生成中</h4>
                 </div>
 
                 <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -719,6 +758,27 @@ export function RiskAssessment() {
                     </div>
                   )}
 
+                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                    <div className="am-card border rounded-xl p-3 text-left">
+                      <div className="text-xs am-text-tertiary mb-1">画像状态</div>
+                      <div className="text-sm font-semibold am-text-primary">
+                        {hasRiskData ? '已生成' : '等待测评'}
+                      </div>
+                    </div>
+                    <div className="am-card border rounded-xl p-3 text-left">
+                      <div className="text-xs am-text-tertiary mb-1">数据新鲜度</div>
+                      <div className="text-sm font-semibold am-text-primary">
+                        {hasRiskData ? `${profileAgeDays} 天前` : '尚无数据'}
+                      </div>
+                    </div>
+                    <div className="am-card border rounded-xl p-3 text-left">
+                      <div className="text-xs am-text-tertiary mb-1">置信度</div>
+                      <div className="text-sm font-semibold am-text-primary">
+                        {hasRiskData ? `${profileConfidence}%` : '--'}
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     onClick={startTest}
                     className="mt-6 sm:hidden px-4 py-2 rounded-lg border am-border-brand am-brand am-hover-surface text-sm font-semibold"
@@ -739,6 +799,7 @@ export function RiskAssessment() {
                     <h4 className="text-base sm:text-lg font-semibold am-text-primary mb-3 sm:mb-4 flex items-center gap-2">
                       <Target size={18} className="text-[#C44536] sm:w-5 sm:h-5" />
                       六维风险画像
+                      <span className="ml-auto text-xs font-normal am-text-tertiary">0-100 分 · 越高代表承受度越强</span>
                     </h4>
                     <div style={{ width: '100%', height: '280px' }} className="sm:h-[350px]">
                       <ResponsiveContainer>
@@ -759,11 +820,10 @@ export function RiskAssessment() {
                             key="radar-risk-profile"
                             name="风险画像"
                             dataKey="value"
-                            stroke={hasRiskData ? '#C44536' : 'var(--am-empty-chart-stroke)'}
-                            fill={hasRiskData ? '#C44536' : 'var(--am-empty-chart-fill)'}
-                            fillOpacity={hasRiskData ? 0.3 : 1}
-                            strokeWidth={2}
-                            strokeDasharray={hasRiskData ? undefined : '6 6'}
+                            stroke={hasRiskData ? '#C44536' : 'transparent'}
+                            fill={hasRiskData ? '#C44536' : 'transparent'}
+                            fillOpacity={hasRiskData ? 0.3 : 0}
+                            strokeWidth={hasRiskData ? 2 : 0}
                             animationId="radar-anim"
                           />
                         </RadarChart>
@@ -838,6 +898,11 @@ export function RiskAssessment() {
                         </div>
                       )}
                     </div>
+                    {hasRiskData && (
+                      <p className="mt-2 text-xs am-text-tertiary text-center">
+                        基于快速问卷画像生成，非真实持仓或交易建议。
+                      </p>
+                    )}
                   </motion.div>
                 </div>
 
@@ -853,72 +918,89 @@ export function RiskAssessment() {
                     30天行为模式分析
                   </h4>
                   <div style={{ width: '100%', height: '250px' }} className="sm:h-[300px]">
-                    <ResponsiveContainer>
-                      <AreaChart data={behaviorData}>
-                        <defs>
-                          <linearGradient id="behaviorColorRisk" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#C44536" stopOpacity={hasRiskData ? 0.8 : 0.18} key="gradient-risk-start"/>
-                            <stop offset="95%" stopColor="#C44536" stopOpacity={hasRiskData ? 0.1 : 0.02} key="gradient-risk-end"/>
-                          </linearGradient>
-                          <linearGradient id="behaviorColorFreq" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#F59E0B" stopOpacity={hasRiskData ? 0.8 : 0.18} key="gradient-freq-start"/>
-                            <stop offset="95%" stopColor="#F59E0B" stopOpacity={hasRiskData ? 0.1 : 0.02} key="gradient-freq-end"/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid key="cartesian-grid" strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
-                        <XAxis
-                          key="x-axis"
-                          dataKey="day"
-                          stroke="var(--am-chart-axis)"
-                          style={{ fontSize: '9px' }}
-                          interval={5}
-                          className="sm:text-xs"
-                        />
-                        <YAxis key="y-axis" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} className="sm:text-xs" />
-                        <Tooltip
-                          key="area-tooltip"
-                          contentStyle={{
-                            backgroundColor: 'var(--am-tooltip-bg)',
-                            border: '1px solid var(--am-border-strong)',
-                            borderRadius: '8px',
-                            color: 'var(--am-text-primary)'
-                          }}
-                        />
-                        <Area
-                          key="area-risk-score"
-                          type="monotone"
-                          dataKey="riskScore"
-                          stroke={hasRiskData ? '#C44536' : 'var(--am-empty-chart-stroke)'}
-                          strokeDasharray={hasRiskData ? undefined : '6 6'}
-                          fillOpacity={1}
-                          fill="url(#behaviorColorRisk)"
-                          name="风险偏好"
-                          animationId="risk-score-anim"
-                        />
-                        <Area
-                          key="area-trading-freq"
-                          type="monotone"
-                          dataKey="tradingFrequency"
-                          stroke={hasRiskData ? '#F59E0B' : 'var(--am-empty-chart-stroke)'}
-                          strokeDasharray={hasRiskData ? undefined : '6 6'}
-                          fillOpacity={1}
-                          fill="url(#behaviorColorFreq)"
-                          name="交易频率"
-                          animationId="trading-freq-anim"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    {hasRiskData ? (
+                      <ResponsiveContainer>
+                        <AreaChart data={behaviorData}>
+                          <defs>
+                            <linearGradient id="behaviorColorRisk" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#C44536" stopOpacity={0.8} key="gradient-risk-start"/>
+                              <stop offset="95%" stopColor="#C44536" stopOpacity={0.1} key="gradient-risk-end"/>
+                            </linearGradient>
+                            <linearGradient id="behaviorColorFreq" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.8} key="gradient-freq-start"/>
+                              <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.1} key="gradient-freq-end"/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid key="cartesian-grid" strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
+                          <XAxis
+                            key="x-axis"
+                            dataKey="day"
+                            stroke="var(--am-chart-axis)"
+                            style={{ fontSize: '9px' }}
+                            interval={5}
+                            className="sm:text-xs"
+                          />
+                          <YAxis key="y-axis" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} className="sm:text-xs" />
+                          <Tooltip
+                            key="area-tooltip"
+                            contentStyle={{
+                              backgroundColor: 'var(--am-tooltip-bg)',
+                              border: '1px solid var(--am-border-strong)',
+                              borderRadius: '8px',
+                              color: 'var(--am-text-primary)'
+                            }}
+                          />
+                          <Area
+                            key="area-risk-score"
+                            type="monotone"
+                            dataKey="riskScore"
+                            stroke="#C44536"
+                            fillOpacity={1}
+                            fill="url(#behaviorColorRisk)"
+                            name="风险偏好"
+                            animationId="risk-score-anim"
+                          />
+                          <Area
+                            key="area-trading-freq"
+                            type="monotone"
+                            dataKey="tradingFrequency"
+                            stroke="#F59E0B"
+                            fillOpacity={1}
+                            fill="url(#behaviorColorFreq)"
+                            name="交易频率"
+                            animationId="trading-freq-anim"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <div className="text-center max-w-xs">
+                          <div className="mx-auto mb-4 h-20 w-20 rounded-2xl border-2 border-dashed flex items-center justify-center" style={{ borderColor: 'var(--am-empty-chart-stroke)' }}>
+                            <Activity size={28} className="am-text-tertiary" />
+                          </div>
+                          <p className="text-sm font-semibold am-text-primary">暂无行为序列</p>
+                          <p className="text-xs am-text-secondary mt-2">
+                            完成测评后，这里会显示本地演示行为曲线。
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-3 sm:mt-4 flex items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#C44536] rounded-full" />
-                      <span className="am-text-secondary">风险偏好</span>
+                  {hasRiskData && (
+                    <div className="mt-3 sm:mt-4 flex flex-col items-center gap-2 text-xs sm:text-sm">
+                      <div className="flex items-center justify-center gap-4 sm:gap-6">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#C44536] rounded-full" />
+                          <span className="am-text-secondary">风险偏好</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#F59E0B] rounded-full" />
+                          <span className="am-text-secondary">交易频率</span>
+                        </div>
+                      </div>
+                      <span className="am-text-tertiary">当前为本地演示行为序列，后续可替换为真实交易/问答行为数据。</span>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-[#F59E0B] rounded-full" />
-                      <span className="am-text-secondary">交易频率</span>
-                    </div>
-                  </div>
+                  )}
                 </motion.div>
 
                 {/* AI 深度洞察 */}

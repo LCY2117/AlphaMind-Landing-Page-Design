@@ -20,6 +20,37 @@ Modes:
 - `mock`: default. Uses local AlphaMind demo reports.
 - `quantdinger`: calls QuantDinger when available and falls back to mock reports on failure.
 
+## Cloud Runtime Status
+
+As of 2026-05-17, the shared cloud server has a live self-hosted QuantDinger runtime:
+
+- Server: `104.248.151.6`
+- QuantDinger path: `/opt/QuantDinger`
+- Compose file: `/opt/QuantDinger/docker-compose.ghcr.yml`
+- Containers: `quantdinger-backend`, `quantdinger-frontend`, `quantdinger-db`, `quantdinger-redis`
+- Loopback ports: `127.0.0.1:8888` for QuantDinger web/proxy API, `127.0.0.1:5000` for backend API, `127.0.0.1:15432` for Postgres, `127.0.0.1:16379` for Redis
+- Live trading switch: `AGENT_LIVE_TRADING_ENABLED=false`
+
+AlphaMind cloud runtime:
+
+```env
+VITE_ALPHAMIND_DATA_MODE=quantdinger
+VITE_QUANTDINGER_BASE_URL=/api/quantdinger
+```
+
+OpenResty exposes a same-origin proxy:
+
+```text
+https://alphamind.mddcommunity.top/api/quantdinger/ -> http://127.0.0.1:8888/
+```
+
+Verified indicator endpoints:
+
+```text
+GET https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/price?market=USStock&symbol=TSLA
+GET https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/kline?market=USStock&symbol=TSLA&timeframe=1D&limit=3
+```
+
 ## Current AlphaMind Usage
 
 `Asset X-Ray` now consumes an AlphaMind domain model from `src/app/services/assetXRay.ts`.
@@ -96,10 +127,9 @@ Use `paper_only=true` when creating agent tokens.
 
 ## Known Blockers
 
-- The Git clone of `brokermr810/QuantDinger` failed in this run because the connection was reset. Raw GitHub files were still accessible and used for API verification.
 - `/api/fast-analysis/analyze` is a human-JWT API and may consume credits when billing is enabled.
 - Agent Gateway currently exposes market data and backtest jobs, but not a first-class AI asset-analysis endpoint.
-- Full live verification requires a running local QuantDinger service and a read/backtest-scoped token.
+- Agent Gateway backtest verification still needs a user-created read/backtest-scoped token. Do not put this token in source control.
 
 These blockers are also tracked in `docs/LONG_TASK_BLOCKERS.md` so long-running work can continue without waiting for secrets or human confirmations.
 

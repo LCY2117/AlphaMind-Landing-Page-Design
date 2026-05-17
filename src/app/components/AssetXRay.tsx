@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowUpRight,
+  AlertTriangle,
   BarChart3,
   Brain,
   Gauge,
@@ -233,7 +234,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
   const [query, setQuery] = useState(initialSymbol);
   const [stock, setStock] = useState<AssetXRayReport>(() => getMockAssetXRayReport(initialSymbol));
   const [scanState, setScanState] = useState<ScanState>('idle');
-  const [scanValues, setScanValues] = useState([128, 64, 91]);
+  const [scanValues, setScanValues] = useState([88, 64, 91]);
   const [typedConclusion, setTypedConclusion] = useState('');
   const scanCompletionTimer = useRef<number | null>(null);
   const activeRequestRef = useRef(0);
@@ -241,11 +242,36 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
   const isScanning = scanState === 'scanning';
   const isComplete = scanState === 'complete';
 
-  const providerBadge = useMemo(() => {
-    if (stock.providerMeta.mode === 'quantdinger') return 'QuantDinger live';
-    if (stock.providerMeta.status === 'fallback') return 'Mock fallback';
-    return 'Mock mode';
+  const providerStatus = useMemo(() => {
+    if (stock.providerMeta.mode === 'quantdinger' && stock.providerMeta.status === 'ok') {
+      return {
+        label: '已连接 QuantDinger',
+        detail: '行情与 K 线来自后端数据通道',
+        className: 'border-green-500/30 bg-green-500/10 text-green-500',
+      };
+    }
+
+    if (stock.providerMeta.status === 'fallback') {
+      return {
+        label: '服务未连接 · 演示回退',
+        detail: '当前不会输出伪实时行情',
+        className: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
+      };
+    }
+
+    return {
+      label: '本地演示数据',
+      detail: '用于展示交互与分析结构',
+      className: 'am-card am-text-secondary',
+    };
   }, [stock.providerMeta.mode, stock.providerMeta.status]);
+
+  const coverageText: Record<AssetXRayReport['providerMeta']['coverage'][number]['value'], string> = {
+    live: '实时/后端',
+    mock: '演示',
+    derived: '规则估算',
+    pending: '待同步',
+  };
 
   const runScan = async (nextSymbol?: string) => {
     const normalized = normalizeAssetSymbol(nextSymbol ?? query);
@@ -296,7 +322,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
     let frameId = 0;
     const tick = () => {
       setScanValues([
-        Math.floor(80 + Math.random() * 90),
+        Math.floor(62 + Math.random() * 34),
         Math.floor(30 + Math.random() * 70),
         Math.floor(55 + Math.random() * 44),
       ]);
@@ -339,7 +365,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold am-text-primary mb-3">资产透视</h2>
               <p className="am-text-secondary max-w-2xl">
-                输入股票代码，AlphaMind 会从估值、成长、盈利、情绪、动量与预测区间进行 AI 深度检测。
+                输入股票代码，查看估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注演示数据。
               </p>
             </motion.div>
 
@@ -362,7 +388,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                   disabled={isScanning}
                   className="px-5 py-2.5 bg-gradient-to-r from-[#C44536] to-orange-600 am-on-brand rounded-xl font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.4)] transition-all disabled:opacity-60"
                 >
-                  {isScanning ? 'AI 扫描中' : '开始深度检测'}
+                  {isScanning ? '扫描中' : '生成研究视图'}
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -380,14 +406,32 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                   </button>
                 ))}
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full am-card border px-2.5 py-1 am-text-secondary">
-                  Data: {providerBadge}
-                </span>
+              <div className="mt-4 rounded-xl am-card border p-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className={`rounded-full border px-2.5 py-1 font-semibold ${providerStatus.className}`}>
+                        {providerStatus.label}
+                      </span>
+                      <span className="am-text-tertiary">{stock.providerMeta.freshnessLabel}</span>
+                    </div>
+                    <p className="mt-2 text-xs am-text-secondary">
+                      {providerStatus.detail} · 来源：{stock.providerMeta.source}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 text-[11px]">
+                    {stock.providerMeta.coverage.map((item) => (
+                      <span key={item.label} className="rounded-full border am-border-subtle px-2 py-1 am-text-tertiary">
+                        {item.label}: {coverageText[item.value]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
                 {stock.providerMeta.message && (
-                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-500">
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                     {stock.providerMeta.message}
-                  </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -416,7 +460,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                     <BarChart3 size={18} className="text-[#C44536]" />
                     基础诊断雷达
                   </h3>
-                  <span className="text-xs am-text-tertiary">6-factor score</span>
+                  <span className="text-xs am-text-tertiary">0-100 分 · 越高代表该维度越强</span>
                 </div>
                 <div className="h-[320px]">
                   <ResponsiveContainer>
@@ -444,7 +488,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                     <Gauge size={18} className="text-[#C44536]" />
                     AI 多空情绪
                   </h3>
-                  <span className="text-xs am-text-tertiary">NLP sentiment</span>
+                  <span className="text-xs am-text-tertiary">新闻/文本情绪</span>
                 </div>
                 <SentimentGauge score={stock.sentiment} label={stock.sentimentLabel} active={isComplete} />
               </div>
@@ -462,7 +506,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                 </div>
                 <div className="text-right">
                   <div className="text-xl font-bold am-text-primary">{stock.price}</div>
-                  <div className={`text-sm font-semibold ${stock.changeValue >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <div className={`text-sm font-semibold ${stock.change === '--' ? 'am-text-tertiary' : stock.changeValue >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {stock.change}
                   </div>
                 </div>
@@ -505,9 +549,9 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
             <div className="flex items-center justify-between gap-3 mb-4">
               <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
                 <LineChart size={18} className="text-[#C44536]" />
-                AI 概率预测锥
+                概率预测锥
               </h3>
-              <span className="text-xs am-text-tertiary">20 trading days</span>
+              <span className="text-xs am-text-tertiary">20 个交易日 · 区间演示</span>
             </div>
             <ProbabilityCone active={isComplete} probabilities={stock.probabilities} />
           </div>
@@ -516,12 +560,12 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
             {isScanning && <AnalysisSkeleton values={scanValues} />}
             <div className="flex items-center gap-2 mb-4">
               <Brain size={20} className="text-[#C44536]" />
-              <h3 className="text-base sm:text-lg font-semibold am-text-primary">AI 诊断结论</h3>
+              <h3 className="text-base sm:text-lg font-semibold am-text-primary">辅助研究结论</h3>
             </div>
             <div className="rounded-xl am-brand-soft border am-border-brand p-4 mb-4">
               <div className="flex items-center gap-2 text-sm font-semibold am-brand">
                 <Sparkles size={16} />
-                {isComplete ? '深度检测完成' : '等待模型输出'}
+                {isComplete ? '研究视图已生成' : '等待输出'}
               </div>
             </div>
             <p className="text-sm leading-7 am-text-secondary min-h-[168px]">
@@ -532,7 +576,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
             </p>
             <div className="mt-5 flex items-center gap-2 text-xs am-text-tertiary">
               <ShieldCheck size={14} />
-              该结果为 AI 辅助分析，不构成投资建议
+              该结果为辅助研究视图，不构成投资建议
             </div>
           </div>
         </div>

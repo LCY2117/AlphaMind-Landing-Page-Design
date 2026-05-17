@@ -240,7 +240,7 @@ export function HeroSection() {
               从工具到伴侣的进化
             </h1>
             <p className="text-base sm:text-lg md:text-xl am-text-secondary">
-              基于千亿级金融语料大模型，精准捕捉动态交易意图
+              以金融语义、风险画像与资产透视为核心，构建可演示、可扩展的智能投顾体验
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
               <motion.button

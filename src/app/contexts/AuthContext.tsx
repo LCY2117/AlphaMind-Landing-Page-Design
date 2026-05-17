@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 
-interface User {
+export interface User {
   id: string;
   name: string;
   phone?: string;
   avatar?: string;
   loginMethod: 'phone' | 'wechat';
+  mode: 'demo';
+  createdAt: number;
 }
 
 interface AuthContextType {
@@ -19,13 +21,35 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const USER_STORAGE_KEY = 'alphamind_user';
+
+function isValidDemoUser(value: unknown): value is User {
+  if (!value || typeof value !== 'object') return false;
+
+  const candidate = value as Partial<User>;
+  return (
+    typeof candidate.id === 'string' &&
+    typeof candidate.name === 'string' &&
+    candidate.name.trim().length > 0 &&
+    (candidate.loginMethod === 'phone' || candidate.loginMethod === 'wechat') &&
+    candidate.mode === 'demo' &&
+    typeof candidate.createdAt === 'number'
+  );
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     try {
-      const saved = localStorage.getItem('alphamind_user');
-      return saved ? JSON.parse(saved) : null;
+      const saved = localStorage.getItem(USER_STORAGE_KEY);
+      if (!saved) return null;
+
+      const parsed = JSON.parse(saved);
+      if (isValidDemoUser(parsed)) return parsed;
+
+      localStorage.removeItem(USER_STORAGE_KEY);
+      return null;
     } catch {
+      localStorage.removeItem(USER_STORAGE_KEY);
       return null;
     }
   });
@@ -34,42 +58,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem('alphamind_user', JSON.stringify(user));
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem('alphamind_user');
+      localStorage.removeItem(USER_STORAGE_KEY);
     }
   }, [user]);
 
-  const login = (userData: User) => {
-    setUser(userData);
+  const login = useCallback((userData: User) => {
+    setUser({
+      ...userData,
+      mode: 'demo',
+      createdAt: userData.createdAt || Date.now(),
+    });
     setShowLoginModal(false);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem('alphamind_user');
-  };
+    localStorage.removeItem(USER_STORAGE_KEY);
+  }, []);
 
-  const openLoginModal = () => {
+  const openLoginModal = useCallback(() => {
     setShowLoginModal(true);
-  };
+  }, []);
 
-  const closeLoginModal = () => {
+  const closeLoginModal = useCallback(() => {
     setShowLoginModal(false);
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: !!user,
+      login,
+      logout,
+      showLoginModal,
+      openLoginModal,
+      closeLoginModal,
+    }),
+    [closeLoginModal, login, logout, openLoginModal, showLoginModal, user],
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        showLoginModal,
-        openLoginModal,
-        closeLoginModal,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { History, Home, MessageSquare, Plus, ScanSearch, Sparkles, Target } from 'lucide-react';
 import { Navigation } from './components/Navigation';
 import { HeroSection } from './components/HeroSection';
 import { FeatureCards } from './components/FeatureCards';
-import { AIAdvisorDemo } from './components/AIAdvisorDemo';
-import { RiskAssessment } from './components/RiskAssessment';
-import { AssetXRay } from './components/AssetXRay';
 import { LoginModal } from './components/LoginModal';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+
+const AIAdvisorDemo = lazy(() => import('./components/AIAdvisorDemo').then((module) => ({ default: module.AIAdvisorDemo })));
+const RiskAssessment = lazy(() => import('./components/RiskAssessment').then((module) => ({ default: module.RiskAssessment })));
+const AssetXRay = lazy(() => import('./components/AssetXRay').then((module) => ({ default: module.AssetXRay })));
 
 const PAGE_NAMES = ['首页', '对话投顾', '风险测试', '资产透视', '核心功能'];
 const PAGE_NAV_ITEMS = [
@@ -140,6 +141,17 @@ function PageShell({ children, currentPage, onNavigate, onNewChat }: PageShellPr
   );
 }
 
+function PageLoading() {
+  return (
+    <div className="h-full flex items-center justify-center am-page-gradient">
+      <div className="flex items-center gap-3 rounded-xl am-card border px-4 py-3 am-text-secondary">
+        <div className="h-4 w-4 rounded-full border-2 border-[#C44536] border-t-transparent am-loader-spin" />
+        <span className="text-sm">加载页面...</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -165,69 +177,33 @@ export default function App() {
     handleNavigate(3);
   }, [handleNavigate]);
 
-  const pages = [
-    {
-      component: (
-        <PageShell
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-          onNewChat={handleNewChat}
-        >
-          <HeroSection />
-        </PageShell>
-      ),
-      name: PAGE_NAMES[0],
-    },
-    {
-      component: (
+  const currentPageElement = useMemo(() => {
+    if (currentPage === 1) {
+      return (
         <AIAdvisorDemo
           currentPage={currentPage}
           onNavigate={handleNavigate}
           onOpenAssetXRay={handleOpenAssetXRay}
           newChatRequest={newChatRequest}
         />
-      ),
-      name: PAGE_NAMES[1],
-    },
-    {
-      component: (
-        <PageShell
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-          onNewChat={handleNewChat}
-        >
-          <RiskAssessment />
-        </PageShell>
-      ),
-      name: PAGE_NAMES[2],
-    },
-    {
-      component: (
-        <PageShell
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-          onNewChat={handleNewChat}
-        >
-          <AssetXRay requestedSymbol={assetXRaySymbol} />
-        </PageShell>
-      ),
-      name: PAGE_NAMES[3],
-    },
-    {
-      component: (
-        <PageShell
-          currentPage={currentPage}
-          onNavigate={handleNavigate}
-          onNewChat={handleNewChat}
-        >
-          <FeatureCards />
-        </PageShell>
-      ),
-      name: PAGE_NAMES[4],
-    },
-  ];
+      );
+    }
 
-  // Keyboard navigation
+    return (
+      <PageShell
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        onNewChat={handleNewChat}
+      >
+        {currentPage === 0 && <HeroSection />}
+        {currentPage === 2 && <RiskAssessment />}
+        {currentPage === 3 && <AssetXRay requestedSymbol={assetXRaySymbol} />}
+        {currentPage === 4 && <FeatureCards />}
+      </PageShell>
+    );
+  }, [assetXRaySymbol, currentPage, handleNavigate, handleNewChat, handleOpenAssetXRay, newChatRequest]);
+
+  // Keyboard shortcut: only number keys switch pages to avoid hijacking chart/page scrolling.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -237,20 +213,15 @@ export default function App() {
         target?.isContentEditable;
       if (isEditingText) return;
 
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-        if (currentPage < pages.length - 1) {
-          handleNavigate(currentPage + 1);
-        }
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-        if (currentPage > 0) {
-          handleNavigate(currentPage - 1);
-        }
+      const numericPage = Number(e.key);
+      if (Number.isInteger(numericPage) && numericPage >= 1 && numericPage <= PAGE_NAMES.length) {
+        handleNavigate(numericPage - 1);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, handleNavigate, pages.length]);
+  }, [handleNavigate]);
 
   // Custom navigation event
   useEffect(() => {
@@ -278,7 +249,11 @@ export default function App() {
       <AuthProvider>
         <div className="relative w-full min-h-screen am-app-bg font-sans">
           {/* Navigation - always visible */}
-          <Navigation />
+          <Navigation
+            currentPage={currentPage}
+            onNavigate={handleNavigate}
+            onNewChat={handleNewChat}
+          />
 
           {/* Page Content with Transitions */}
           <div className="relative w-full min-h-screen pt-14 sm:pt-16 am-page-bg">
@@ -295,7 +270,9 @@ export default function App() {
                   className="absolute inset-0 min-w-0 overflow-hidden am-page-bg will-change-transform [backface-visibility:hidden] [transform:translate3d(0,0,0)]"
                 >
                   <div className="relative z-0 h-full overflow-y-auto">
-                    {pages[currentPage].component}
+                    <Suspense fallback={<PageLoading />}>
+                      {currentPageElement}
+                    </Suspense>
                   </div>
 
                   <motion.div

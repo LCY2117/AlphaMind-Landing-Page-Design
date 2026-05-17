@@ -6,11 +6,11 @@ Use this file during unattended or overnight tasks. If Codex reaches something t
 
 | Time | Status | Priority / Task | User Action Needed | Service / URL | What Was Tried | Why Blocked | Work Continued |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-05-17 | active | QuantDinger live verification | Provide or start a local QuantDinger runtime plus a read/backtest-scoped Agent token only if live testing is desired | `http://localhost:8888`, GitHub `brokermr810/QuantDinger` | `git clone` failed twice with connection reset; raw GitHub API docs/files were used for implementation; AlphaMind build passed in mock/fallback mode | Full live API verification requires a running backend and secrets/tokens that Codex should not create, view, or hardcode unattended | Implemented config-driven provider, mock fallback, chat handoff, and backtest placeholder without blocking on secrets |
+| 2026-05-17 | active | QuantDinger Agent Gateway backtest verification | If real Agent Gateway backtest testing is desired, log into the self-hosted QuantDinger UI and create a read/backtest-scoped Agent token (`R,B`, `paper_only=true`, no `T`/`C` scopes), then place it in the server/runtime env outside source control | Self-hosted QuantDinger on server loopback `127.0.0.1:8888`, Agent UI `/#/agent-tokens` | QuantDinger runtime was started and indicator endpoints were verified without a token | Creating, viewing, or copying tokens is a user-only secret action; live trading remains disabled | Asset X-Ray now uses live QuantDinger indicator data; backtest stays on mock fallback until a scoped Agent token is supplied |
 | 2026-05-17 | active | Optional fast analysis enrichment | Provide a local-only human JWT and confirm credit usage if `/api/fast-analysis/analyze` should be tested | QuantDinger `/api/fast-analysis/analyze` | Endpoint shape was inspected from raw source/docs | Human JWT may be sensitive and may consume credits, so it is queued instead of used unattended | Adapter makes this enrichment optional and falls back without it |
 
 ## Resolved Blockers
 
 | Time | Priority / Task | Resolution |
 | --- | --- | --- |
-| _none yet_ | - | - |
+| 2026-05-17 | QuantDinger live runtime and indicator API verification | Resolved by cloning `brokermr810/QuantDinger` to `/opt/QuantDinger` on `104.248.151.6`, starting `docker-compose.ghcr.yml`, binding services to loopback, keeping `AGENT_LIVE_TRADING_ENABLED=false`, adding AlphaMind same-origin proxy `/api/quantdinger/`, and switching cloud AlphaMind to `VITE_ALPHAMIND_DATA_MODE=quantdinger`. Verified `GET /api/indicator/price` and `GET /api/indicator/kline` for TSLA through `https://alphamind.mddcommunity.top/api/quantdinger/api/...`. |
