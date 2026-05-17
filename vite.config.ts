@@ -28,7 +28,7 @@ function readJsonBody(req): Promise<Record<string, unknown>> {
 
     req.on('data', (chunk) => {
       body += chunk
-      if (body.length > 80_000) {
+      if (body.length > 6_000_000) {
         reject(new Error('Request body too large'))
         req.destroy()
       }
@@ -54,22 +54,48 @@ function normalizeChatMessages(input: unknown) {
       if (!message || typeof message !== 'object') return false
       const role = (message as Record<string, unknown>).role
       const content = (message as Record<string, unknown>).content
-      return (role === 'user' || role === 'assistant') && typeof content === 'string' && content.trim()
+      const imageUrl = (message as Record<string, unknown>).imageUrl
+      return (
+        (role === 'user' || role === 'assistant') &&
+        ((typeof content === 'string' && content.trim()) || (role === 'user' && typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')))
+      )
     })
     .slice(-8)
     .map((message) => {
-      const item = message as { role: 'user' | 'assistant'; content: string }
+      const item = message as { role: 'user' | 'assistant'; content?: string; imageUrl?: string }
       return {
         role: item.role,
-        content: item.content.slice(0, 1600),
+        content: (item.content ?? '').slice(0, 1600),
+        imageUrl: item.role === 'user' && item.imageUrl?.startsWith('data:image/') ? item.imageUrl.slice(0, 5_500_000) : undefined,
       }
     })
+}
+
+function toProviderMessages(messages: ReturnType<typeof normalizeChatMessages>) {
+  return messages.map((message) => {
+    if (message.role === 'user' && message.imageUrl) {
+      return {
+        role: message.role,
+        content: [
+          { type: 'text', text: message.content || '请分析这张图片，并提取与投资、财务或页面信息相关的要点。' },
+          { type: 'image_url', image_url: { url: message.imageUrl } },
+        ],
+      }
+    }
+
+    return {
+      role: message.role,
+      content: message.content,
+    }
+  })
 }
 
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
   const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'zai-org/GLM-4.5-Air'
   const deepModel = env.SILICONFLOW_DEEP_MODEL || 'Pro/zai-org/GLM-4.7'
+  const visionModel = env.SILICONFLOW_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct'
+  const visionDeepModel = env.SILICONFLOW_VISION_DEEP_MODEL || 'Qwen/Qwen3-VL-8B-Thinking'
 
   return {
     name: 'alphamind-chat-proxy',
@@ -93,12 +119,19 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
           const body = await readJsonBody(req)
           const messages = normalizeChatMessages(body.messages)
           const latestUserText = messages.filter((message) => message.role === 'user').at(-1)?.content ?? ''
+          const hasImage = messages.some((message) => message.role === 'user' && message.imageUrl)
           const mode = body.mode === 'deep' ? 'deep' : 'fast'
-          const model = mode === 'deep' ? deepModel : fastModel
+          const model = hasImage
+            ? mode === 'deep'
+              ? visionDeepModel
+              : visionModel
+            : mode === 'deep'
+              ? deepModel
+              : fastModel
           const thinkingEnabled = mode === 'deep'
 
-          if (!latestUserText.trim()) {
-            sendJson(res, 400, { error: 'Message is required' })
+          if (!latestUserText.trim() && !hasImage) {
+            sendJson(res, 400, { error: 'Message or image is required' })
             return
           }
 
@@ -107,6 +140,9 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             '你可以解释投资概念、风险、资产配置、个股研究思路和 AlphaMind 页面功能。',
             '回答要专业、清晰、中文为主，避免承诺收益，避免给出确定性买卖指令。',
             '如果问题涉及个股，提醒用户进入“资产透视”查看 QuantDinger 行情/K线与结构化评分。',
+            hasImage
+              ? '本轮包含用户上传图片。请先识别图片中的文字、图表、截图或财务信息，再说明可用于投资研究的要点和不确定性。'
+              : '本轮为纯文本对话。',
             '每次回答都要说明这不是投资建议，真实决策需结合个人风险承受能力。',
             mode === 'deep'
               ? '本轮为深度分析模式。请给出可公开展示的分析步骤摘要，包括：问题拆解、关键假设、风险因素、结论边界。不要暴露逐字内部思维链。'
@@ -124,10 +160,10 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
               model,
               messages: [
                 { role: 'system', content: systemPrompt },
-                ...messages,
+                ...toProviderMessages(messages),
               ],
               temperature: 0.55,
-              max_tokens: mode === 'deep' ? 1100 : 520,
+              max_tokens: hasImage ? mode === 'deep' ? 1300 : 700 : mode === 'deep' ? 1100 : 520,
               stream: false,
               enable_thinking: thinkingEnabled,
             }),
@@ -160,6 +196,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             content: content.trim(),
             model: payload.model || model,
             mode,
+            hasImage,
             thinkingEnabled,
             source: 'siliconflow',
             usage: payload.usage,

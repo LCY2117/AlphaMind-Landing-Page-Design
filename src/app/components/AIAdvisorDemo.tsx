@@ -4,7 +4,6 @@ import {
   Home,
   Image as ImageIcon,
   Menu,
-  Mic,
   Plus,
   MessageSquare,
   ScanSearch,
@@ -264,8 +263,9 @@ function buildChatHistoryForAi(messages: any[], userMessage: any): AlphaMindChat
     .map((message) => ({
       role: message.role,
       content: String(message.content ?? ''),
+      imageUrl: typeof message.imageUrl === 'string' ? message.imageUrl : undefined,
     }))
-    .filter((message) => message.content.trim())
+    .filter((message) => message.content.trim() || message.imageUrl)
     .slice(-8);
 }
 
@@ -292,7 +292,6 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     return currentSession?.messages || [];
   });
   const [input, setInput] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(() => {
@@ -439,7 +438,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
 
       const userMessage: any = {
         role: 'user',
-        content: messageText || '已上传图片进行分析',
+        content: messageText || '请分析这张图片，并提取与投资、财务或页面信息相关的要点。',
         type: uploadedImage ? 'image' : 'text',
         imageUrl: uploadedImage,
         intent,
@@ -465,8 +464,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         const reasons = hasLiveAi
           ? [
               {
-                icon: chatMode === 'deep' ? '🧠' : '⚡',
-                text: `${chatMode === 'deep' ? '深度思考' : '快速响应'}模式已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
+                icon: aiResponse.hasImage ? '🖼️' : chatMode === 'deep' ? '🧠' : '⚡',
+                text: `${aiResponse.hasImage ? '图像理解' : chatMode === 'deep' ? '深度思考' : '快速响应'}模式已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
               },
               { icon: '📡', text: '资产行情与 K 线由 QuantDinger 通道支撑，个股细节可进入资产透视查看。' },
               { icon: '🛡️', text: '回答仅用于辅助研究和学习，不构成投资建议。' },
@@ -497,6 +496,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               source: providerSource,
               model: providerModel,
               chatMode,
+              hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(uploadedImage),
               thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
               reasoningSummary: hasLiveAi ? buildReasoningSummary(chatMode, intent, messageText) : [],
               providerError,
@@ -567,47 +567,20 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     }
   };
 
-  const handleVoiceInput = () => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'zh-CN';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-      };
-
-      recognition.onerror = () => {
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } else {
-      setInput('我想投资股票和债券');
-    }
-  };
-
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) return;
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setUploadedImage(reader.result as string);
-        setInput('识别到：资产负债表 - 总资产: ¥500,000, 负债: ¥100,000');
+        if (!input.trim()) {
+          setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
+        }
       };
       reader.readAsDataURL(file);
+      event.target.value = '';
     }
   };
 
@@ -791,17 +764,19 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                     {message.assetSymbol
                                       ? '资产透视入口'
                                       : message.source === 'siliconflow'
-                                      ? message.chatMode === 'deep'
+                                      ? message.hasImageAnalysis
+                                        ? '硅基流动 AI · 图像理解'
+                                        : message.chatMode === 'deep'
                                         ? '硅基流动 AI · 深度思考'
                                         : '硅基流动 AI · 快速响应'
                                       : '本地演示分析'}
                                   </span>
                                   {message.source === 'siliconflow' && (
                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-                                      message.chatMode === 'deep' ? 'am-brand-soft am-brand' : 'am-card'
+                                      message.hasImageAnalysis || message.chatMode === 'deep' ? 'am-brand-soft am-brand' : 'am-card'
                                     }`}>
-                                      {message.chatMode === 'deep' ? <BrainCircuit size={12} /> : <Zap size={12} />}
-                                      {message.chatMode === 'deep' ? 'thinking on' : 'thinking off'}
+                                      {message.hasImageAnalysis ? <ImageIcon size={12} /> : message.chatMode === 'deep' ? <BrainCircuit size={12} /> : <Zap size={12} />}
+                                      {message.hasImageAnalysis ? 'vision on' : message.chatMode === 'deep' ? 'thinking on' : 'thinking off'}
                                     </span>
                                   )}
                                   <span className="am-text-tertiary">
@@ -1065,20 +1040,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
             <div className="flex items-end gap-2">
               <div className="flex-1 am-input-surface border rounded-2xl flex items-center gap-2 px-3 py-2">
                 <button
-                  onClick={handleVoiceInput}
-                  aria-label="语音输入"
-                  title="语音输入"
-                  className={`p-2 rounded-lg transition-all ${
-                    isListening ? 'bg-red-500 am-on-brand' : 'am-hover-surface am-text-secondary'
-                  }`}
-                >
-                  <Mic size={18} />
-                </button>
-
-                <button
                   onClick={() => fileInputRef.current?.click()}
                   aria-label="上传图片"
-                  title="上传图片"
+                  title="上传图片给多模态 AI 分析"
                   className="p-2 am-hover-surface rounded-lg transition-colors am-text-secondary"
                 >
                   <ImageIcon size={18} />

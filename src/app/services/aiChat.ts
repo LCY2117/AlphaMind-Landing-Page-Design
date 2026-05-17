@@ -1,6 +1,7 @@
 export interface AlphaMindChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  imageUrl?: string;
 }
 
 export type AlphaMindChatMode = 'fast' | 'deep';
@@ -10,6 +11,7 @@ export interface AlphaMindChatResponse {
   source: 'siliconflow' | 'fallback';
   model?: string;
   mode?: AlphaMindChatMode;
+  hasImage?: boolean;
   thinkingEnabled?: boolean;
   error?: string;
 }
@@ -19,7 +21,8 @@ export async function askAlphaMindChat(
   mode: AlphaMindChatMode = 'fast',
 ): Promise<AlphaMindChatResponse> {
   const controller = new AbortController();
-  const timeoutMs = mode === 'deep' ? 60000 : 30000;
+  const hasImage = messages.some((message) => Boolean(message.imageUrl));
+  const timeoutMs = hasImage ? (mode === 'deep' ? 90000 : 60000) : mode === 'deep' ? 60000 : 30000;
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -48,6 +51,7 @@ export async function askAlphaMindChat(
       source: payload?.source === 'siliconflow' ? 'siliconflow' : 'fallback',
       model: typeof payload?.model === 'string' ? payload.model : undefined,
       mode: payload?.mode === 'deep' ? 'deep' : 'fast',
+      hasImage: payload?.hasImage === true,
       thinkingEnabled: payload?.thinkingEnabled === true,
     };
   } catch (error) {

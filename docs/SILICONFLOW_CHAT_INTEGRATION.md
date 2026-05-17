@@ -10,6 +10,8 @@ Set these only in server/runtime `.env.local` or an equivalent secret manager:
 SILICONFLOW_API_KEY=
 SILICONFLOW_FAST_MODEL=zai-org/GLM-4.5-Air
 SILICONFLOW_DEEP_MODEL=Pro/zai-org/GLM-4.7
+SILICONFLOW_VISION_MODEL=Qwen/Qwen3-VL-8B-Instruct
+SILICONFLOW_VISION_DEEP_MODEL=Qwen/Qwen3-VL-8B-Thinking
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
 ```
 
@@ -31,13 +33,15 @@ The proxy:
 - forwards only the latest compact chat history
 - routes normal questions to the fast model with thinking disabled
 - routes deep-analysis questions to the deep model with thinking enabled
-- returns normalized `{ content, model, mode, thinkingEnabled, source }`
+- routes image uploads to a vision-language model through OpenAI-compatible `image_url` content
+- returns normalized `{ content, model, mode, hasImage, thinkingEnabled, source }`
 - returns a safe error when the provider is not configured or unavailable
 
 The frontend:
 
 - uses SiliconFlow responses when available
 - clearly labels the message source as `硅基流动 AI`
+- sends uploaded images to the server-side proxy for multimodal analysis
 - falls back to local demo analysis when the proxy is not configured or the provider fails
 - keeps Asset X-Ray stock-intent messages routed to the QuantDinger-backed asset page
 
@@ -75,3 +79,5 @@ With a server key configured, the same request should return HTTP 200 with `sour
 ## Latency Notes
 
 The default fast model is `zai-org/GLM-4.5-Air` because AlphaMind's chat panel favors responsive product guidance. Deep analysis uses `Pro/zai-org/GLM-4.7` with thinking enabled, but the UI should frame the visible output as a public reasoning summary rather than raw hidden chain-of-thought.
+
+Image uploads use `Qwen/Qwen3-VL-8B-Instruct` by default, with `Qwen/Qwen3-VL-8B-Thinking` reserved for deep mode. Keep uploaded images reasonably small because they are sent as data URLs through the server proxy.
