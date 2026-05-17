@@ -1,5 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Home,
   Image as ImageIcon,
@@ -275,21 +277,56 @@ const getSmartGreeting = () => {
 };
 
 const renderMessageText = (content: string) => {
-  return content.split(/\n{2,}/).map((block, blockIndex) => {
-    const parts = block.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h1: ({ children }) => <h1 className="text-base font-semibold am-text-primary mt-2 mb-2">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-[15px] font-semibold am-text-primary mt-3 mb-2">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-sm font-semibold am-text-primary mt-3 mb-1.5">{children}</h3>,
+        p: ({ children }) => <p className="am-text-primary text-sm leading-7 my-1.5">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold am-text-primary">{children}</strong>,
+        em: ({ children }) => <em className="am-text-secondary">{children}</em>,
+        ul: ({ children }) => <ul className="my-2 ml-5 list-disc space-y-1 am-text-primary text-sm leading-7">{children}</ul>,
+        ol: ({ children }) => <ol className="my-2 ml-5 list-decimal space-y-1 am-text-primary text-sm leading-7">{children}</ol>,
+        li: ({ children }) => <li className="pl-1">{children}</li>,
+        blockquote: ({ children }) => (
+          <blockquote className="my-3 border-l-2 am-border-brand pl-3 am-text-secondary text-sm leading-7">
+            {children}
+          </blockquote>
+        ),
+        code: ({ children, className }) => {
+          const isBlock = Boolean(className);
 
-    return (
-      <p key={blockIndex} className="am-text-primary text-sm leading-relaxed">
-        {parts.map((part, partIndex) => {
-          if (part.startsWith('**') && part.endsWith('**')) {
-            return <strong key={partIndex}>{part.slice(2, -2)}</strong>;
-          }
-
-          return <span key={partIndex}>{part}</span>;
-        })}
-      </p>
-    );
-  });
+          return isBlock ? (
+            <code className={`${className} block overflow-x-auto rounded-lg am-card px-3 py-2 text-xs am-text-secondary`}>
+              {children}
+            </code>
+          ) : (
+            <code className="rounded-md am-card px-1.5 py-0.5 text-[12px] am-brand">
+              {children}
+            </code>
+          );
+        },
+        pre: ({ children }) => <pre className="my-3 overflow-x-auto rounded-lg">{children}</pre>,
+        table: ({ children }) => (
+          <div className="my-3 overflow-x-auto rounded-lg border am-border-subtle">
+            <table className="w-full min-w-[420px] border-collapse text-sm">{children}</table>
+          </div>
+        ),
+        th: ({ children }) => <th className="border-b am-border-subtle px-3 py-2 text-left font-semibold am-text-primary">{children}</th>,
+        td: ({ children }) => <td className="border-t am-border-subtle px-3 py-2 am-text-secondary">{children}</td>,
+        a: ({ children, href }) => (
+          <a href={href} target="_blank" rel="noreferrer" className="am-brand underline underline-offset-4">
+            {children}
+          </a>
+        ),
+        hr: () => <hr className="my-4 am-border-subtle" />,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 };
 
 export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, newChatRequest = 0 }: AIAdvisorDemoProps) {
