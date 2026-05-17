@@ -2,10 +2,10 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-17 17:50 CST
+Last updated: 2026-05-17 19:40 CST
 Status: done
-Current priority: QuantDinger cloud runtime blocker resolved
-Current task: Complete the previously blocked QuantDinger live runtime verification on the remote server and keep remaining secret/token work in the blocker queue
+Current priority: Local UI optimization and QuantDinger runtime synced to cloud
+Current task: Keep AlphaMind cloud deployment aligned with GitHub while preserving the server-only QuantDinger runtime environment
 
 ## Resume Instructions
 
@@ -16,6 +16,22 @@ Current task: Complete the previously blocked QuantDinger live runtime verificat
 5. Continue from `Next Unblocked Action`.
 
 ## Last Completed Step
+
+- Synced the local AlphaMind optimization work to GitHub and cloud:
+  - Local commit created: `7e35bde Improve AlphaMind UX and connect QuantDinger runtime`.
+  - Pushed `main` to `origin/main`.
+  - Pulled the commit on `/opt/AlphaMind` with `git pull --ff-only origin main`.
+  - Preserved server-only `/opt/AlphaMind/.env.local`:
+    - `VITE_ALPHAMIND_DATA_MODE=quantdinger`
+    - `VITE_QUANTDINGER_BASE_URL=/api/quantdinger`
+  - Ran `npm install` and `npm run build` on the server; build passed.
+  - Restarted PM2 process `alphamind`; status returned `online`.
+  - Verified public AlphaMind page returns HTTP 200 at `https://alphamind.mddcommunity.top`.
+  - Verified public QuantDinger same-origin proxy returns HTTP 200 with `x-alphamind-upstream: quantdinger`.
+  - Confirmed `/opt/QuantDinger` containers remain healthy.
+  - Cleaned a server-only `package-lock.json` metadata change caused by the deploy-time `npm install`, leaving `/opt/AlphaMind` clean at `7e35bde`.
+  - Noted deploy warning: server `npm install` reported `react-router@7.13.0` wants Node `>=20`, while the direct `npm install` command used system Node `v18.19.1`; PM2 runs AlphaMind with Node `24.14.0`, and both server build/runtime validation passed.
+  - Noted deploy warning: `npm audit` reported 1 high severity issue; no force audit fix was applied during deployment.
 
 - Resolved the QuantDinger live runtime blocker on the cloud server:
   - Connected to `104.248.151.6` as `root` using the existing SSH key after an initial `Exceeded MaxStartups` SSH retry condition.
@@ -83,7 +99,9 @@ Previous completed integration steps:
 ## Next Unblocked Action
 
 - User can open `https://alphamind.mddcommunity.top`, enter `资产透视`, and verify live QuantDinger status for supported symbols.
-- Continue product optimization or deploy local uncommitted UI improvements to cloud only after deciding whether to commit/push the current dirty local work.
+- Continue product optimization from the synced cloud baseline.
+- Consider standardizing the server deployment command to PM2's Node 24 environment, or upgrading the system Node used by direct SSH `npm` commands, to remove the `react-router` engine warning.
+- Review the single high severity `npm audit` finding in a separate dependency-maintenance pass.
 - If real Agent Gateway backtests are needed, resolve the active token blocker in `docs/LONG_TASK_BLOCKERS.md`.
 
 ## Files Changed Or In Scope
@@ -124,18 +142,18 @@ Remote server files changed, not part of this repository:
 ## Git State
 
 - Branch: `main`
-- HEAD: `c58ae36`
-- Current dirty files: modified `docs/LONG_TASK_STATE.md`, `docs/LONG_TASK_BLOCKERS.md`, `docs/QUANTDINGER_INTEGRATION.md`, `index.html`, frontend source files in `src/app`, untracked `docs/API_APPLICATION_CHECKLIST.md`, untracked `docs/ALPHAMIND_OPTIMIZATION_PLAN.md`
+- HEAD: `7e35bde`
+- Current dirty files: none before this PCB update; this state update may be committed as a docs-only follow-up.
 - Pre-existing dirty files before this optimization task: untracked `docs/API_APPLICATION_CHECKLIST.md`
 - Checkpoint commits authorized: no
-- Latest checkpoint commit: _none_
+- Latest synchronized commit: `7e35bde Improve AlphaMind UX and connect QuantDinger runtime`
 
 ## Four Anchors Check
 
 - PLAN: `docs/ALPHAMIND_OPTIMIZATION_PLAN.md`
 - STATE/PCB: `docs/LONG_TASK_STATE.md`
 - BLOCKERS: `docs/LONG_TASK_BLOCKERS.md`
-- GIT: branch `main`, HEAD `c58ae36`, checkpoint commits not authorized
+- GIT: branch `main`, HEAD `7e35bde`, synchronized to `origin/main` and cloud `/opt/AlphaMind`
 
 ## Sub-Agent Ledger
 
@@ -180,11 +198,22 @@ Remote server files changed, not part of this repository:
 | 2026-05-17 | `curl https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/price?market=USStock&symbol=TSLA` | Passed; HTTP 200 with `x-alphamind-upstream: quantdinger` |
 | 2026-05-17 | PM2 restart `alphamind --update-env` | Passed; cloud Vite process restarted and injected `VITE_ALPHAMIND_DATA_MODE=quantdinger` |
 | 2026-05-17 | Playwright ad hoc module smoke | Not completed; temporary `npx` CLI was available, but `require('playwright')` could not resolve without installing a project dependency. API/env validation was completed by curl and Vite module inspection instead. |
+| 2026-05-17 | `npm run build` | Passed locally before cloud sync |
+| 2026-05-17 | `rg` sensitive-value scan | Passed; only placeholder examples were found in `.env.example` |
+| 2026-05-17 | `git commit -m "Improve AlphaMind UX and connect QuantDinger runtime"` | Created commit `7e35bde` |
+| 2026-05-17 | `git push origin main` | Passed; `origin/main` updated from `c58ae36` to `7e35bde` |
+| 2026-05-17 | Server `git pull --ff-only origin main` in `/opt/AlphaMind` | Passed; cloud repo updated to `7e35bde` |
+| 2026-05-17 | Server `npm install` | Completed with `react-router@7.13.0` engine warning under direct SSH system Node `v18.19.1`; no secrets were touched |
+| 2026-05-17 | Server `npm run build` | Passed after pulling `7e35bde` |
+| 2026-05-17 | Server PM2 restart `alphamind --update-env` | Passed; process `alphamind` online |
+| 2026-05-17 | `Invoke-WebRequest https://alphamind.mddcommunity.top` | Passed; HTTP 200 |
+| 2026-05-17 | `Invoke-WebRequest https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/price?market=USStock&symbol=TSLA` | Passed; HTTP 200 with `x-alphamind-upstream: quantdinger` |
+| 2026-05-17 | Server `git checkout -- package-lock.json` | Restored deploy-time lockfile metadata drift caused by direct `npm install`; `/opt/AlphaMind` clean at `7e35bde` |
 
 ## Validation State
 
-- Latest local validation: `npm run build` passed before the remote runtime work.
-- Latest remote validation: QuantDinger containers healthy; indicator API works through both loopback and AlphaMind same-origin proxy; cloud AlphaMind Vite env is `quantdinger`.
+- Latest local validation: `npm run build` passed before cloud sync; sensitive-value scan found only placeholder examples.
+- Latest remote validation: `/opt/AlphaMind` is clean at `7e35bde`, PM2 `alphamind` is online, QuantDinger containers are healthy, public page returns HTTP 200, and indicator API works through the AlphaMind same-origin proxy.
 - Browser validation note: Playwright smoke test on `http://127.0.0.1:5174` passed earlier for demo login, Risk page, Asset X-Ray, and Chat-to-Asset-X-Ray CTA. A later ad hoc Playwright network smoke did not run because the temporary package was not importable without adding a dependency.
 
 ## Decisions
