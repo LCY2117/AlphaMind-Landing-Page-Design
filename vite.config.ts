@@ -90,6 +90,26 @@ function toProviderMessages(messages: ReturnType<typeof normalizeChatMessages>) 
   })
 }
 
+function extractSiliconFlowError(payload: any, status: number) {
+  return typeof payload?.message === 'string'
+    ? payload.message
+    : typeof payload?.error?.message === 'string'
+      ? payload.error.message
+      : typeof payload?.error === 'string'
+        ? payload.error
+        : `SiliconFlow HTTP ${status}`
+}
+
+function isUnsupportedThinkingError(message: string) {
+  const normalized = message.toLowerCase()
+  return normalized.includes('enable_thinking') && (
+    normalized.includes('not support') ||
+    normalized.includes('does not support') ||
+    normalized.includes('unsupported') ||
+    normalized.includes('value error')
+  )
+}
+
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
   const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
@@ -165,22 +185,34 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             requestPayload.enable_thinking = true
           }
 
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify(requestPayload),
-          })
+          const callSiliconFlow = async (payloadBody: Record<string, unknown>) => {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(payloadBody),
+            })
 
-          const payload = await response.json().catch(() => ({}))
+            const payload = await response.json().catch(() => ({}))
+            return { response, payload }
+          }
+
+          let thinkingRequested = thinkingEnabled
+          let { response, payload } = await callSiliconFlow(requestPayload)
+          if (!response.ok && thinkingRequested) {
+            const upstreamMessage = extractSiliconFlowError(payload, response.status)
+            if (isUnsupportedThinkingError(upstreamMessage)) {
+              const retryPayload = { ...requestPayload }
+              delete retryPayload.enable_thinking
+              thinkingRequested = false
+              ;({ response, payload } = await callSiliconFlow(retryPayload))
+            }
+          }
+
           if (!response.ok) {
-            const upstreamMessage = typeof payload?.message === 'string'
-              ? payload.message
-              : typeof payload?.error?.message === 'string'
-                ? payload.error.message
-                : `SiliconFlow HTTP ${response.status}`
+            const upstreamMessage = extractSiliconFlowError(payload, response.status)
             sendJson(res, 502, {
               error: upstreamMessage,
               source: 'siliconflow',
@@ -202,7 +234,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             model: payload.model || model,
             mode,
             hasImage,
-            thinkingEnabled,
+            thinkingEnabled: thinkingRequested,
             source: 'siliconflow',
             usage: payload.usage,
           })
