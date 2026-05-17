@@ -8,7 +8,7 @@ Set these only in server/runtime `.env.local` or an equivalent secret manager:
 
 ```env
 SILICONFLOW_API_KEY=
-SILICONFLOW_MODEL=Pro/zai-org/GLM-4.7
+SILICONFLOW_MODEL=zai-org/GLM-4.5-Air
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
 ```
 
@@ -28,6 +28,7 @@ The proxy:
 - reads `SILICONFLOW_API_KEY` from the server environment
 - sends `Authorization: Bearer <key>` to SiliconFlow
 - forwards only the latest compact chat history
+- disables thinking/reasoning mode for normal advisor chat so product responses stay fast
 - returns normalized `{ content, model, source }`
 - returns a safe error when the provider is not configured or unavailable
 
@@ -68,3 +69,7 @@ Invoke-WebRequest -Method Post `
 Expected result: HTTP 503 from the proxy, and the frontend falls back to local demo analysis.
 
 With a server key configured, the same request should return HTTP 200 with `source: "siliconflow"`.
+
+## Latency Notes
+
+The default model is `zai-org/GLM-4.5-Air` because AlphaMind's chat panel favors responsive product guidance. Heavier reasoning models such as `Pro/zai-org/GLM-4.7` can still be configured through `SILICONFLOW_MODEL`, but they may exceed the browser-side response budget during short demo conversations.

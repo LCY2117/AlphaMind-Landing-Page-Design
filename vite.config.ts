@@ -68,7 +68,7 @@ function normalizeChatMessages(input: unknown) {
 
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
-  const model = env.SILICONFLOW_MODEL || 'Pro/zai-org/GLM-4.7'
+  const model = env.SILICONFLOW_MODEL || 'zai-org/GLM-4.5-Air'
 
   return {
     name: 'alphamind-chat-proxy',
@@ -120,8 +120,9 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
                 ...messages,
               ],
               temperature: 0.55,
-              max_tokens: 900,
+              max_tokens: 520,
               stream: false,
+              enable_thinking: false,
             }),
           })
 

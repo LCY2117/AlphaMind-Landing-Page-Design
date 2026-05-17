@@ -12,7 +12,7 @@ export interface AlphaMindChatResponse {
 
 export async function askAlphaMindChat(messages: AlphaMindChatMessage[]): Promise<AlphaMindChatResponse> {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+  const timeoutId = window.setTimeout(() => controller.abort(), 30000);
 
   try {
     const response = await fetch('/api/alphamind/chat', {
