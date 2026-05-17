@@ -1,9 +1,11 @@
 node_modules/
 dist/
+.venv/
 .DS_Store
 *.log
 .env
 .env.*
+!.env.example
 coverage/
 *.zip
 *.tar

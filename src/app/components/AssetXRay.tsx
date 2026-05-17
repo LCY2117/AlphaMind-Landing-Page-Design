@@ -20,120 +20,15 @@ import {
   RadarChart,
   ResponsiveContainer,
 } from 'recharts';
+import {
+  getAssetXRayReport,
+  getMockAssetXRayReport,
+  MOCK_ASSET_REPORTS,
+  normalizeAssetSymbol,
+  type AssetXRayReport,
+} from '../services/assetXRay';
 
 type ScanState = 'idle' | 'scanning' | 'complete';
-
-interface StockProfile {
-  symbol: string;
-  name: string;
-  market: string;
-  sector: string;
-  price: string;
-  change: string;
-  changeValue: number;
-  marketCap: string;
-  radar: Array<{ subject: string; value: number }>;
-  sentiment: number;
-  sentimentLabel: string;
-  conclusion: string;
-  probabilities: {
-    up: number;
-    flat: number;
-    down: number;
-  };
-  metrics: Array<{ label: string; value: string; hint: string }>;
-  catalysts: string[];
-}
-
-const STOCKS: StockProfile[] = [
-  {
-    symbol: 'TSLA',
-    name: 'Tesla Inc.',
-    market: 'NASDAQ',
-    sector: '智能电动车 / 能源',
-    price: '$177.42',
-    change: '+2.84%',
-    changeValue: 2.84,
-    marketCap: '$565.1B',
-    radar: [
-      { subject: '估值', value: 42 },
-      { subject: '成长性', value: 86 },
-      { subject: '盈利', value: 68 },
-      { subject: '情绪', value: 74 },
-      { subject: '动量', value: 79 },
-      { subject: '安全边际', value: 46 },
-    ],
-    sentiment: 72,
-    sentimentLabel: '偏贪婪',
-    conclusion:
-      'TSLA 当前估值仍处于偏高区间，但短期动量和新闻情绪显著改善。AI 建议以持有观察为主，若价格回落至关键均线附近，可分批评估加仓机会。',
-    probabilities: { up: 54, flat: 27, down: 19 },
-    metrics: [
-      { label: 'AI 综合评分', value: '72', hint: '强于同业均值' },
-      { label: '波动风险', value: '高', hint: '仓位需受控' },
-      { label: '预测置信度', value: '68%', hint: '中等偏高' },
-    ],
-    catalysts: ['交付增速修复', '储能业务毛利改善', 'FSD 商业化预期升温'],
-  },
-  {
-    symbol: 'NVDA',
-    name: 'NVIDIA Corp.',
-    market: 'NASDAQ',
-    sector: 'AI 芯片 / 数据中心',
-    price: '$924.79',
-    change: '+1.36%',
-    changeValue: 1.36,
-    marketCap: '$2.27T',
-    radar: [
-      { subject: '估值', value: 48 },
-      { subject: '成长性', value: 94 },
-      { subject: '盈利', value: 91 },
-      { subject: '情绪', value: 84 },
-      { subject: '动量', value: 88 },
-      { subject: '安全边际', value: 52 },
-    ],
-    sentiment: 81,
-    sentimentLabel: '贪婪',
-    conclusion:
-      'NVDA 基本面质量强劲，盈利能力和成长性仍然领先，但市场预期已经较充分。AI 判断中期趋势仍偏强，短线更适合等待波动释放后的确认信号。',
-    probabilities: { up: 61, flat: 24, down: 15 },
-    metrics: [
-      { label: 'AI 综合评分', value: '82', hint: '行业领先' },
-      { label: '波动风险', value: '中高', hint: '留意估值回撤' },
-      { label: '预测置信度', value: '73%', hint: '高于均值' },
-    ],
-    catalysts: ['数据中心订单强劲', 'AI 训练需求扩张', '供应链议价能力提升'],
-  },
-  {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    market: 'NASDAQ',
-    sector: '消费电子 / 服务',
-    price: '$189.98',
-    change: '-0.42%',
-    changeValue: -0.42,
-    marketCap: '$2.91T',
-    radar: [
-      { subject: '估值', value: 58 },
-      { subject: '成长性', value: 62 },
-      { subject: '盈利', value: 88 },
-      { subject: '情绪', value: 57 },
-      { subject: '动量', value: 51 },
-      { subject: '安全边际', value: 64 },
-    ],
-    sentiment: 54,
-    sentimentLabel: '中性',
-    conclusion:
-      'AAPL 盈利质量与现金流稳定，但短期缺少足够强的增长催化。AI 建议维持中性观察，重点等待新品周期与服务收入增速重新抬升。',
-    probabilities: { up: 34, flat: 43, down: 23 },
-    metrics: [
-      { label: 'AI 综合评分', value: '66', hint: '稳健但不激进' },
-      { label: '波动风险', value: '中', hint: '防御属性较强' },
-      { label: '预测置信度', value: '64%', hint: '中等' },
-    ],
-    catalysts: ['服务业务韧性', '新品周期预期', '回购支撑 EPS'],
-  },
-];
 
 const historyPoints = [
   { x: 0, y: 68 },
@@ -231,7 +126,7 @@ function SentimentGauge({ score, label, active }: { score: number; label: string
   );
 }
 
-function ProbabilityCone({ active, probabilities }: { active: boolean; probabilities: StockProfile['probabilities'] }) {
+function ProbabilityCone({ active, probabilities }: { active: boolean; probabilities: AssetXRayReport['probabilities'] }) {
   const history = pointString(historyPoints);
   const mid = '63,32 72,30 81,27 90,25 100,22';
   const upper = '63,32 72,22 81,15 90,10 100,6';
@@ -329,27 +224,35 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
   );
 }
 
-export function AssetXRay() {
-  const [query, setQuery] = useState('TSLA');
-  const [selectedSymbol, setSelectedSymbol] = useState('TSLA');
+interface AssetXRayProps {
+  requestedSymbol?: string;
+}
+
+export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
+  const initialSymbol = normalizeAssetSymbol(requestedSymbol);
+  const [query, setQuery] = useState(initialSymbol);
+  const [stock, setStock] = useState<AssetXRayReport>(() => getMockAssetXRayReport(initialSymbol));
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [scanValues, setScanValues] = useState([128, 64, 91]);
   const [typedConclusion, setTypedConclusion] = useState('');
   const scanCompletionTimer = useRef<number | null>(null);
+  const activeRequestRef = useRef(0);
 
-  const stock = useMemo(
-    () => STOCKS.find((item) => item.symbol === selectedSymbol) ?? STOCKS[0],
-    [selectedSymbol],
-  );
   const isScanning = scanState === 'scanning';
   const isComplete = scanState === 'complete';
 
-  const runScan = (nextSymbol?: string) => {
-    const normalized = (nextSymbol ?? query).trim().toUpperCase();
-    const matched = STOCKS.find((item) => item.symbol === normalized || item.name.toUpperCase().includes(normalized));
+  const providerBadge = useMemo(() => {
+    if (stock.providerMeta.mode === 'quantdinger') return 'QuantDinger live';
+    if (stock.providerMeta.status === 'fallback') return 'Mock fallback';
+    return 'Mock mode';
+  }, [stock.providerMeta.mode, stock.providerMeta.status]);
 
-    setSelectedSymbol(matched?.symbol ?? 'TSLA');
-    setQuery(matched?.symbol ?? (normalized || 'TSLA'));
+  const runScan = async (nextSymbol?: string) => {
+    const normalized = normalizeAssetSymbol(nextSymbol ?? query);
+    const requestId = activeRequestRef.current + 1;
+    activeRequestRef.current = requestId;
+
+    setQuery(normalized);
     setScanState('scanning');
     setTypedConclusion('');
 
@@ -357,18 +260,30 @@ export function AssetXRay() {
       window.clearTimeout(scanCompletionTimer.current);
     }
 
+    try {
+      const report = await getAssetXRayReport({ symbol: normalized, market: 'USStock' });
+      if (activeRequestRef.current !== requestId) return;
+      setStock(report);
+    } catch (error) {
+      if (activeRequestRef.current !== requestId) return;
+      const message = error instanceof Error ? error.message : 'unknown provider error';
+      setStock(getMockAssetXRayReport(normalized, message));
+    }
+
     scanCompletionTimer.current = window.setTimeout(() => {
+      if (activeRequestRef.current !== requestId) return;
       setScanState('complete');
       scanCompletionTimer.current = null;
     }, 2300);
   };
 
   useEffect(() => {
-    runScan('TSLA');
-  }, []);
+    runScan(requestedSymbol);
+  }, [requestedSymbol]);
 
   useEffect(() => {
     return () => {
+      activeRequestRef.current += 1;
       if (scanCompletionTimer.current) {
         window.clearTimeout(scanCompletionTimer.current);
       }
@@ -451,12 +366,12 @@ export function AssetXRay() {
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {STOCKS.map((item) => (
+                {MOCK_ASSET_REPORTS.map((item) => (
                   <button
                     key={item.symbol}
                     onClick={() => runScan(item.symbol)}
                     className={`px-3 py-1.5 rounded-full text-xs border transition-all ${
-                      selectedSymbol === item.symbol
+                      stock.symbol === item.symbol
                         ? 'am-brand-soft am-brand am-border-brand'
                         : 'am-card am-text-secondary am-hover-surface'
                     }`}
@@ -464,6 +379,16 @@ export function AssetXRay() {
                     {item.symbol}
                   </button>
                 ))}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full am-card border px-2.5 py-1 am-text-secondary">
+                  Data: {providerBadge}
+                </span>
+                {stock.providerMeta.message && (
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-500">
+                    {stock.providerMeta.message}
+                  </span>
+                )}
               </div>
             </div>
 

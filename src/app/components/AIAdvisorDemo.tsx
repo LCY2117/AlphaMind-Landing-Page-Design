@@ -74,6 +74,7 @@ interface Session {
 interface AIAdvisorDemoProps {
   currentPage?: number;
   onNavigate?: (page: number) => void;
+  onOpenAssetXRay?: (symbol: string) => void;
   newChatRequest?: number;
 }
 
@@ -98,14 +99,42 @@ const quickQuestions = [
   { icon: '💎', text: '推荐适合我的基金', category: 'product' },
 ];
 
+const STOCK_NAME_MAP: Record<string, string> = {
+  特斯拉: 'TSLA',
+  英伟达: 'NVDA',
+  辉达: 'NVDA',
+  苹果: 'AAPL',
+  微软: 'MSFT',
+  谷歌: 'GOOGL',
+  亚马逊: 'AMZN',
+  超微: 'AMD',
+  阿里: 'BABA',
+  腾讯: 'TCEHY',
+};
+
 const detectIntent = (text: string) => {
   const lowerText = text.toLowerCase();
+  const hasStockSymbol = Boolean(extractStockSymbol(text));
+  if (
+    (/(?:分析|看看|检测|透视|研究|x-ray|xray)/i.test(text) && hasStockSymbol) ||
+    (hasStockSymbol && /(?:怎么样|能买吗|能不能买|持有|买入|卖出)/i.test(text))
+  ) return 'asset_xray';
   if (lowerText.includes('风险') || lowerText.includes('波动')) return 'risk_assessment';
   if (lowerText.includes('配置') || lowerText.includes('分配')) return 'allocation';
   if (lowerText.includes('推荐') || lowerText.includes('建议')) return 'recommendation';
   if (lowerText.includes('退休') || lowerText.includes('养老')) return 'retirement';
   if (lowerText.includes('基金') || lowerText.includes('股票')) return 'product';
   return 'general';
+};
+
+const extractStockSymbol = (text: string) => {
+  const upper = text.toUpperCase();
+  const ticker = upper.match(/\b[A-Z]{1,5}(?:[.-][A-Z])?\b/)?.[0];
+  if (ticker) return ticker;
+  for (const [name, symbol] of Object.entries(STOCK_NAME_MAP)) {
+    if (text.includes(name)) return symbol;
+  }
+  return null;
 };
 
 const extractUserInfo = (text: string) => {
@@ -130,7 +159,7 @@ const getSmartGreeting = () => {
   return '晚上好';
 };
 
-export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 }: AIAdvisorDemoProps) {
+export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, newChatRequest = 0 }: AIAdvisorDemoProps) {
   const [sessions, setSessions] = useState<Session[]>(() => {
     try {
       const saved = localStorage.getItem('alphamind_sessions');
@@ -285,12 +314,20 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
 
       setTimeout(() => {
         setIsTyping(true);
-        const shouldShowChart = intent === 'allocation' || Math.random() > 0.6;
+        const shouldShowChart = intent !== 'asset_xray' && (intent === 'allocation' || Math.random() > 0.6);
 
         let responseContent = '';
         let reasons = [];
 
-        if (intent === 'risk_assessment') {
+        if (intent === 'asset_xray') {
+          const symbol = extractStockSymbol(messageText) ?? 'TSLA';
+          responseContent = `我已识别到 ${symbol} 个股深度检测请求，可以为您打开资产透视仪表盘`;
+          reasons = [
+            { icon: '🔎', text: `${symbol} 的完整检测会进入 Asset X-Ray，包含雷达评分、情绪仪表盘、概率预测锥和 AI 诊断结论。` },
+            { icon: '🧠', text: '当前 AlphaMind 已支持通过数据适配层接入 QuantDinger；服务不可用时会自动保留本地 mock fallback。' },
+            { icon: '🛡️', text: '该流程只做研究分析，不触发实盘交易。' },
+          ];
+        } else if (intent === 'risk_assessment') {
           responseContent = `${getSmartGreeting()}！我已为您完成风险评估分析`;
           reasons = [
             { icon: '🎯', text: `M3模型分析：基于您${userProfile.age ? `${userProfile.age}岁的年龄` : '的情况'}，风险承受能力评估为中等偏上` },
@@ -337,11 +374,13 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
               showInlineChart: shouldShowChart,
               riskScore,
               riskLevel: riskScore < 40 ? '保守型' : riskScore < 70 ? '成长型' : '进取型',
-              portfolio: [
-                { name: '科技', value: Math.floor(Math.random() * 30) + 30, color: '#C44536' },
-                { name: '债券', value: Math.floor(Math.random() * 20) + 20, color: '#D97706' },
-                { name: '黄金', value: Math.floor(Math.random() * 20) + 10, color: '#FBBF24' },
-              ],
+              portfolio: intent === 'asset_xray'
+                ? []
+                : [
+                    { name: '科技', value: Math.floor(Math.random() * 30) + 30, color: '#C44536' },
+                    { name: '债券', value: Math.floor(Math.random() * 20) + 20, color: '#D97706' },
+                    { name: '黄金', value: Math.floor(Math.random() * 20) + 10, color: '#FBBF24' },
+                  ],
               reasons,
               warnings: riskScore > 75 ? ['⚠️ 高风险配置，请确保您能承受较大波动'] : [],
               nextSteps: [
@@ -349,13 +388,16 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                 '💰 考虑定投策略分批入场',
                 '🎓 学习相关投资知识',
               ],
+              assetSymbol: intent === 'asset_xray' ? extractStockSymbol(messageText) ?? 'TSLA' : undefined,
             };
 
-            const total = analysisMessage.portfolio.reduce((sum, item) => sum + item.value, 0);
-            analysisMessage.portfolio = analysisMessage.portfolio.map(item => ({
-              ...item,
-              value: Math.round((item.value / total) * 100)
-            }));
+            if (analysisMessage.portfolio.length > 0) {
+              const total = analysisMessage.portfolio.reduce((sum, item) => sum + item.value, 0);
+              analysisMessage.portfolio = analysisMessage.portfolio.map(item => ({
+                ...item,
+                value: Math.round((item.value / total) * 100)
+              }));
+            }
 
             const updatedMessages = [...newMessages, analysisMessage];
             setMessages(updatedMessages);
@@ -634,16 +676,19 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                   </div>
                                 )}
 
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="px-3 py-1 bg-amber-600/10 text-amber-400 rounded-full text-xs">
-                                    🎯 M3风险评分: {message.riskScore}/100
-                                  </span>
-                                  <span className="px-3 py-1 am-brand-soft am-brand rounded-full text-xs">
-                                    📊 {message.riskLevel}
-                                  </span>
-                                </div>
+                                {!message.assetSymbol && (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-3 py-1 bg-amber-600/10 text-amber-400 rounded-full text-xs">
+                                      🎯 M3风险评分: {message.riskScore}/100
+                                    </span>
+                                    <span className="px-3 py-1 am-brand-soft am-brand rounded-full text-xs">
+                                      📊 {message.riskLevel}
+                                    </span>
+                                  </div>
+                                )}
 
-                                <div className="am-card rounded-xl p-4">
+                                {message.portfolio?.length > 0 && (
+                                  <div className="am-card rounded-xl p-4">
                                   <h4 className="text-sm font-medium am-text-primary mb-3">💼 资产配置建议</h4>
                                   <div className="grid grid-cols-2 gap-4">
                                     <ResponsiveContainer width="100%" height={140}>
@@ -675,7 +720,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                       ))}
                                     </div>
                                   </div>
-                                </div>
+                                  </div>
+                                )}
 
                                 <div className="space-y-2">
                                   <h4 className="text-sm font-medium am-text-primary">💡 决策解释</h4>
@@ -693,6 +739,22 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, newChatRequest = 0 
                                       <p key={idx} className="text-sm">{warning}</p>
                                     ))}
                                   </div>
+                                )}
+
+                                {message.assetSymbol && (
+                                  <button
+                                    onClick={() => {
+                                      if (onOpenAssetXRay) {
+                                        onOpenAssetXRay(message.assetSymbol);
+                                      } else {
+                                        onNavigate?.(3);
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg am-brand-soft am-brand border am-border-brand text-sm font-semibold"
+                                  >
+                                    <ScanSearch size={16} />
+                                    打开 {message.assetSymbol} 资产透视
+                                  </button>
                                 )}
                               </>
                             )}

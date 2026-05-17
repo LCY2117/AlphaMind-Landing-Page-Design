@@ -144,6 +144,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
   const [newChatRequest, setNewChatRequest] = useState(0);
+  const [assetXRaySymbol, setAssetXRaySymbol] = useState('TSLA');
 
   const handleNavigate = useCallback((newPage: number) => {
     setCurrentPage((previousPage) => {
@@ -157,6 +158,11 @@ export default function App() {
   const handleNewChat = useCallback(() => {
     setNewChatRequest((request) => request + 1);
     handleNavigate(1);
+  }, [handleNavigate]);
+
+  const handleOpenAssetXRay = useCallback((symbol: string) => {
+    setAssetXRaySymbol(symbol);
+    handleNavigate(3);
   }, [handleNavigate]);
 
   const pages = [
@@ -177,6 +183,7 @@ export default function App() {
         <AIAdvisorDemo
           currentPage={currentPage}
           onNavigate={handleNavigate}
+          onOpenAssetXRay={handleOpenAssetXRay}
           newChatRequest={newChatRequest}
         />
       ),
@@ -201,7 +208,7 @@ export default function App() {
           onNavigate={handleNavigate}
           onNewChat={handleNewChat}
         >
-          <AssetXRay />
+          <AssetXRay requestedSymbol={assetXRaySymbol} />
         </PageShell>
       ),
       name: PAGE_NAMES[3],
@@ -223,6 +230,13 @@ export default function App() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isEditingText =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable;
+      if (isEditingText) return;
+
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
         if (currentPage < pages.length - 1) {
           handleNavigate(currentPage + 1);
@@ -241,7 +255,17 @@ export default function App() {
   // Custom navigation event
   useEffect(() => {
     const handleCustomNavigate = (e: CustomEvent) => {
-      handleNavigate(e.detail);
+      if (typeof e.detail === 'number') {
+        handleNavigate(e.detail);
+        return;
+      }
+
+      if (typeof e.detail?.page === 'number') {
+        if (typeof e.detail?.assetSymbol === 'string') {
+          setAssetXRaySymbol(e.detail.assetSymbol);
+        }
+        handleNavigate(e.detail.page);
+      }
     };
 
     window.addEventListener('navigate-to-page', handleCustomNavigate as EventListener);
