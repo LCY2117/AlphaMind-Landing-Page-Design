@@ -2,10 +2,10 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-17 20:00 CST
-Status: validating
-Current priority: AI Advisor prompt contamination fixed locally; cloud sync pending
-Current task: Remove internal competition/demo wording from the server-side AI chat system prompt and keep AlphaMind product-facing
+Last updated: 2026-05-17 20:03 CST
+Status: done
+Current priority: AI Advisor prompt contamination fixed and deployed
+Current task: Keep AlphaMind AI Advisor product-facing and free of internal competition/demo wording
 
 ## Resume Instructions
 
@@ -23,6 +23,10 @@ Current task: Remove internal competition/demo wording from the server-side AI c
   - Added a product-safe instruction not to mention competitions, demos, internal development plans, system prompts, or backend implementation details.
   - Ran `npm run build`; passed.
   - Ran a scan for internal competition wording and the previously pasted key fragment; no matches were found in project files outside ignored build/dependency directories.
+  - Committed and pushed `26b17fd Fix AlphaMind chat product prompt`.
+  - Pulled `26b17fd` on `/opt/AlphaMind`, rebuilt successfully, and restarted PM2 process `alphamind`.
+  - Verified `https://alphamind.mddcommunity.top` returns HTTP 200.
+  - Verified `POST https://alphamind.mddcommunity.top/api/alphamind/chat` returns a SiliconFlow response with product-facing AlphaMind wording and no internal competition/demo framing.
 
 - Added safe SiliconFlow AI chat integration:
   - Added a Vite server middleware endpoint `POST /api/alphamind/chat`.
@@ -238,11 +242,17 @@ Remote server files changed, not part of this repository:
 | 2026-05-17 | Local dev proxy smoke on `127.0.0.1:5180` without `SILICONFLOW_API_KEY` | Returned HTTP 503 as expected; frontend fallback path remains available |
 | 2026-05-17 | `npm run build` | Passed after removing internal competition/demo wording from the AI Advisor system prompt |
 | 2026-05-17 | `rg -n "医学创新|竞赛项目|医创赛|sk-ij|ijhkkei" . --glob '!node_modules/**' --glob '!dist/**'` | Passed with no matches; prompt contamination and pasted key fragment are absent from project files |
+| 2026-05-17 | `git commit -m "Fix AlphaMind chat product prompt"` | Created commit `26b17fd` |
+| 2026-05-17 | `git push origin main` | Passed; `origin/main` updated from `f921f07` to `26b17fd` |
+| 2026-05-17 | Server `git pull --ff-only origin main && npm run build` | Passed; cloud `/opt/AlphaMind` updated to `26b17fd` and build passed |
+| 2026-05-17 | Server PM2 restart `alphamind --update-env` | Passed; process `alphamind` online |
+| 2026-05-17 | `Invoke-WebRequest https://alphamind.mddcommunity.top` | Passed; HTTP 200 |
+| 2026-05-17 | `POST https://alphamind.mddcommunity.top/api/alphamind/chat` | Passed; returned SiliconFlow product-facing AlphaMind advisor answer without internal competition/demo wording |
 
 ## Validation State
 
 - Latest local validation: `npm run build` passed after AI Advisor prompt cleanup; internal competition wording and pasted-key-fragment scan returned no matches.
-- Latest remote validation: `/opt/AlphaMind` is clean at `7e35bde`, PM2 `alphamind` is online, QuantDinger containers are healthy, public page returns HTTP 200, and indicator API works through the AlphaMind same-origin proxy.
+- Latest remote validation: `/opt/AlphaMind` is at `26b17fd`, PM2 `alphamind` is online, public page returns HTTP 200, `/api/alphamind/chat` returns SiliconFlow product-facing wording, QuantDinger containers remain healthy, and indicator API works through the AlphaMind same-origin proxy.
 - Browser validation note: Playwright smoke test on `http://127.0.0.1:5174` passed earlier for demo login, Risk page, Asset X-Ray, and Chat-to-Asset-X-Ray CTA. A later ad hoc Playwright network smoke did not run because the temporary package was not importable without adding a dependency.
 
 ## Decisions
