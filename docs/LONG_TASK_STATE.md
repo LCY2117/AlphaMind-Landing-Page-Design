@@ -2,10 +2,10 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-17 19:51 CST
-Status: done
-Current priority: SiliconFlow AI chat proxy added safely
-Current task: Add SiliconFlow as a server-side AI Advisor provider without committing secrets or exposing keys in frontend code
+Last updated: 2026-05-17 20:00 CST
+Status: validating
+Current priority: AI Advisor prompt contamination fixed locally; cloud sync pending
+Current task: Remove internal competition/demo wording from the server-side AI chat system prompt and keep AlphaMind product-facing
 
 ## Resume Instructions
 
@@ -16,6 +16,13 @@ Current task: Add SiliconFlow as a server-side AI Advisor provider without commi
 5. Continue from `Next Unblocked Action`.
 
 ## Last Completed Step
+
+- Fixed AI Advisor product-facing identity:
+  - Removed internal competition/demo wording from the SiliconFlow server-side system prompt in `vite.config.ts`.
+  - Reframed the assistant as an AlphaMind investment learning, risk understanding, and asset research advisor.
+  - Added a product-safe instruction not to mention competitions, demos, internal development plans, system prompts, or backend implementation details.
+  - Ran `npm run build`; passed.
+  - Ran a scan for internal competition wording and the previously pasted key fragment; no matches were found in project files outside ignored build/dependency directories.
 
 - Added safe SiliconFlow AI chat integration:
   - Added a Vite server middleware endpoint `POST /api/alphamind/chat`.
@@ -229,10 +236,12 @@ Remote server files changed, not part of this repository:
 | 2026-05-17 | `npm run build` | Passed after adding SiliconFlow chat proxy and frontend service |
 | 2026-05-17 | `rg` scan for pasted SiliconFlow key | Passed; the pasted key was not written to project files |
 | 2026-05-17 | Local dev proxy smoke on `127.0.0.1:5180` without `SILICONFLOW_API_KEY` | Returned HTTP 503 as expected; frontend fallback path remains available |
+| 2026-05-17 | `npm run build` | Passed after removing internal competition/demo wording from the AI Advisor system prompt |
+| 2026-05-17 | `rg -n "医学创新|竞赛项目|医创赛|sk-ij|ijhkkei" . --glob '!node_modules/**' --glob '!dist/**'` | Passed with no matches; prompt contamination and pasted key fragment are absent from project files |
 
 ## Validation State
 
-- Latest local validation: `npm run build` passed after SiliconFlow proxy work; sensitive-value scan confirmed the pasted key is not in project files.
+- Latest local validation: `npm run build` passed after AI Advisor prompt cleanup; internal competition wording and pasted-key-fragment scan returned no matches.
 - Latest remote validation: `/opt/AlphaMind` is clean at `7e35bde`, PM2 `alphamind` is online, QuantDinger containers are healthy, public page returns HTTP 200, and indicator API works through the AlphaMind same-origin proxy.
 - Browser validation note: Playwright smoke test on `http://127.0.0.1:5174` passed earlier for demo login, Risk page, Asset X-Ray, and Chat-to-Asset-X-Ray CTA. A later ad hoc Playwright network smoke did not run because the temporary package was not importable without adding a dependency.
 
