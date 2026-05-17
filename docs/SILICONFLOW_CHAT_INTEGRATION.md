@@ -8,7 +8,8 @@ Set these only in server/runtime `.env.local` or an equivalent secret manager:
 
 ```env
 SILICONFLOW_API_KEY=
-SILICONFLOW_MODEL=zai-org/GLM-4.5-Air
+SILICONFLOW_FAST_MODEL=zai-org/GLM-4.5-Air
+SILICONFLOW_DEEP_MODEL=Pro/zai-org/GLM-4.7
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1/chat/completions
 ```
 
@@ -28,8 +29,9 @@ The proxy:
 - reads `SILICONFLOW_API_KEY` from the server environment
 - sends `Authorization: Bearer <key>` to SiliconFlow
 - forwards only the latest compact chat history
-- disables thinking/reasoning mode for normal advisor chat so product responses stay fast
-- returns normalized `{ content, model, source }`
+- routes normal questions to the fast model with thinking disabled
+- routes deep-analysis questions to the deep model with thinking enabled
+- returns normalized `{ content, model, mode, thinkingEnabled, source }`
 - returns a safe error when the provider is not configured or unavailable
 
 The frontend:
@@ -72,4 +74,4 @@ With a server key configured, the same request should return HTTP 200 with `sour
 
 ## Latency Notes
 
-The default model is `zai-org/GLM-4.5-Air` because AlphaMind's chat panel favors responsive product guidance. Heavier reasoning models such as `Pro/zai-org/GLM-4.7` can still be configured through `SILICONFLOW_MODEL`, but they may exceed the browser-side response budget during short demo conversations.
+The default fast model is `zai-org/GLM-4.5-Air` because AlphaMind's chat panel favors responsive product guidance. Deep analysis uses `Pro/zai-org/GLM-4.7` with thinking enabled, but the UI should frame the visible output as a public reasoning summary rather than raw hidden chain-of-thought.

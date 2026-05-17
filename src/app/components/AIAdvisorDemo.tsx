@@ -14,9 +14,11 @@ import {
   ArrowUp,
   X,
   ShieldCheck,
+  BrainCircuit,
+  Zap,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { askAlphaMindChat, type AlphaMindChatMessage } from '../services/aiChat';
+import { askAlphaMindChat, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
 
 const mockMessages = [
   {
@@ -107,6 +109,8 @@ const quickQuestions = [
   { icon: '💎', text: '推荐适合我的基金', category: 'product' },
 ];
 
+type AdvisorModePreference = 'auto' | 'fast' | 'deep';
+
 const STOCK_NAME_MAP: Record<string, string> = {
   特斯拉: 'TSLA',
   英伟达: 'NVDA',
@@ -133,6 +137,49 @@ const detectIntent = (text: string) => {
   if (lowerText.includes('退休') || lowerText.includes('养老')) return 'retirement';
   if (lowerText.includes('基金') || lowerText.includes('股票')) return 'product';
   return 'general';
+};
+
+const inferChatMode = (text: string, intent: string, preference: AdvisorModePreference): AlphaMindChatMode => {
+  if (preference === 'fast' || preference === 'deep') return preference;
+
+  const complexSignals = [
+    '深度',
+    '详细',
+    '全面',
+    '推演',
+    '预测',
+    '概率',
+    '对比',
+    '组合',
+    '资产配置',
+    '风险敞口',
+    '估值',
+    '财报',
+    '宏观',
+    '回测',
+    '策略',
+    '为什么',
+    '怎么判断',
+  ];
+  const hasComplexSignal = complexSignals.some((signal) => text.includes(signal));
+  const isLongQuestion = text.trim().length >= 36;
+  const isComplexIntent = ['allocation', 'recommendation', 'retirement'].includes(intent);
+
+  return hasComplexSignal || isLongQuestion || isComplexIntent ? 'deep' : 'fast';
+};
+
+const buildReasoningSummary = (mode: AlphaMindChatMode, intent: string, text: string) => {
+  if (mode !== 'deep') return [];
+
+  const symbol = extractStockSymbol(text);
+  const subject = symbol ? `${symbol} 个股` : intent === 'allocation' ? '资产配置' : intent === 'retirement' ? '长期规划' : '投资问题';
+
+  return [
+    `问题拆解：先识别本轮主题为${subject}，再区分目标、期限、风险承受能力与可用数据。`,
+    '关键假设：默认不掌握您的完整财务状况，所有结论仅基于当前对话信息和 AlphaMind 可用数据状态。',
+    '风险校验：重点检查波动、流动性、估值偏离、单一资产集中度以及市场环境变化。',
+    '结论边界：输出用于辅助研究和学习，不替代持牌顾问意见，也不构成确定性买卖指令。',
+  ];
 };
 
 const extractStockSymbol = (text: string) => {
@@ -255,6 +302,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
   const [userProfile, setUserProfile] = useState<any>({});
   const [isTyping, setIsTyping] = useState(false);
   const [typingText, setTypingText] = useState('');
+  const [modePreference, setModePreference] = useState<AdvisorModePreference>('auto');
+  const [activeChatMode, setActiveChatMode] = useState<AlphaMindChatMode>('fast');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastNewChatRequestRef = useRef(newChatRequest);
@@ -385,6 +434,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
       }
 
       const intent = detectIntent(messageText);
+      const chatMode = inferChatMode(messageText, intent, modePreference);
+      setActiveChatMode(chatMode);
 
       const userMessage: any = {
         role: 'user',
@@ -392,6 +443,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         type: uploadedImage ? 'image' : 'text',
         imageUrl: uploadedImage,
         intent,
+        chatMode,
       };
 
       const newMessages = [...messages, userMessage];
@@ -407,14 +459,17 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile);
         const aiResponse = intent === 'asset_xray'
           ? { content: '', source: 'fallback' as const }
-          : await askAlphaMindChat(buildChatHistoryForAi(messages, userMessage));
+          : await askAlphaMindChat(buildChatHistoryForAi(messages, userMessage), chatMode);
         const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
         const responseContent = hasLiveAi ? aiResponse.content : localResponse.content;
         const reasons = hasLiveAi
           ? [
-              { icon: '🧠', text: `硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}已生成本轮回答。` },
+              {
+                icon: chatMode === 'deep' ? '🧠' : '⚡',
+                text: `${chatMode === 'deep' ? '深度思考' : '快速响应'}模式已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
+              },
               { icon: '📡', text: '资产行情与 K 线由 QuantDinger 通道支撑，个股细节可进入资产透视查看。' },
-              { icon: '🛡️', text: '回答仅用于辅助研究和比赛演示，不构成投资建议。' },
+              { icon: '🛡️', text: '回答仅用于辅助研究和学习，不构成投资建议。' },
             ]
           : localResponse.reasons;
         const shouldShowChart = localResponse.showInlineChart;
@@ -441,6 +496,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               type: 'analysis',
               source: providerSource,
               model: providerModel,
+              chatMode,
+              thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
+              reasoningSummary: hasLiveAi ? buildReasoningSummary(chatMode, intent, messageText) : [],
               providerError,
               showInlineChart: shouldShowChart,
               riskScore,
@@ -733,14 +791,44 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                     {message.assetSymbol
                                       ? '资产透视入口'
                                       : message.source === 'siliconflow'
-                                      ? '硅基流动 AI'
+                                      ? message.chatMode === 'deep'
+                                        ? '硅基流动 AI · 深度思考'
+                                        : '硅基流动 AI · 快速响应'
                                       : '本地演示分析'}
                                   </span>
+                                  {message.source === 'siliconflow' && (
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
+                                      message.chatMode === 'deep' ? 'am-brand-soft am-brand' : 'am-card'
+                                    }`}>
+                                      {message.chatMode === 'deep' ? <BrainCircuit size={12} /> : <Zap size={12} />}
+                                      {message.chatMode === 'deep' ? 'thinking on' : 'thinking off'}
+                                    </span>
+                                  )}
                                   <span className="am-text-tertiary">
                                     来源：{message.source === 'siliconflow' ? message.model ?? 'SiliconFlow' : '浏览器本地规则 / 样例数据'}
                                   </span>
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>
+
+                                {message.reasoningSummary?.length > 0 && (
+                                  <div className="am-card-strong border rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <BrainCircuit size={16} className="am-brand" />
+                                      <h4 className="text-sm font-medium am-text-primary">AI 深度分析轨迹</h4>
+                                      <span className="text-[11px] am-text-tertiary">公开推理摘要</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {message.reasoningSummary.map((step: string, idx: number) => (
+                                        <div key={idx} className="flex items-start gap-3 text-sm am-text-secondary">
+                                          <span className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full am-brand-soft am-brand text-[11px]">
+                                            {idx + 1}
+                                          </span>
+                                          <p className="flex-1 leading-relaxed">{step}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
 
                                 {message.showInlineChart && (
                                   <div className="am-card rounded-xl p-4">
@@ -888,9 +976,20 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                           >|</motion.span>
                         </p>
                       ) : (
-                        <div className="flex items-center gap-2 am-text-secondary">
-                          <div className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full am-loader-spin" />
-                          <span className="text-sm">正在分析...</span>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 am-text-secondary">
+                            <div className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full am-loader-spin" />
+                            <span className="text-sm">
+                              {activeChatMode === 'deep' ? '正在进行深度思考...' : '正在分析...'}
+                            </span>
+                          </div>
+                          {activeChatMode === 'deep' && (
+                            <div className="grid gap-1 text-xs am-text-tertiary">
+                              <span>拆解问题结构</span>
+                              <span>校验风险因子</span>
+                              <span>生成公开推理摘要</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -932,6 +1031,36 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                 </button>
               </div>
             )}
+
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="inline-flex rounded-xl border am-border-subtle am-input-surface p-1">
+                {([
+                  { value: 'auto', label: '自动', icon: Sparkles },
+                  { value: 'fast', label: '快速', icon: Zap },
+                  { value: 'deep', label: '深度', icon: BrainCircuit },
+                ] as const).map((item) => {
+                  const Icon = item.icon;
+                  const isActive = modePreference === item.value;
+
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setModePreference(item.value)}
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs transition-colors ${
+                        isActive ? 'am-brand-bg am-on-brand' : 'am-text-secondary am-hover-surface'
+                      }`}
+                    >
+                      <Icon size={13} />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="hidden text-xs am-text-tertiary sm:inline">
+                自动模式会按问题复杂度切换响应速度与深度
+              </span>
+            </div>
 
             <div className="flex items-end gap-2">
               <div className="flex-1 am-input-surface border rounded-2xl flex items-center gap-2 px-3 py-2">

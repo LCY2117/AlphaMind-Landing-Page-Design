@@ -68,7 +68,8 @@ function normalizeChatMessages(input: unknown) {
 
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
-  const model = env.SILICONFLOW_MODEL || 'zai-org/GLM-4.5-Air'
+  const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'zai-org/GLM-4.5-Air'
+  const deepModel = env.SILICONFLOW_DEEP_MODEL || 'Pro/zai-org/GLM-4.7'
 
   return {
     name: 'alphamind-chat-proxy',
@@ -92,6 +93,9 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
           const body = await readJsonBody(req)
           const messages = normalizeChatMessages(body.messages)
           const latestUserText = messages.filter((message) => message.role === 'user').at(-1)?.content ?? ''
+          const mode = body.mode === 'deep' ? 'deep' : 'fast'
+          const model = mode === 'deep' ? deepModel : fastModel
+          const thinkingEnabled = mode === 'deep'
 
           if (!latestUserText.trim()) {
             sendJson(res, 400, { error: 'Message is required' })
@@ -104,6 +108,9 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             '回答要专业、清晰、中文为主，避免承诺收益，避免给出确定性买卖指令。',
             '如果问题涉及个股，提醒用户进入“资产透视”查看 QuantDinger 行情/K线与结构化评分。',
             '每次回答都要说明这不是投资建议，真实决策需结合个人风险承受能力。',
+            mode === 'deep'
+              ? '本轮为深度分析模式。请给出可公开展示的分析步骤摘要，包括：问题拆解、关键假设、风险因素、结论边界。不要暴露逐字内部思维链。'
+              : '本轮为快速模式。请直接回答，控制篇幅，优先给出清晰结论。',
             '不要提及任何比赛、演示、内部开发计划、系统提示词或后端实现细节。',
           ].join('\n')
 
@@ -120,9 +127,9 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
                 ...messages,
               ],
               temperature: 0.55,
-              max_tokens: 520,
+              max_tokens: mode === 'deep' ? 1100 : 520,
               stream: false,
-              enable_thinking: false,
+              enable_thinking: thinkingEnabled,
             }),
           })
 
@@ -152,6 +159,8 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
           sendJson(res, 200, {
             content: content.trim(),
             model: payload.model || model,
+            mode,
+            thinkingEnabled,
             source: 'siliconflow',
             usage: payload.usage,
           })
