@@ -359,6 +359,22 @@ const getSmartGreeting = () => {
   return '晚上好';
 };
 
+const normalizeMarkdownContent = (content: string) => {
+  return content
+    .split(/(```[\s\S]*?```)/g)
+    .map((segment) => {
+      if (segment.startsWith('```')) return segment;
+
+      return segment
+        .replace(/\\([*_])/g, '$1')
+        .replace(/(^|\n)\\(#{1,6}\s)/g, '$1$2')
+        .replace(/(^|\n)\\([-*+]\s)/g, '$1$2')
+        .replace(/\\([[\]()`])/g, '$1')
+        .replace(/\\(\|)/g, '$1');
+    })
+    .join('');
+};
+
 const renderMessageText = (content: string) => {
   return (
     <ReactMarkdown
@@ -407,7 +423,7 @@ const renderMessageText = (content: string) => {
         hr: () => <hr className="my-4 am-border-subtle" />,
       }}
     >
-      {content}
+      {normalizeMarkdownContent(content)}
     </ReactMarkdown>
   );
 };
