@@ -31,21 +31,62 @@ import {
 
 type ScanState = 'idle' | 'scanning' | 'complete';
 
-const historyPoints = [
-  { x: 0, y: 68 },
-  { x: 7, y: 61 },
-  { x: 14, y: 64 },
-  { x: 21, y: 56 },
-  { x: 28, y: 49 },
-  { x: 35, y: 52 },
-  { x: 42, y: 44 },
-  { x: 49, y: 39 },
-  { x: 56, y: 35 },
-  { x: 63, y: 32 },
-];
-
 function pointString(points: Array<{ x: number; y: number }>) {
   return points.map((point) => `${point.x},${point.y}`).join(' ');
+}
+
+function clampChartY(value: number) {
+  return Math.max(7, Math.min(70, value));
+}
+
+function getSymbolSeed(symbol: string) {
+  return symbol.split('').reduce((sum, char, index) => sum + char.charCodeAt(0) * (index + 3), 0);
+}
+
+function buildProbabilityConeShape(
+  symbol: string,
+  changeValue: number,
+  probabilities: AssetXRayReport['probabilities'],
+) {
+  const seed = getSymbolSeed(symbol);
+  const bullishTilt = (probabilities.up - probabilities.down) / 100;
+  const volatility = Math.max(0.16, Math.min(0.58, (100 - probabilities.flat) / 100));
+  const startY = clampChartY(60 - changeValue * 1.4 + ((seed % 9) - 4));
+  const historySlope = -18 * bullishTilt - changeValue * 1.8 + ((seed % 13) - 6) * 0.45;
+  const historyPoints = Array.from({ length: 10 }, (_, index) => {
+    const progress = index / 9;
+    const wave = Math.sin(progress * Math.PI * 2 + seed * 0.21) * (3.2 + volatility * 6);
+    const pulse = Math.sin(progress * Math.PI * 5 + seed * 0.13) * (1.4 + volatility * 2.5);
+    const y = startY + historySlope * progress + wave + pulse;
+    return { x: index * 7, y: clampChartY(y) };
+  });
+  const anchor = historyPoints.at(-1) ?? { x: 63, y: 36 };
+  const forecastX = [63, 72, 81, 90, 100];
+  const forecastDrift = -22 * bullishTilt + ((seed % 7) - 3) * 0.65;
+  const forecastWave = (index: number) => Math.sin((index + 1) * 0.9 + seed * 0.17) * (1.2 + volatility * 2.2);
+  const midPoints = forecastX.map((x, index) => {
+    const progress = index / (forecastX.length - 1);
+    const y = anchor.y + forecastDrift * progress + forecastWave(index);
+    return { x, y: clampChartY(y) };
+  });
+  const spreadBase = 7 + volatility * 17;
+  const upperPoints = midPoints.map((point, index) => {
+    const progress = index / (midPoints.length - 1);
+    return { x: point.x, y: clampChartY(point.y - spreadBase * progress * (0.7 + probabilities.up / 100)) };
+  });
+  const lowerPoints = midPoints.map((point, index) => {
+    const progress = index / (midPoints.length - 1);
+    return { x: point.x, y: clampChartY(point.y + spreadBase * progress * (0.75 + probabilities.down / 100)) };
+  });
+
+  return {
+    history: pointString(historyPoints),
+    mid: pointString(midPoints),
+    upper: pointString(upperPoints),
+    lower: pointString(lowerPoints),
+    upArea: `${pointString(upperPoints)} ${[...midPoints].reverse().map((point) => `${point.x},${point.y}`).join(' ')}`,
+    downArea: `${pointString(midPoints)} ${[...lowerPoints].reverse().map((point) => `${point.x},${point.y}`).join(' ')}`,
+  };
 }
 
 function AnalysisSkeleton({ values }: { values: number[] }) {
@@ -127,13 +168,18 @@ function SentimentGauge({ score, label, active }: { score: number; label: string
   );
 }
 
-function ProbabilityCone({ active, probabilities }: { active: boolean; probabilities: AssetXRayReport['probabilities'] }) {
-  const history = pointString(historyPoints);
-  const mid = '63,32 72,30 81,27 90,25 100,22';
-  const upper = '63,32 72,22 81,15 90,10 100,6';
-  const lower = '63,32 72,40 81,48 90,56 100,64';
-  const upArea = `${upper} 100,22 90,25 81,27 72,30 63,32`;
-  const downArea = `${mid} 100,64 90,56 81,48 72,40 63,32`;
+function ProbabilityCone({
+  active,
+  report,
+}: {
+  active: boolean;
+  report: AssetXRayReport;
+}) {
+  const { probabilities } = report;
+  const shape = useMemo(
+    () => buildProbabilityConeShape(report.symbol, report.changeValue, probabilities),
+    [probabilities, report.changeValue, report.symbol],
+  );
 
   return (
     <div className="min-h-[332px]">
@@ -146,8 +192,8 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
         <text x="3" y="75" fontSize="3.2" fill="var(--am-text-tertiary)">历史走势</text>
         <text x="69" y="75" fontSize="3.2" fill="var(--am-text-tertiary)">AI 预测区间</text>
 
-        <motion.polygon
-          points={upArea}
+          <motion.polygon
+          points={shape.upArea}
           fill="#22C55E"
           opacity={active ? 0.16 : 0}
           initial={{ opacity: 0 }}
@@ -155,7 +201,7 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
           transition={{ delay: 0.35, duration: 0.5 }}
         />
         <motion.polygon
-          points={downArea}
+          points={shape.downArea}
           fill="#EF4444"
           opacity={active ? 0.12 : 0}
           initial={{ opacity: 0 }}
@@ -163,7 +209,7 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
           transition={{ delay: 0.45, duration: 0.5 }}
         />
         <motion.polyline
-          points={history}
+          points={shape.history}
           fill="none"
           stroke="#C44536"
           strokeWidth="1.2"
@@ -174,7 +220,7 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
           transition={{ duration: 1.1, ease: [0.25, 1, 0.5, 1] }}
         />
         <motion.polyline
-          points={mid}
+          points={shape.mid}
           fill="none"
           stroke="#F59E0B"
           strokeWidth="1"
@@ -186,7 +232,7 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
           transition={{ delay: 0.28, duration: 0.9, ease: [0.25, 1, 0.5, 1] }}
         />
         <motion.polyline
-          points={upper}
+          points={shape.upper}
           fill="none"
           stroke="#22C55E"
           strokeWidth="0.55"
@@ -197,7 +243,7 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
           transition={{ delay: 0.35, duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
         />
         <motion.polyline
-          points={lower}
+          points={shape.lower}
           fill="none"
           stroke="#EF4444"
           strokeWidth="0.55"
@@ -555,7 +601,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
               </h3>
               <span className="text-xs am-text-tertiary">20 个交易日 · 区间演示</span>
             </div>
-            <ProbabilityCone active={isComplete} probabilities={stock.probabilities} />
+            <ProbabilityCone active={isComplete} report={stock} />
           </div>
 
           <div className="am-card border rounded-2xl p-5 sm:p-6 relative overflow-hidden">
