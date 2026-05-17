@@ -574,10 +574,26 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
-        if (!input.trim()) {
-          setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
-        }
+        const imageUrl = reader.result as string;
+        const probe = new Image();
+
+        probe.onload = () => {
+          if (probe.width <= 28 || probe.height <= 28) {
+            setInput('图片尺寸过小，请上传宽高大于 28px 的图片。');
+            return;
+          }
+
+          setUploadedImage(imageUrl);
+          if (!input.trim()) {
+            setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
+          }
+        };
+
+        probe.onerror = () => {
+          setInput('图片读取失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。');
+        };
+
+        probe.src = imageUrl;
       };
       reader.readAsDataURL(file);
       event.target.value = '';
