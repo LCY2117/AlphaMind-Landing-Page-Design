@@ -751,37 +751,53 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     }
   };
 
+  const handleImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imageUrl = reader.result as string;
+      const probe = new Image();
+
+      probe.onload = () => {
+        if (probe.width <= 28 || probe.height <= 28) {
+          setInput('图片尺寸过小，请上传宽高大于 28px 的图片。');
+          return;
+        }
+
+        setUploadedImage(imageUrl);
+        if (!input.trim()) {
+          setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
+        }
+      };
+
+      probe.onerror = () => {
+        setInput('图片读取失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。');
+      };
+
+      probe.src = imageUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) return;
+    if (file) handleImageFile(file);
+    event.target.value = '';
+  };
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const imageUrl = reader.result as string;
-        const probe = new Image();
+  const handlePasteImage = (event: React.ClipboardEvent<HTMLInputElement | HTMLDivElement>) => {
+    const imageFileFromItems = Array.from(event.clipboardData.items)
+      .find((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      ?.getAsFile();
+    const imageFileFromFiles = Array.from(event.clipboardData.files)
+      .find((file) => file.type.startsWith('image/'));
+    const imageFile = imageFileFromItems ?? imageFileFromFiles;
 
-        probe.onload = () => {
-          if (probe.width <= 28 || probe.height <= 28) {
-            setInput('图片尺寸过小，请上传宽高大于 28px 的图片。');
-            return;
-          }
+    if (!imageFile) return;
 
-          setUploadedImage(imageUrl);
-          if (!input.trim()) {
-            setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
-          }
-        };
-
-        probe.onerror = () => {
-          setInput('图片读取失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。');
-        };
-
-        probe.src = imageUrl;
-      };
-      reader.readAsDataURL(file);
-      event.target.value = '';
-    }
+    event.preventDefault();
+    handleImageFile(imageFile);
   };
 
   return (
@@ -1239,7 +1255,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               </span>
             </div>
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2" onPaste={handlePasteImage}>
               <div className="flex-1 am-input-surface border rounded-2xl flex items-center gap-2 px-3 py-2">
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -1261,6 +1277,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  onPaste={handlePasteImage}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !isAnalyzing) {
                       e.preventDefault();
