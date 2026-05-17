@@ -136,8 +136,9 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
   const downArea = `${mid} 100,64 90,56 81,48 72,40 63,32`;
 
   return (
-    <div className="h-[320px]">
-      <svg viewBox="0 0 100 78" className="h-full w-full overflow-visible">
+    <div className="min-h-[332px]">
+      <div className="h-[252px] sm:h-[270px]">
+        <svg viewBox="0 0 100 78" preserveAspectRatio="none" className="h-full w-full overflow-visible">
         {[20, 35, 50, 65].map((y) => (
           <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="var(--am-chart-grid)" strokeWidth="0.35" strokeDasharray="2 3" />
         ))}
@@ -206,17 +207,18 @@ function ProbabilityCone({ active, probabilities }: { active: boolean; probabili
           animate={{ pathLength: active ? 1 : 0 }}
           transition={{ delay: 0.4, duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
         />
-      </svg>
-      <div className="grid grid-cols-3 gap-2 -mt-4">
-        <div className="rounded-lg am-card border p-2 text-center">
+        </svg>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="rounded-lg am-card border px-2 py-2.5 text-center">
           <div className="text-xs am-text-tertiary">上涨</div>
           <div className="text-sm font-bold text-green-500">{probabilities.up}%</div>
         </div>
-        <div className="rounded-lg am-card border p-2 text-center">
+        <div className="rounded-lg am-card border px-2 py-2.5 text-center">
           <div className="text-xs am-text-tertiary">横盘</div>
           <div className="text-sm font-bold text-amber-500">{probabilities.flat}%</div>
         </div>
-        <div className="rounded-lg am-card border p-2 text-center">
+        <div className="rounded-lg am-card border px-2 py-2.5 text-center">
           <div className="text-xs am-text-tertiary">下跌</div>
           <div className="text-sm font-bold text-red-500">{probabilities.down}%</div>
         </div>
