@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { askAlphaMindChat, type AlphaMindChatMessage } from '../services/aiChat';
 
 const mockMessages = [
   {
@@ -158,6 +159,68 @@ const extractUserInfo = (text: string) => {
   if (text.includes('波动') || text.includes('激进') || text.includes('进取')) info.riskTolerance = '进取型';
   return info;
 };
+
+function buildLocalAnalysisResponse(messageText: string, intent: string, userProfile: any) {
+  const shouldShowChart = intent !== 'asset_xray' && (intent === 'allocation' || Math.random() > 0.6);
+  let responseContent = '';
+  let reasons = [];
+
+  if (intent === 'asset_xray') {
+    const symbol = extractStockSymbol(messageText) ?? 'TSLA';
+    responseContent = `已识别 ${symbol} 个股研究请求。建议进入资产透视页查看结构化研究视图`;
+    reasons = [
+      { icon: '🔎', text: `${symbol} 的资产透视会包含雷达评分、情绪仪表盘、概率区间和研究结论。` },
+      { icon: '📡', text: '若 QuantDinger 或真实数据源未连接，页面会明确显示演示/回退状态。' },
+      { icon: '🛡️', text: '当前仅做辅助研究展示，不触发交易，也不构成投资建议。' },
+    ];
+  } else if (intent === 'risk_assessment') {
+    responseContent = `${getSmartGreeting()}！我已为您完成风险评估分析`;
+    reasons = [
+      { icon: '🎯', text: `M3模型分析：基于您${userProfile.age ? `${userProfile.age}岁的年龄` : '的情况'}，风险承受能力评估为中等偏上` },
+      { icon: '📊', text: 'M4引擎建议：当前可适度提高权益类资产配置比例' },
+      { icon: '💡', text: 'LLM提示：建议定期 review 风险偏好，随年龄调整配置策略' },
+    ];
+  } else if (intent === 'allocation') {
+    responseContent = '根据您的资产情况，我为您定制了以下配置方案';
+    reasons = [
+      { icon: '🎯', text: `M3预测：${userProfile.amount ? `以${(userProfile.amount / 10000).toFixed(0)}万元资金` : '您的资金'}进行配置，建议采用核心-卫星策略` },
+      { icon: '📈', text: 'M4优化：科技板块当前估值合理，可作为核心配置' },
+      { icon: '💡', text: 'LLM建议：定投策略可平滑市场波动，建议每月固定投入' },
+    ];
+  } else if (intent === 'retirement') {
+    responseContent = '退休规划需要长期视角，我为您制定了以下方案';
+    reasons = [
+      { icon: '🎯', text: `M3测算：假设${userProfile.age || 30}岁退休，需要提前${65 - (userProfile.age || 30)}年规划` },
+      { icon: '📈', text: 'M4建议：采用目标日期策略，随年龄递减风险资产配置' },
+      { icon: '💡', text: 'LLM提示：考虑通货膨胀因素，建议配置部分抗通胀资产' },
+    ];
+  } else {
+    responseContent = shouldShowChart ? '根据当前市场趋势分析，我为您准备了以下投资建议' : '基于您的信息，我已完成风险评估和资产配置分析';
+    reasons = [
+      { icon: '🎯', text: 'M3模型预测：当前市场波动率处于中等水平，建议适度配置权益资产' },
+      { icon: '📈', text: 'M4配置引擎：基于您的年龄和风险承受能力，优化了科技板块配置' },
+      { icon: '💡', text: 'LLM解释：债券和黄金作为防御性资产，可在市场下跌时提供保护' },
+    ];
+  }
+
+  return {
+    content: responseContent,
+    reasons,
+    showInlineChart: shouldShowChart,
+    source: 'local',
+  };
+}
+
+function buildChatHistoryForAi(messages: any[], userMessage: any): AlphaMindChatMessage[] {
+  return [...messages, userMessage]
+    .filter((message) => message.role === 'user' || message.role === 'assistant')
+    .map((message) => ({
+      role: message.role,
+      content: String(message.content ?? ''),
+    }))
+    .filter((message) => message.content.trim())
+    .slice(-8);
+}
 
 const getSmartGreeting = () => {
   const hour = new Date().getHours();
@@ -338,51 +401,26 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
       setSuggestedQuestions([]);
       setIsAnalyzing(true);
 
-      responseTimeoutRef.current = window.setTimeout(() => {
+      responseTimeoutRef.current = window.setTimeout(async () => {
         responseTimeoutRef.current = null;
         setIsTyping(true);
-        const shouldShowChart = intent !== 'asset_xray' && (intent === 'allocation' || Math.random() > 0.6);
-
-        let responseContent = '';
-        let reasons = [];
-
-        if (intent === 'asset_xray') {
-          const symbol = extractStockSymbol(messageText) ?? 'TSLA';
-          responseContent = `已识别 ${symbol} 个股研究请求。建议进入资产透视页查看结构化研究视图`;
-          reasons = [
-            { icon: '🔎', text: `${symbol} 的资产透视会包含雷达评分、情绪仪表盘、概率区间和研究结论。` },
-            { icon: '📡', text: '若 QuantDinger 或真实数据源未连接，页面会明确显示演示/回退状态。' },
-            { icon: '🛡️', text: '当前仅做辅助研究展示，不触发交易，也不构成投资建议。' },
-          ];
-        } else if (intent === 'risk_assessment') {
-          responseContent = `${getSmartGreeting()}！我已为您完成风险评估分析`;
-          reasons = [
-            { icon: '🎯', text: `M3模型分析：基于您${userProfile.age ? `${userProfile.age}岁的年龄` : '的情况'}，风险承受能力评估为中等偏上` },
-            { icon: '📊', text: 'M4引擎建议：当前可适度提高权益类资产配置比例' },
-            { icon: '💡', text: 'LLM提示：建议定期review风险偏好，随年龄调整配置策略' },
-          ];
-        } else if (intent === 'allocation') {
-          responseContent = '根据您的资产情况，我为您定制了以下配置方案';
-          reasons = [
-            { icon: '🎯', text: `M3预测：${userProfile.amount ? `以${(userProfile.amount/10000).toFixed(0)}万元资金` : '您的资金'}进行配置，建议采用核心-卫星策略` },
-            { icon: '📈', text: 'M4优化：科技板块当前估值合理，可作为核心配置' },
-            { icon: '💡', text: 'LLM建议：定投策略可平滑市场波动，建议每月固定投入' },
-          ];
-        } else if (intent === 'retirement') {
-          responseContent = '退休规划需要长期视角，我为您制定了以下方案';
-          reasons = [
-            { icon: '🎯', text: `M3测算：假设${userProfile.age || 30}岁退休，需要提前${65-(userProfile.age || 30)}年规划` },
-            { icon: '📈', text: 'M4建议：采用目标日期策略，随年龄递减风险资产配置' },
-            { icon: '💡', text: 'LLM提示：考虑通货膨胀因素，建议配置部分抗通胀资产' },
-          ];
-        } else {
-          responseContent = shouldShowChart ? '根据当前市场趋势分析，我为您准备了以下投资建议' : '基于您的信息，我已完成风险评估和资产配置分析';
-          reasons = [
-            { icon: '🎯', text: 'M3模型预测：当前市场波动率处于中等水平，建议适度配置权益资产' },
-            { icon: '📈', text: 'M4配置引擎：基于您的年龄和风险承受能力，优化了科技板块配置' },
-            { icon: '💡', text: 'LLM解释：债券和黄金作为防御性资产，可在市场下跌时提供保护' },
-          ];
-        }
+        const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile);
+        const aiResponse = intent === 'asset_xray'
+          ? { content: '', source: 'fallback' as const }
+          : await askAlphaMindChat(buildChatHistoryForAi(messages, userMessage));
+        const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
+        const responseContent = hasLiveAi ? aiResponse.content : localResponse.content;
+        const reasons = hasLiveAi
+          ? [
+              { icon: '🧠', text: `硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}已生成本轮回答。` },
+              { icon: '📡', text: '资产行情与 K 线由 QuantDinger 通道支撑，个股细节可进入资产透视查看。' },
+              { icon: '🛡️', text: '回答仅用于辅助研究和比赛演示，不构成投资建议。' },
+            ]
+          : localResponse.reasons;
+        const shouldShowChart = localResponse.showInlineChart;
+        const providerSource = hasLiveAi ? 'siliconflow' : 'local';
+        const providerModel = hasLiveAi ? aiResponse.model : undefined;
+        const providerError = hasLiveAi ? undefined : aiResponse.error;
 
         let currentIndex = 0;
         typingIntervalRef.current = window.setInterval(() => {
@@ -401,6 +439,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               role: 'assistant',
               content: responseContent,
               type: 'analysis',
+              source: providerSource,
+              model: providerModel,
+              providerError,
               showInlineChart: shouldShowChart,
               riskScore,
               riskLevel: riskScore < 40 ? '保守型' : riskScore < 70 ? '成长型' : '进取型',
@@ -414,6 +455,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               reasons,
               warnings: intent === 'asset_xray'
                 ? []
+                : providerError
+                ? [`AI 服务暂不可用，已切换本地演示分析：${providerError}`]
                 : riskScore > 75
                 ? ['⚠️ 高风险配置，请确保您能承受较大波动']
                 : [],
@@ -686,8 +729,16 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                               <>
                                 <div className="flex flex-wrap items-center gap-2 rounded-xl am-card border px-3 py-2 text-xs am-text-secondary">
                                   <ShieldCheck size={14} className="am-brand" />
-                                  <span>{message.assetSymbol ? '资产透视入口' : '本地演示分析'}</span>
-                                  <span className="am-text-tertiary">来源：浏览器本地规则 / 样例数据</span>
+                                  <span>
+                                    {message.assetSymbol
+                                      ? '资产透视入口'
+                                      : message.source === 'siliconflow'
+                                      ? '硅基流动 AI'
+                                      : '本地演示分析'}
+                                  </span>
+                                  <span className="am-text-tertiary">
+                                    来源：{message.source === 'siliconflow' ? message.model ?? 'SiliconFlow' : '浏览器本地规则 / 样例数据'}
+                                  </span>
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>
 

@@ -2,10 +2,10 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-17 19:40 CST
+Last updated: 2026-05-17 19:51 CST
 Status: done
-Current priority: Local UI optimization and QuantDinger runtime synced to cloud
-Current task: Keep AlphaMind cloud deployment aligned with GitHub while preserving the server-only QuantDinger runtime environment
+Current priority: SiliconFlow AI chat proxy added safely
+Current task: Add SiliconFlow as a server-side AI Advisor provider without committing secrets or exposing keys in frontend code
 
 ## Resume Instructions
 
@@ -16,6 +16,20 @@ Current task: Keep AlphaMind cloud deployment aligned with GitHub while preservi
 5. Continue from `Next Unblocked Action`.
 
 ## Last Completed Step
+
+- Added safe SiliconFlow AI chat integration:
+  - Added a Vite server middleware endpoint `POST /api/alphamind/chat`.
+  - The proxy reads `SILICONFLOW_API_KEY` only from server/runtime env and calls `https://api.siliconflow.cn/v1/chat/completions`.
+  - Added `SILICONFLOW_MODEL` and `SILICONFLOW_BASE_URL` runtime knobs in `.env.example` with empty placeholder values only.
+  - Added frontend service `src/app/services/aiChat.ts`.
+  - Updated `AIAdvisorDemo` so general chat uses SiliconFlow when available and falls back to local demo analysis when not configured or unavailable.
+  - Kept stock/asset-intent chat routed to Asset X-Ray and QuantDinger rather than forcing LLM-only analysis.
+  - Added source labeling in the chat UI: `硅基流动 AI` versus `本地演示分析`.
+  - Added `docs/SILICONFLOW_CHAT_INTEGRATION.md`.
+  - Added a blocker requiring the pasted SiliconFlow key to be rotated before server activation.
+  - Ran `npm run build`; passed.
+  - Ran a sensitive scan for the pasted key; no file contained it.
+  - Ran local proxy smoke without a key; `POST /api/alphamind/chat` returned HTTP 503 as expected, which the frontend handles with fallback.
 
 - Synced the local AlphaMind optimization work to GitHub and cloud:
   - Local commit created: `7e35bde Improve AlphaMind UX and connect QuantDinger runtime`.
@@ -113,6 +127,7 @@ Previous completed integration steps:
 - `docs/OVERNIGHT_IMPLEMENTATION_PLAN.md`
 - `docs/OVERNIGHT_PROMPT.md`
 - `docs/QUANTDINGER_INTEGRATION.md`
+- `docs/SILICONFLOW_CHAT_INTEGRATION.md`
 - `docs/API_APPLICATION_CHECKLIST.md`
 - `docs/ALPHAMIND_OPTIMIZATION_PLAN.md`
 - `index.html`
@@ -129,8 +144,10 @@ Previous completed integration steps:
 - `src/app/components/StockTicker.tsx`
 - `src/app/contexts/AuthContext.tsx`
 - `src/app/services/alphamindConfig.ts`
+- `src/app/services/aiChat.ts`
 - `src/app/services/assetXRay.ts`
 - `src/app/services/backtest.ts`
+- `vite.config.ts`
 
 Remote server files changed, not part of this repository:
 
@@ -209,10 +226,13 @@ Remote server files changed, not part of this repository:
 | 2026-05-17 | `Invoke-WebRequest https://alphamind.mddcommunity.top` | Passed; HTTP 200 |
 | 2026-05-17 | `Invoke-WebRequest https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/price?market=USStock&symbol=TSLA` | Passed; HTTP 200 with `x-alphamind-upstream: quantdinger` |
 | 2026-05-17 | Server `git checkout -- package-lock.json` | Restored deploy-time lockfile metadata drift caused by direct `npm install`; `/opt/AlphaMind` clean at `7e35bde` |
+| 2026-05-17 | `npm run build` | Passed after adding SiliconFlow chat proxy and frontend service |
+| 2026-05-17 | `rg` scan for pasted SiliconFlow key | Passed; the pasted key was not written to project files |
+| 2026-05-17 | Local dev proxy smoke on `127.0.0.1:5180` without `SILICONFLOW_API_KEY` | Returned HTTP 503 as expected; frontend fallback path remains available |
 
 ## Validation State
 
-- Latest local validation: `npm run build` passed before cloud sync; sensitive-value scan found only placeholder examples.
+- Latest local validation: `npm run build` passed after SiliconFlow proxy work; sensitive-value scan confirmed the pasted key is not in project files.
 - Latest remote validation: `/opt/AlphaMind` is clean at `7e35bde`, PM2 `alphamind` is online, QuantDinger containers are healthy, public page returns HTTP 200, and indicator API works through the AlphaMind same-origin proxy.
 - Browser validation note: Playwright smoke test on `http://127.0.0.1:5174` passed earlier for demo login, Risk page, Asset X-Ray, and Chat-to-Asset-X-Ray CTA. A later ad hoc Playwright network smoke did not run because the temporary package was not importable without adding a dependency.
 
@@ -231,6 +251,7 @@ Remote server files changed, not part of this repository:
 - Mock/provider states must stay explicit in financial UI until real data contracts are available.
 - Remote QuantDinger should stay loopback-only; public access should go through AlphaMind/OpenResty same-origin proxy.
 - Agent Gateway and fast-analysis tokens remain user-only secrets and must not be copied into chat or committed files.
+- The SiliconFlow key pasted into chat should be treated as exposed; only a rotated replacement key should be placed into server-only env.
 
 ## Open Blockers Summary
 
@@ -238,3 +259,4 @@ Remote server files changed, not part of this repository:
 - Full live indicator verification no longer needs a QuantDinger runtime; it is running on the cloud server.
 - Agent Gateway backtest verification still needs a user-created read/backtest-scoped token.
 - Optional fast-analysis enrichment needs a human JWT and credit/usage confirmation.
+- SiliconFlow live chat activation needs a rotated server-only `SILICONFLOW_API_KEY`.
