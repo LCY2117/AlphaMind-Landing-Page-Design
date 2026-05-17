@@ -181,6 +181,26 @@ const supportsPortfolio = (intent: string) => ['allocation', 'retirement'].inclu
 const supportsInlineChart = (intent: string) => ['allocation', 'retirement', 'product'].includes(intent);
 const supportsDecisionExplanation = (intent: string) => ['risk_assessment', 'allocation', 'retirement', 'asset_xray'].includes(intent);
 
+const getStableHash = (text: string) => {
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+};
+
+const pickContextualQuestions = (pool: string[], seed: string, count = 3) => {
+  const uniquePool = Array.from(new Set(pool.filter(Boolean)));
+  return uniquePool
+    .map((question, index) => ({
+      question,
+      score: getStableHash(`${seed}-${question}-${index}`),
+    }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, count)
+    .map((item) => item.question);
+};
+
 const extractReasoningSummary = (content: string) => {
   const stripMarkdown = (line: string) =>
     line
@@ -449,27 +469,80 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     return () => window.clearInterval(intervalId);
   }, [activeChatMode, isAnalyzing]);
 
-  const generateSuggestions = (lastMessage: any) => {
-    if (lastMessage.assetSymbol) {
-      return [
-        `解释 ${lastMessage.assetSymbol} 的估值吸引力`,
-        `对比 ${lastMessage.assetSymbol} 和 NVDA`,
-        `${lastMessage.assetSymbol} 最大风险是什么？`,
-      ];
+  const generateSuggestions = (lastMessage: any, originalQuestion = '') => {
+    const intent = lastMessage.intent ?? detectIntent(originalQuestion || lastMessage.content || '');
+    const symbol = lastMessage.assetSymbol;
+    const seed = `${originalQuestion}-${intent}-${symbol ?? ''}-${lastMessage.model ?? ''}-${messages.length}`;
+
+    if (symbol) {
+      const peer = symbol === 'NVDA' ? 'AMD' : 'NVDA';
+      return pickContextualQuestions([
+        `${symbol} 当前最大的下行风险是什么？`,
+        `用三句话总结 ${symbol} 的投资逻辑`,
+        `对比 ${symbol} 和 ${peer} 的估值性价比`,
+        `${symbol} 更适合短线还是长期持有？`,
+        `如果 ${symbol} 跌 10%，应该关注哪些信号？`,
+        `帮我拆解 ${symbol} 的情绪、估值和动量`,
+      ], seed);
     }
 
-    if (lastMessage.type === 'analysis') {
-      return [
-        '这个配置方案的预期收益是多少？',
-        '如果市场下跌该怎么调整？',
-        '能帮我优化一下这个方案吗？',
-      ];
-    }
-    return [
-      '我想了解更多投资产品',
-      '帮我评估一下风险',
-      '制定一个长期投资计划',
-    ];
+    const pools: Record<string, string[]> = {
+      risk_assessment: [
+        '我应该如何降低组合最大回撤？',
+        '我的风险画像需要多久重新评估一次？',
+        '如果市场突然下跌，我该先看哪些指标？',
+        '保守型和稳健型配置差别在哪里？',
+        '帮我把风险因素按优先级排序',
+      ],
+      allocation: [
+        '这个配置里哪一类资产最该控制仓位？',
+        '如果投资期限缩短到一年，该怎么调整？',
+        '帮我做一个更保守的版本',
+        '如何设置定投和再平衡规则？',
+        '这个组合在加息环境下会受什么影响？',
+      ],
+      retirement: [
+        '退休储备需要考虑哪些现金流假设？',
+        '如果通胀高于预期，计划要怎么改？',
+        '帮我估算每月需要投入多少',
+        '养老资金应该如何分层管理？',
+        '这个计划最怕哪类风险？',
+      ],
+      recommendation: [
+        '推荐产品时最应该先排除什么？',
+        '如何判断一个基金是否适合我？',
+        '费用率会怎样影响长期收益？',
+        '帮我比较主动基金和指数基金',
+        '我该如何避免买到不匹配的产品？',
+      ],
+      product: [
+        '这类产品的收益主要来自哪里？',
+        '它和债券基金相比风险差在哪？',
+        '买入前应该检查哪些关键指标？',
+        '如果只持有一年，适合吗？',
+        '帮我列一个产品筛选清单',
+      ],
+      general: [
+        '把刚才的回答压缩成三条行动建议',
+        '这个问题里最容易被忽略的风险是什么？',
+        '如果我是新手，第一步应该做什么？',
+        '帮我用更简单的话解释一遍',
+        '我需要补充哪些信息才能分析得更准？',
+      ],
+    };
+
+    const modeAwareQuestions = lastMessage.chatMode === 'deep'
+      ? ['把刚才的结论做成决策清单', '哪些假设变化会推翻这个结论？']
+      : ['需要我继续展开哪一部分？', '能不能给我一个更具体的例子？'];
+    const imageQuestions = lastMessage.hasImageAnalysis
+      ? ['这张图里最值得注意的数据点是什么？', '根据图片信息还能推断什么？']
+      : [];
+
+    return pickContextualQuestions([
+      ...(pools[intent] ?? pools.general),
+      ...modeAwareQuestions,
+      ...imageQuestions,
+    ], seed);
   };
 
   const closeMobileSidebar = () => {
@@ -607,6 +680,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         source: providerSource,
         model: providerModel,
         chatMode,
+        intent,
         hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(uploadedImage),
         thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
         reasoningSummary,
@@ -652,7 +726,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
       const updatedMessages = [...newMessages, analysisMessage];
       setMessages(updatedMessages);
 
-      setSuggestedQuestions(generateSuggestions(analysisMessage));
+      setSuggestedQuestions(generateSuggestions(analysisMessage, messageText));
 
       const updatedSessions = sessions.map(s =>
         s.id === currentSessionId
