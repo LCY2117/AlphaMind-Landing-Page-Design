@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
+  ColorType,
+  CrosshairMode,
+  LineStyle,
+  createChart,
+  type CandlestickData,
+  type HistogramData,
+  type IChartApi,
+  type ISeriesApi,
+  type MouseEventParams,
+  type Time,
+} from 'lightweight-charts';
+import {
   ArrowUpRight,
   AlertTriangle,
   BarChart3,
@@ -298,54 +310,201 @@ function PriceKlineChart({
   active: boolean;
   report: AssetXRayReport;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const [hoverPoint, setHoverPoint] = useState<NonNullable<AssetXRayReport['priceSeries']>[number] | null>(null);
+  const [visibleRangeLabel, setVisibleRangeLabel] = useState('');
+
   const series = useMemo(
-    () => (report.priceSeries ?? []).filter((item) => Number.isFinite(item.close)).slice(-54),
+    () => (report.priceSeries ?? [])
+      .filter((item) => Number.isFinite(item.close))
+      .map((item, index) => ({
+        ...item,
+        chartTime: (item.time ?? item.date ?? String(index)) as Time,
+      })),
     [report.priceSeries],
   );
+
+  const byTime = useMemo(() => {
+    const map = new Map<string, (typeof series)[number]>();
+    series.forEach((item) => map.set(String(item.chartTime), item));
+    return map;
+  }, [series]);
+
   const latest = series.at(-1);
   const first = series[0];
+  const activePoint = hoverPoint ?? latest;
   const periodChange = latest && first && first.close > 0
     ? ((latest.close - first.close) / first.close) * 100
     : report.changeValue;
 
-  const geometry = useMemo(() => {
-    if (series.length === 0) return null;
+  const setVisibleBars = (bars?: number) => {
+    const chart = chartRef.current;
+    if (!chart || series.length === 0) return;
 
-    const highs = series.map((item) => getFinitePrice(item.high) ?? item.close);
-    const lows = series.map((item) => getFinitePrice(item.low) ?? item.close);
-    const max = Math.max(...highs);
-    const min = Math.min(...lows);
-    const range = Math.max(0.01, max - min);
-    const top = 7;
-    const bottom = 55;
-    const width = 92;
-    const xStep = series.length > 1 ? width / (series.length - 1) : 0;
-    const bodyWidth = Math.max(0.65, Math.min(1.8, width / Math.max(28, series.length) * 0.52));
-    const yFor = (value: number) => top + ((max - value) / range) * (bottom - top);
-    const candles = series.map((item, index) => {
+    const to = Math.max(0, series.length - 1);
+    const from = bars && bars < series.length ? Math.max(0, series.length - bars) : 0;
+    chart.timeScale().setVisibleLogicalRange({ from, to });
+    setVisibleRangeLabel(`${from + 1}-${to + 1} / ${series.length} 条日线`);
+    setHoverPoint(null);
+  };
+
+  useEffect(() => {
+    if (!containerRef.current || series.length === 0) return;
+
+    const computedStyle = getComputedStyle(document.documentElement);
+    const textColor = computedStyle.getPropertyValue('--am-chart-axis').trim() || 'rgba(255,255,255,0.56)';
+    const gridColor = computedStyle.getPropertyValue('--am-chart-grid').trim() || 'rgba(255,255,255,0.08)';
+    const borderColor = computedStyle.getPropertyValue('--am-border-subtle').trim() || 'rgba(255,255,255,0.12)';
+
+    const chart = createChart(containerRef.current, {
+      autoSize: true,
+      height: 420,
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor,
+        fontSize: 11,
+        attributionLogo: false,
+      },
+      grid: {
+        vertLines: { color: gridColor, style: LineStyle.Dotted, visible: true },
+        horzLines: { color: gridColor, style: LineStyle.Dotted, visible: true },
+      },
+      rightPriceScale: {
+        borderColor,
+        scaleMargins: { top: 0.08, bottom: 0.26 },
+      },
+      timeScale: {
+        borderColor,
+        timeVisible: false,
+        secondsVisible: false,
+        rightOffset: 2,
+        barSpacing: 8,
+        minBarSpacing: 3,
+        fixLeftEdge: false,
+        fixRightEdge: false,
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          color: 'rgba(245, 158, 11, 0.7)',
+          width: 1,
+          style: LineStyle.Dashed,
+          visible: true,
+          labelVisible: true,
+          labelBackgroundColor: '#C44536',
+        },
+        horzLine: {
+          color: 'rgba(245, 158, 11, 0.55)',
+          width: 1,
+          style: LineStyle.Dashed,
+          visible: true,
+          labelVisible: true,
+          labelBackgroundColor: '#C44536',
+        },
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
+      },
+    });
+
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#22C55E',
+      downColor: '#EF4444',
+      borderUpColor: '#22C55E',
+      borderDownColor: '#EF4444',
+      wickUpColor: '#22C55E',
+      wickDownColor: '#EF4444',
+      priceLineColor: '#F59E0B',
+      lastValueVisible: true,
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+    });
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      base: 0,
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.78, bottom: 0 },
+    });
+
+    const candleData: CandlestickData[] = series.map((item) => {
       const open = getFinitePrice(item.open) ?? item.close;
-      const close = item.close;
-      const high = getFinitePrice(item.high) ?? Math.max(open, close);
-      const low = getFinitePrice(item.low) ?? Math.min(open, close);
-      const x = 4 + index * xStep;
-      const openY = yFor(open);
-      const closeY = yFor(close);
+      const high = getFinitePrice(item.high) ?? Math.max(open, item.close);
+      const low = getFinitePrice(item.low) ?? Math.min(open, item.close);
       return {
-        ...item,
-        x,
-        highY: yFor(high),
-        lowY: yFor(low),
-        bodyY: Math.min(openY, closeY),
-        bodyHeight: Math.max(0.65, Math.abs(openY - closeY)),
-        color: close >= open ? '#22C55E' : '#EF4444',
+        time: item.chartTime,
+        open,
+        high,
+        low,
+        close: item.close,
       };
     });
-    const closePath = candles.map((item, index) => `${index === 0 ? 'M' : 'L'} ${item.x} ${yFor(item.close)}`).join(' ');
+    const volumeData: HistogramData[] = series.map((item) => {
+      const open = getFinitePrice(item.open) ?? item.close;
+      return {
+        time: item.chartTime,
+        value: item.volume ?? 0,
+        color: item.close >= open ? 'rgba(34,197,94,0.34)' : 'rgba(239,68,68,0.34)',
+      };
+    });
 
-    return { candles, closePath, max, min, bodyWidth };
-  }, [series]);
+    candleSeries.setData(candleData);
+    volumeSeries.setData(volumeData);
+    chart.timeScale().setVisibleLogicalRange({
+      from: Math.max(0, series.length - 54),
+      to: Math.max(0, series.length - 1),
+    });
 
-  if (!geometry || !latest) {
+    const updateRangeLabel = () => {
+      const range = chart.timeScale().getVisibleLogicalRange();
+      if (!range) {
+        setVisibleRangeLabel(`${series.length} 条日线`);
+        return;
+      }
+      const from = Math.max(0, Math.floor(range.from));
+      const to = Math.min(series.length - 1, Math.ceil(range.to));
+      setVisibleRangeLabel(`${from + 1}-${to + 1} / ${series.length} 条日线`);
+    };
+
+    const handleCrosshairMove = (param: MouseEventParams<Time>) => {
+      if (!param.time) {
+        setHoverPoint(null);
+        return;
+      }
+      setHoverPoint(byTime.get(String(param.time)) ?? null);
+    };
+
+    chart.subscribeCrosshairMove(handleCrosshairMove);
+    updateRangeLabel();
+    chart.timeScale().subscribeVisibleLogicalRangeChange(updateRangeLabel);
+
+    chartRef.current = chart;
+    candleSeriesRef.current = candleSeries;
+    volumeSeriesRef.current = volumeSeries;
+
+    return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(updateRangeLabel);
+      chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      chart.remove();
+      chartRef.current = null;
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+    };
+  }, [byTime, report.symbol, series]);
+
+  if (!latest) {
     return (
       <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-dashed am-border-subtle am-card px-5 text-center">
         <div>
@@ -361,10 +520,10 @@ function PriceKlineChart({
 
   return (
     <div>
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
         <div className="rounded-lg am-card border px-3 py-2">
-          <div className="text-[11px] am-text-tertiary">最新收盘</div>
-          <div className="mt-1 text-sm font-bold am-text-primary">${formatChartPrice(latest.close)}</div>
+          <div className="text-[11px] am-text-tertiary">{hoverPoint ? `${hoverPoint.date} 收盘` : '最新收盘'}</div>
+          <div className="mt-1 text-sm font-bold am-text-primary">${formatChartPrice(activePoint?.close)}</div>
         </div>
         <div className="rounded-lg am-card border px-3 py-2">
           <div className="text-[11px] am-text-tertiary">区间涨跌</div>
@@ -373,70 +532,60 @@ function PriceKlineChart({
           </div>
         </div>
         <div className="rounded-lg am-card border px-3 py-2">
+          <div className="text-[11px] am-text-tertiary">高 / 低</div>
+          <div className="mt-1 text-sm font-bold am-text-primary">
+            ${formatChartPrice(activePoint?.high ?? activePoint?.close)} / ${formatChartPrice(activePoint?.low ?? activePoint?.close)}
+          </div>
+        </div>
+        <div className="rounded-lg am-card border px-3 py-2">
           <div className="text-[11px] am-text-tertiary">成交量</div>
-          <div className="mt-1 text-sm font-bold am-text-primary">{formatChartVolume(latest.volume)}</div>
+          <div className="mt-1 text-sm font-bold am-text-primary">{formatChartVolume(activePoint?.volume)}</div>
         </div>
       </div>
-      <div className="h-[306px]">
-        <svg viewBox="0 0 100 64" preserveAspectRatio="none" className="h-full w-full overflow-visible">
-          <defs>
-            <linearGradient id={`klineGlow-${report.symbol}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#C44536" stopOpacity="0.24" />
-              <stop offset="100%" stopColor="#C44536" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[13, 24, 35, 46, 55].map((y) => (
-            <line key={y} x1="4" x2="96" y1={y} y2={y} stroke="var(--am-chart-grid)" strokeWidth="0.25" strokeDasharray="1.4 2.4" />
-          ))}
-          <text x="4" y="5" fontSize="2.8" fill="var(--am-text-tertiary)">
-            High {formatChartPrice(geometry.max)}
-          </text>
-          <text x="4" y="62" fontSize="2.8" fill="var(--am-text-tertiary)">
-            Low {formatChartPrice(geometry.min)}
-          </text>
-          <motion.path
-            d={`${geometry.closePath} L 96 55 L 4 55 Z`}
-            fill={`url(#klineGlow-${report.symbol})`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: active ? 1 : 0.35 }}
-            transition={{ duration: 0.65, ease: [0.25, 1, 0.5, 1] }}
-          />
-          {geometry.candles.map((item, index) => (
-            <motion.g
-              key={`${item.date}-${index}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: active ? 1 : 0.28 }}
-              transition={{ delay: Math.min(index * 0.008, 0.28), duration: 0.35 }}
-            >
-              <line x1={item.x} x2={item.x} y1={item.highY} y2={item.lowY} stroke={item.color} strokeWidth="0.35" />
-              <rect
-                x={item.x - geometry.bodyWidth / 2}
-                y={item.bodyY}
-                width={geometry.bodyWidth}
-                height={item.bodyHeight}
-                rx="0.12"
-                fill={item.color}
-                opacity="0.88"
-              />
-            </motion.g>
-          ))}
-          <motion.path
-            d={geometry.closePath}
-            fill="none"
-            stroke="#F59E0B"
-            strokeWidth="0.55"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: active ? 1 : 0.16 }}
-            transition={{ duration: 1.05, ease: [0.25, 1, 0.5, 1] }}
-          />
-        </svg>
+      <div className={`relative rounded-xl border am-border-subtle am-card p-2 transition-opacity ${active ? 'opacity-100' : 'opacity-80'}`}>
+        <div ref={containerRef} className="h-[420px] w-full" />
+        {activePoint && (
+          <div className="pointer-events-none absolute left-4 top-4 rounded-lg border am-border-subtle bg-[color-mix(in_srgb,var(--am-surface-strong)_88%,transparent)] px-3 py-2 text-xs shadow-lg backdrop-blur-md">
+            <div className="mb-1 font-semibold am-text-primary">{activePoint.date}</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 am-text-secondary">
+              <span>开 {formatChartPrice(activePoint.open ?? activePoint.close)}</span>
+              <span>高 {formatChartPrice(activePoint.high ?? activePoint.close)}</span>
+              <span>低 {formatChartPrice(activePoint.low ?? activePoint.close)}</span>
+              <span>收 {formatChartPrice(activePoint.close)}</span>
+              <span className="col-span-2">量 {formatChartVolume(activePoint.volume)}</span>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs am-text-tertiary">
-        <span>{series[0]?.date}</span>
-        <span>{series.length} 条日线 · OHLC</span>
-        <span>{latest.date}</span>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-3 text-xs am-text-tertiary sm:justify-start">
+          <span>{visibleRangeLabel || `${series.length} 条日线`}</span>
+          <span>鼠标悬停查看 OHLC，拖动查看历史，滚轮缩放横轴</span>
+          <span>{latest.date}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setVisibleBars(28)}
+            className="inline-flex items-center gap-1 rounded-lg border am-card am-hover-surface px-2.5 py-1.5 text-xs am-text-secondary"
+          >
+            近 1 月
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleBars(54)}
+            className="inline-flex items-center gap-1 rounded-lg border am-card am-hover-surface px-2.5 py-1.5 text-xs am-text-secondary"
+          >
+            近 3 月
+          </button>
+          <button
+            type="button"
+            onClick={() => setVisibleBars()}
+            className="inline-flex items-center gap-1 rounded-lg border am-card am-hover-surface px-2.5 py-1.5 text-xs am-text-secondary"
+          >
+            全部
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -824,7 +973,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
           </aside>
         </div>
 
-        <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6 mt-6">
+        <div className="grid items-start lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6 mt-6">
           <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
             {isScanning && <AnalysisSkeleton values={scanValues} />}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">

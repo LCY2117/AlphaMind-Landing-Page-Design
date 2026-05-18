@@ -35,6 +35,7 @@ export interface AssetXRayReport {
 
 export interface AssetPricePoint {
   date: string;
+  time?: string;
   close: number;
   open?: number;
   high?: number;
@@ -630,9 +631,11 @@ function mapKlinesToPriceSeries(klines: KlinePoint[]): AssetPricePoint[] {
     .map((item, index) => {
       const close = toFiniteNumber(item.close);
       if (close === undefined) return null;
+      const time = normalizeKlineTime(item.time ?? item.timestamp ?? index);
 
       return {
         date: formatKlineDate(item.time ?? item.timestamp ?? index),
+        time,
         close: roundPrice(close),
         open: roundOptionalPrice(item.open),
         high: roundOptionalPrice(item.high),
@@ -669,6 +672,7 @@ function buildMockPriceSeries(symbol: string, changeValue: number): AssetPricePo
   let close = base * (1 - changeValue / 100);
 
   return Array.from({ length: 60 }, (_, index) => {
+    const mockDate = new Date(Date.UTC(2026, 0, 1 + index));
     const wave = Math.sin(index * 0.34 + seed * 0.03) * (base * 0.012);
     const drift = ((index - 30) / 60) * base * (changeValue / 100);
     const open = close;
@@ -678,6 +682,7 @@ function buildMockPriceSeries(symbol: string, changeValue: number): AssetPricePo
 
     return {
       date: `D-${59 - index}`,
+      time: mockDate.toISOString().slice(0, 10),
       open: roundPrice(open),
       high: roundPrice(high),
       low: roundPrice(low),
@@ -721,6 +726,20 @@ function formatKlineDate(value: number | string) {
   const date = new Date(trimmed);
   if (!Number.isNaN(date.getTime())) return `${date.getMonth() + 1}/${date.getDate()}`;
   return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed;
+}
+
+function normalizeKlineTime(value: number | string) {
+  if (typeof value === 'number') {
+    const date = new Date(value > 1_000_000_000_000 ? value : value * 1000);
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
+  }
+
+  const trimmed = value.trim();
+  const numeric = Number(trimmed);
+  if (Number.isFinite(numeric)) return normalizeKlineTime(numeric);
+  const date = new Date(trimmed);
+  if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : undefined;
 }
 
 function formatNewsDate(value?: string) {
