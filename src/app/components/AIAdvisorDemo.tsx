@@ -16,6 +16,7 @@ import {
   X,
   ShieldCheck,
   BrainCircuit,
+  ChevronDown,
   Zap,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -645,6 +646,16 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     }
   };
 
+  const toggleReasoningCollapse = (messageIndex: number) => {
+    setMessages((currentMessages) =>
+      currentMessages.map((message, index) => {
+        if (index !== messageIndex) return message;
+        const isCollapsed = message.reasoningCollapsed !== false;
+        return { ...message, reasoningCollapsed: !isCollapsed };
+      })
+    );
+  };
+
   const handleSend = async (questionText?: string) => {
     if (isAnalyzing) return;
 
@@ -695,6 +706,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               hasImageAnalysis: Boolean(userMessage.imageUrl),
               thinkingEnabled: true,
               reasoningContent: '',
+              reasoningCollapsed: true,
               reasoningSummary: [],
               showInlineChart: false,
               showRiskScore: false,
@@ -782,6 +794,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
           hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(userMessage.imageUrl),
           thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
           reasoningContent,
+          reasoningCollapsed: true,
           reasoningSummary,
           providerError,
           showInlineChart: shouldShowChart,
@@ -1093,22 +1106,38 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                 </div>
 
                                 {(message.reasoningContent || message.isStreaming) && (
-                                  <div className="am-card-strong border rounded-xl p-4">
-                                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                                      <BrainCircuit size={16} className="am-brand" />
-                                      <h4 className="text-sm font-medium am-text-primary">模型思考内容</h4>
-                                      <span className="text-[11px] am-text-tertiary">reasoning_content</span>
-                                    </div>
-                                    <div className="max-h-56 overflow-y-auto rounded-lg am-input-surface border am-border-subtle px-3 py-2">
-                                      <div className="text-xs leading-6 am-text-secondary">
-                                        {message.reasoningContent
-                                          ? renderMessageText(message.reasoningContent)
-                                          : <span className="am-text-tertiary">已连接深度模型，正在等待 reasoning_content 流...</span>}
-                                        {message.isStreaming && (
-                                          <span className="ml-1 inline-block h-3 w-1 translate-y-0.5 am-brand-bg am-thinking-cursor" />
-                                        )}
+                                  <div className="am-card-strong border rounded-xl p-3 sm:p-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleReasoningCollapse(index)}
+                                      className="flex w-full flex-wrap items-center justify-between gap-3 text-left"
+                                      aria-expanded={message.reasoningCollapsed === false}
+                                    >
+                                      <span className="flex min-w-0 items-center gap-2">
+                                        <BrainCircuit size={16} className="am-brand shrink-0" />
+                                        <span className="text-sm font-medium am-text-primary">模型思考内容</span>
+                                        <span className="text-[11px] am-text-tertiary">reasoning_content</span>
+                                      </span>
+                                      <span className="flex items-center gap-2 text-[11px] am-text-tertiary">
+                                        {message.isStreaming ? '接收中' : message.reasoningCollapsed === false ? '收起' : '展开'}
+                                        <ChevronDown
+                                          size={14}
+                                          className={`transition-transform ${message.reasoningCollapsed === false ? 'rotate-180' : ''}`}
+                                        />
+                                      </span>
+                                    </button>
+                                    {message.reasoningCollapsed === false && (
+                                      <div className="mt-3 max-h-56 overflow-y-auto rounded-lg am-input-surface border am-border-subtle px-3 py-2">
+                                        <div className="text-xs leading-6 am-text-secondary">
+                                          {message.reasoningContent
+                                            ? renderMessageText(message.reasoningContent)
+                                            : <span className="am-text-tertiary">已连接深度模型，正在等待 reasoning_content 流...</span>}
+                                          {message.isStreaming && (
+                                            <span className="ml-1 inline-block h-3 w-1 translate-y-0.5 am-brand-bg am-thinking-cursor" />
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
+                                    )}
                                   </div>
                                 )}
 

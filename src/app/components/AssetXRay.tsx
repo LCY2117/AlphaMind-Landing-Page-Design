@@ -291,6 +291,14 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
   const isComplete = scanState === 'complete';
 
   const providerStatus = useMemo(() => {
+    if (stock.providerMeta.mode === 'marketdata' && stock.providerMeta.status === 'ok') {
+      return {
+        label: '已连接真实行情源',
+        detail: '行情、日线与新闻来自后端安全代理',
+        className: 'border-green-500/30 bg-green-500/10 text-green-500',
+      };
+    }
+
     if (stock.providerMeta.mode === 'quantdinger' && stock.providerMeta.status === 'ok') {
       return {
         label: '已连接 QuantDinger',

@@ -135,6 +135,184 @@ async function readSiliconFlowError(response: Response) {
   }
 }
 
+function readServerEnv(env: Record<string, string>, name: string) {
+  return (process.env[name] || env[name] || '').trim()
+}
+
+function normalizeProviderBaseUrl(value: string | undefined, fallback: string) {
+  return (value?.trim() || fallback).replace(/\/+$/, '')
+}
+
+function buildProviderUrl(baseUrl: string, pathName: string, params: Record<string, string | number | undefined>) {
+  const cleanPath = pathName.trim().replace(/^\/+/, '')
+  const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  const url = cleanPath ? new URL(cleanPath, base) : new URL(baseUrl)
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && String(value).trim()) {
+      url.searchParams.set(key, String(value))
+    }
+  })
+  return url.toString()
+}
+
+function normalizeProviderSymbol(input: unknown) {
+  const symbol = typeof input === 'string' ? input.trim().toUpperCase() : ''
+  return symbol.replace(/[^A-Z0-9./-]/g, '').slice(0, 12) || 'TSLA'
+}
+
+function sanitizeProviderError(error: unknown) {
+  if (error instanceof Error && error.message) return error.message.replace(/token=[^&\s]+/gi, 'token=***').replace(/apiKey=[^&\s]+/gi, 'apiKey=***')
+  return 'provider unavailable'
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs = 9000) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const message = typeof payload?.error === 'string'
+        ? payload.error
+        : typeof payload?.message === 'string'
+          ? payload.message
+          : `HTTP ${response.status}`
+      throw new Error(message)
+    }
+    return payload
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('provider request timed out')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+function alphaMindAssetXRayProxy(env: Record<string, string>): Plugin {
+  const finnhubKey = readServerEnv(env, 'FINNHUB_API_KEY')
+  const finnhubBaseUrl = normalizeProviderBaseUrl(readServerEnv(env, 'FINNHUB_BASE_URL'), 'https://finnhub.io/api/v1')
+  const twelveDataKey = readServerEnv(env, 'TWELVE_DATA_API_KEY')
+  const twelveDataBaseUrl = normalizeProviderBaseUrl(readServerEnv(env, 'TWELVE_DATA_BASE_URL'), 'https://api.twelvedata.com')
+  const newsApiKey = readServerEnv(env, 'NEWSAPI_KEY')
+  const newsApiBaseUrl = normalizeProviderBaseUrl(readServerEnv(env, 'NEWSAPI_BASE_URL'), 'https://newsapi.org')
+
+  return {
+    name: 'alphamind-asset-xray-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/alphamind/asset-xray', async (req, res) => {
+        if (req.method !== 'GET') {
+          sendJson(res, 405, { error: 'Method not allowed' })
+          return
+        }
+
+        const requestUrl = new URL(req.url || '/', 'http://localhost')
+        const symbol = normalizeProviderSymbol(requestUrl.searchParams.get('symbol'))
+
+        if (!finnhubKey && !twelveDataKey && !newsApiKey) {
+          sendJson(res, 503, {
+            error: 'Market data providers are not configured',
+            source: 'not_configured',
+          })
+          return
+        }
+
+        const providerErrors: Record<string, string> = {}
+        const requests: Array<Promise<void>> = []
+        const payload: Record<string, unknown> = {
+          symbol,
+          providers: {
+            finnhub: Boolean(finnhubKey),
+            twelveData: Boolean(twelveDataKey),
+            newsapi: Boolean(newsApiKey),
+          },
+        }
+
+        if (finnhubKey) {
+          requests.push(
+            fetchJsonWithTimeout(buildProviderUrl(finnhubBaseUrl, 'quote', { symbol, token: finnhubKey }))
+              .then((quote) => {
+                payload.quote = quote
+              })
+              .catch((error) => {
+                providerErrors.finnhubQuote = sanitizeProviderError(error)
+              }),
+          )
+          requests.push(
+            fetchJsonWithTimeout(buildProviderUrl(finnhubBaseUrl, 'stock/profile2', { symbol, token: finnhubKey }))
+              .then((profile) => {
+                payload.profile = profile
+              })
+              .catch((error) => {
+                providerErrors.finnhubProfile = sanitizeProviderError(error)
+              }),
+          )
+        }
+
+        if (twelveDataKey) {
+          requests.push(
+            fetchJsonWithTimeout(buildProviderUrl(twelveDataBaseUrl, 'time_series', {
+              symbol,
+              interval: '1day',
+              outputsize: 90,
+              apikey: twelveDataKey,
+            }))
+              .then((series) => {
+                payload.timeSeries = series
+              })
+              .catch((error) => {
+                providerErrors.twelveData = sanitizeProviderError(error)
+              }),
+          )
+        }
+
+        if (newsApiKey) {
+          const lowerBase = newsApiBaseUrl.toLowerCase()
+          const newsUrl = lowerBase.endsWith('/everything')
+            ? buildProviderUrl(newsApiBaseUrl, '', { q: symbol, language: 'en', pageSize: 8, sortBy: 'publishedAt', apiKey: newsApiKey })
+            : buildProviderUrl(newsApiBaseUrl, lowerBase.endsWith('/v2') ? 'everything' : 'v2/everything', {
+                q: symbol,
+                language: 'en',
+                pageSize: 8,
+                sortBy: 'publishedAt',
+                apiKey: newsApiKey,
+              })
+          requests.push(
+            fetchJsonWithTimeout(newsUrl, 4500)
+              .then((news) => {
+                payload.news = news
+              })
+              .catch((error) => {
+                providerErrors.newsapi = sanitizeProviderError(error)
+              }),
+          )
+        }
+
+        await Promise.all(requests)
+
+        const hasAnyData = Boolean(payload.quote || payload.profile || payload.timeSeries || payload.news)
+        if (!hasAnyData) {
+          sendJson(res, 502, {
+            error: 'All market data providers failed',
+            source: 'marketdata',
+            providerErrors,
+          })
+          return
+        }
+
+        sendJson(res, 200, {
+          ...payload,
+          source: 'marketdata',
+          providerErrors,
+          fetchedAt: new Date().toISOString(),
+        })
+      })
+    },
+  }
+}
+
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
   const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
@@ -443,6 +621,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       figmaAssetResolver(),
+      alphaMindAssetXRayProxy(env),
       alphaMindChatProxy(env),
       // The React and Tailwind plugins are both required for Make, even if
       // Tailwind is not being actively used – do not remove them

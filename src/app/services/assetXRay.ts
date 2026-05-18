@@ -21,7 +21,7 @@ export interface AssetXRayReport {
   metrics: Array<{ label: string; value: string; hint: string }>;
   catalysts: string[];
   providerMeta: {
-    mode: 'mock' | 'quantdinger';
+    mode: 'mock' | 'quantdinger' | 'marketdata';
     source: string;
     status: 'ok' | 'fallback';
     message?: string;
@@ -51,6 +51,50 @@ interface KlinePoint {
   low?: number | string;
   close?: number | string;
   volume?: number | string;
+}
+
+interface AlphaMindMarketDataPayload {
+  symbol?: string;
+  quote?: {
+    c?: number;
+    d?: number;
+    dp?: number;
+    h?: number;
+    l?: number;
+    o?: number;
+    pc?: number;
+  };
+  profile?: {
+    name?: string;
+    ticker?: string;
+    exchange?: string;
+    finnhubIndustry?: string;
+    marketCapitalization?: number;
+    currency?: string;
+  };
+  timeSeries?: {
+    status?: string;
+    values?: Array<{
+      datetime?: string;
+      open?: string;
+      high?: string;
+      low?: string;
+      close?: string;
+      volume?: string;
+    }>;
+  };
+  news?: {
+    status?: string;
+    totalResults?: number;
+    articles?: Array<{
+      title?: string;
+      description?: string;
+      publishedAt?: string;
+      source?: { name?: string };
+    }>;
+  };
+  providerErrors?: Record<string, string>;
+  fetchedAt?: string;
 }
 
 const COMPANY_META: Record<string, Pick<AssetXRayReport, 'name' | 'sector' | 'marketCap'>> = {
@@ -264,6 +308,15 @@ export async function getAssetXRayReport(request: AssetXRayRequest): Promise<Ass
   const config = getAlphaMindConfig();
   const symbol = normalizeAssetSymbol(request.symbol);
 
+  try {
+    return await getMarketDataAssetXRayReport(symbol);
+  } catch (error) {
+    if (config.dataMode !== 'quantdinger') {
+      const message = error instanceof Error ? error.message : 'market data provider unavailable';
+      return getMockAssetXRayReport(symbol, `真实行情源暂不可用，已切换到本地演示数据：${message}`);
+    }
+  }
+
   if (config.dataMode !== 'quantdinger') {
     return getMockAssetXRayReport(symbol);
   }
@@ -277,6 +330,90 @@ export async function getAssetXRayReport(request: AssetXRayRequest): Promise<Ass
     const message = error instanceof Error ? error.message : 'QuantDinger provider unavailable';
     return getMockAssetXRayReport(symbol, `QuantDinger 暂不可用，已切换到本地演示数据：${message}`);
   }
+}
+
+async function getMarketDataAssetXRayReport(symbol: string): Promise<AssetXRayReport> {
+  const payload = await fetchMarketDataPayload(symbol);
+  const quote = payload.quote ?? {};
+  const profile = payload.profile ?? {};
+  const articles = payload.news?.articles ?? [];
+  const klines = mapTwelveDataKlines(payload.timeSeries);
+  const latestClose = getLatestClose(klines);
+  const price = toFiniteNumber(quote.c) ?? latestClose;
+  const previousClose = toFiniteNumber(quote.pc) ?? getPreviousClose(klines);
+  const changeValue = toFiniteNumber(quote.dp) ?? computeChange(price, previousClose);
+  const momentumScore = scoreMomentum(klines, changeValue);
+  const volatilityScore = scoreVolatility(klines);
+  const newsSentimentScore = scoreNewsSentiment(articles, changeValue);
+  const profileMeta = COMPANY_META[symbol];
+  const companyName = profile.name || profileMeta?.name || `${symbol} Asset`;
+  const sector = profile.finnhubIndustry || profileMeta?.sector || '待同步';
+  const marketCap = formatMarketCap(profile.marketCapitalization);
+  const valuationScore = clampScore(62 - Math.max(0, changeValue) * 1.8 - volatilityScore * 0.08);
+  const growthScore = clampScore(58 + momentumScore * 0.34 + (newsSentimentScore - 50) * 0.12);
+  const profitabilityScore = clampScore(62 + growthScore * 0.18 + valuationScore * 0.12);
+  const overallScore = clampScore((valuationScore + growthScore + profitabilityScore + newsSentimentScore + momentumScore + (100 - volatilityScore)) / 6);
+  const providerErrors = Object.values(payload.providerErrors ?? {}).filter(Boolean);
+  const errorSuffix = providerErrors.length > 0 ? `部分数据源未返回：${providerErrors.slice(0, 2).join('；')}` : undefined;
+
+  return {
+    symbol,
+    name: companyName,
+    market: profile.exchange || 'US Stock',
+    sector,
+    price: formatUsd(price),
+    change: `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(2)}%`,
+    changeValue,
+    marketCap,
+    radar: [
+      { subject: '估值吸引力', value: valuationScore },
+      { subject: '成长性', value: growthScore },
+      { subject: '盈利', value: profitabilityScore },
+      { subject: '情绪', value: newsSentimentScore },
+      { subject: '动量', value: clampScore(momentumScore) },
+      { subject: '安全边际', value: clampScore(84 - volatilityScore * 0.55) },
+    ],
+    sentiment: clampScore(newsSentimentScore),
+    sentimentLabel: labelSentiment(newsSentimentScore),
+    conclusion: buildMarketDataConclusion(symbol, overallScore, momentumScore, volatilityScore, newsSentimentScore, articles),
+    probabilities: buildProbabilities(momentumScore, volatilityScore, newsSentimentScore),
+    metrics: [
+      { label: 'AI 综合评分', value: String(overallScore), hint: '行情/K线/新闻派生' },
+      { label: '波动风险', value: labelVolatility(volatilityScore), hint: 'Twelve Data 日线估算' },
+      { label: '预测置信度', value: `${clampScore(52 + overallScore * 0.32)}%`, hint: '真实数据覆盖度估计' },
+    ],
+    catalysts: buildNewsCatalysts(symbol, articles),
+    providerMeta: {
+      mode: 'marketdata',
+      source: 'Finnhub / Twelve Data / NewsAPI',
+      status: 'ok',
+      message: errorSuffix,
+      freshnessLabel: `已连接真实行情源 · ${formatFreshness(payload.fetchedAt)}`,
+      coverage: [
+        { label: '行情', value: payload.quote ? 'live' : 'pending' },
+        { label: 'K线', value: klines.length > 0 ? 'live' : 'pending' },
+        { label: '新闻', value: articles.length > 0 ? 'live' : 'pending' },
+        { label: 'AI结论', value: 'derived' },
+      ],
+      raw: {
+        quote: payload.quote,
+        profile: payload.profile,
+        klineSample: klines.slice(-3),
+        newsSample: articles.slice(0, 3).map((article) => article.title),
+        providerErrors: payload.providerErrors,
+      },
+    },
+  };
+}
+
+async function fetchMarketDataPayload(symbol: string): Promise<AlphaMindMarketDataPayload> {
+  const response = await fetch(`/api/alphamind/asset-xray?symbol=${encodeURIComponent(symbol)}`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof payload?.error === 'string' ? payload.error : `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  return payload as AlphaMindMarketDataPayload;
 }
 
 async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>): Promise<AssetXRayReport> {
@@ -436,6 +573,27 @@ function toNumber(value: unknown) {
   return Number.NaN;
 }
 
+function toFiniteNumber(value: unknown) {
+  const numeric = toNumber(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
+function mapTwelveDataKlines(input?: AlphaMindMarketDataPayload['timeSeries']): KlinePoint[] {
+  if (!input?.values || !Array.isArray(input.values)) return [];
+
+  return [...input.values]
+    .reverse()
+    .map((item) => ({
+      time: item.datetime,
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+      volume: item.volume,
+    }))
+    .filter((item) => Number.isFinite(toNumber(item.close)));
+}
+
 function extractNumber(input: unknown, keys: string[]) {
   if (!input || typeof input !== 'object') return undefined;
   for (const key of keys) {
@@ -506,6 +664,40 @@ function labelVolatility(score: number) {
   return '低';
 }
 
+function formatMarketCap(value?: number) {
+  if (!value || !Number.isFinite(value)) return '待同步';
+  const usd = value * 1_000_000;
+  if (usd >= 1_000_000_000_000) return `$${(usd / 1_000_000_000_000).toFixed(2)}T`;
+  if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(1)}B`;
+  return `$${usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function formatFreshness(value?: string) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return new Date().toLocaleString('zh-CN', { hour12: false });
+  return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function scoreNewsSentiment(articles: NonNullable<AlphaMindMarketDataPayload['news']>['articles'] = [], fallbackChange = 0) {
+  if (!articles.length) return clampScore(52 + fallbackChange * 3);
+
+  const positiveWords = ['beat', 'growth', 'record', 'surge', 'upgrade', 'profit', 'strong', 'bullish', 'gain', 'rally', 'optimistic'];
+  const negativeWords = ['miss', 'fall', 'drop', 'downgrade', 'loss', 'weak', 'bearish', 'probe', 'lawsuit', 'risk', 'recall'];
+  let score = 50 + fallbackChange * 2;
+
+  articles.slice(0, 8).forEach((article) => {
+    const text = `${article.title ?? ''} ${article.description ?? ''}`.toLowerCase();
+    positiveWords.forEach((word) => {
+      if (text.includes(word)) score += 2.4;
+    });
+    negativeWords.forEach((word) => {
+      if (text.includes(word)) score -= 2.8;
+    });
+  });
+
+  return clampScore(score);
+}
+
 function buildProbabilities(momentum: number, volatility: number, sentiment: number) {
   const up = clampScore(28 + momentum * 0.34 + sentiment * 0.18 - volatility * 0.12);
   const down = clampScore(42 - momentum * 0.2 + volatility * 0.24 - sentiment * 0.08);
@@ -516,6 +708,40 @@ function buildProbabilities(momentum: number, volatility: number, sentiment: num
     flat: Math.round((flat / total) * 100),
     down: Math.round((down / total) * 100),
   };
+}
+
+function buildMarketDataConclusion(
+  symbol: string,
+  overall: number,
+  momentum: number,
+  volatility: number,
+  sentiment: number,
+  articles: NonNullable<AlphaMindMarketDataPayload['news']>['articles'] = [],
+) {
+  const rating = overall >= 72 ? '积极关注' : overall >= 55 ? '中性观察' : '谨慎观察';
+  const trend = momentum >= 68 ? '短期动量偏强' : momentum >= 45 ? '趋势仍在震荡确认' : '短期动量偏弱';
+  const risk = volatility >= 65 ? '波动水平偏高，仓位和止损纪律更重要' : '波动水平相对可控';
+  const mood = sentiment >= 62 ? '新闻情绪偏正面' : sentiment >= 45 ? '新闻情绪中性' : '新闻情绪偏谨慎';
+  const headline = articles.find((article) => article.title)?.title;
+  const newsLine = headline ? `近期新闻线索包括“${headline}”。` : '当前未获取到足够新闻标题，情绪分更多来自价格与波动派生。';
+
+  return `${symbol} 已接入真实行情/日线/新闻数据源。当前综合评分为 ${overall}，AlphaMind 维持“${rating}”视角：${trend}，${risk}，${mood}。${newsLine}本结论仅用于研究辅助，不构成投资建议。`;
+}
+
+function buildNewsCatalysts(symbol: string, articles: NonNullable<AlphaMindMarketDataPayload['news']>['articles'] = []) {
+  const titles = articles
+    .map((article) => article.title?.trim())
+    .filter((title): title is string => Boolean(title))
+    .slice(0, 3);
+
+  if (titles.length > 0) return titles;
+
+  const defaults: Record<string, string[]> = {
+    TSLA: ['交付与毛利率变化', '自动驾驶/储能业务进展', '市场风险偏好变化'],
+    NVDA: ['AI 算力需求', '数据中心订单', '估值消化节奏'],
+    AAPL: ['服务收入韧性', '新品周期预期', '回购与现金流'],
+  };
+  return defaults[symbol] ?? ['价格趋势变化', '新闻情绪变化', '行业与宏观流动性'];
 }
 
 function buildQuantDingerConclusion(
