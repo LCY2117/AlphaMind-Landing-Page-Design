@@ -661,9 +661,12 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         : await askAlphaMindChat(buildChatHistoryForAi(messages, userMessage), chatMode);
       const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
       const rawResponseContent = hasLiveAi ? aiResponse.content : localResponse.content;
-      const parsedReasoningSummary = hasLiveAi && chatMode === 'deep' ? extractReasoningSummary(rawResponseContent) : [];
+      const reasoningContent = hasLiveAi && chatMode === 'deep' ? aiResponse.reasoningContent?.trim() ?? '' : '';
+      const parsedReasoningSummary = hasLiveAi && chatMode === 'deep' && !reasoningContent ? extractReasoningSummary(rawResponseContent) : [];
       const reasoningSummary = hasLiveAi && chatMode === 'deep'
-        ? parsedReasoningSummary.length > 0
+        ? reasoningContent
+          ? []
+          : parsedReasoningSummary.length > 0
           ? parsedReasoningSummary
           : buildPublicReasoningFallback(messageText, intent)
         : [];
@@ -699,6 +702,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         intent,
         hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(uploadedImage),
         thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
+        reasoningContent,
         reasoningSummary,
         providerError,
         showInlineChart: shouldShowChart,
@@ -1017,7 +1021,22 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>
 
-                                {message.reasoningSummary?.length > 0 && (
+                                {message.reasoningContent && (
+                                  <div className="am-card-strong border rounded-xl p-4">
+                                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                                      <BrainCircuit size={16} className="am-brand" />
+                                      <h4 className="text-sm font-medium am-text-primary">模型思考内容</h4>
+                                      <span className="text-[11px] am-text-tertiary">reasoning_content</span>
+                                    </div>
+                                    <div className="max-h-56 overflow-y-auto rounded-lg am-input-surface border am-border-subtle px-3 py-2">
+                                      <div className="text-xs leading-6 am-text-secondary">
+                                        {renderMessageText(message.reasoningContent)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {!message.reasoningContent && message.reasoningSummary?.length > 0 && (
                                   <div className="am-card-strong border rounded-xl p-4">
                                     <div className="flex items-center gap-2 mb-3">
                                       <BrainCircuit size={16} className="am-brand" />

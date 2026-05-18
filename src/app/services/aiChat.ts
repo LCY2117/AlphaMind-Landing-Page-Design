@@ -13,6 +13,7 @@ export interface AlphaMindChatResponse {
   mode?: AlphaMindChatMode;
   hasImage?: boolean;
   thinkingEnabled?: boolean;
+  reasoningContent?: string;
   error?: string;
 }
 
@@ -53,6 +54,7 @@ export async function askAlphaMindChat(
       mode: payload?.mode === 'deep' ? 'deep' : 'fast',
       hasImage: payload?.hasImage === true,
       thinkingEnabled: payload?.thinkingEnabled === true,
+      reasoningContent: typeof payload?.reasoningContent === 'string' ? payload.reasoningContent.trim() : undefined,
     };
   } catch (error) {
     const message = error instanceof DOMException && error.name === 'AbortError'

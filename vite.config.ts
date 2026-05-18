@@ -220,7 +220,11 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             return
           }
 
-          const content = payload?.choices?.[0]?.message?.content
+          const message = payload?.choices?.[0]?.message
+          const content = message?.content
+          const reasoningContent = typeof message?.reasoning_content === 'string'
+            ? message.reasoning_content.trim()
+            : ''
           if (typeof content !== 'string' || !content.trim()) {
             sendJson(res, 502, {
               error: 'Empty SiliconFlow response',
@@ -235,6 +239,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             mode,
             hasImage,
             thinkingEnabled: thinkingRequested,
+            reasoningContent,
             source: 'siliconflow',
             usage: payload.usage,
           })
