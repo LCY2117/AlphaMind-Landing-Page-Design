@@ -22,6 +22,20 @@ function sendJson(res, statusCode: number, payload: unknown) {
   res.end(JSON.stringify(payload))
 }
 
+function startSse(res) {
+  res.statusCode = 200
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-cache, no-transform')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders?.()
+}
+
+function sendSse(res, event: string, payload: unknown) {
+  res.write(`event: ${event}\n`)
+  res.write(`data: ${JSON.stringify(payload)}\n\n`)
+}
+
 function readJsonBody(req): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let body = ''
@@ -113,6 +127,14 @@ function isUnsupportedThinkingError(message: string) {
   )
 }
 
+async function readSiliconFlowError(response: Response) {
+  const payload = await response.json().catch(() => ({}))
+  return {
+    payload,
+    message: extractSiliconFlowError(payload, response.status),
+  }
+}
+
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
   const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
@@ -144,6 +166,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
           const latestUserText = messages.filter((message) => message.role === 'user').at(-1)?.content ?? ''
           const hasImage = messages.some((message) => message.role === 'user' && message.imageUrl)
           const mode = body.mode === 'deep' ? 'deep' : 'fast'
+          const shouldStream = body.stream === true && mode === 'deep'
           const model = hasImage
             ? mode === 'deep'
               ? visionDeepModel
@@ -181,7 +204,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             ],
             temperature: 0.55,
             max_tokens: hasImage ? mode === 'deep' ? 1300 : 700 : mode === 'deep' ? 1100 : 220,
-            stream: false,
+            stream: shouldStream,
           }
 
           if (thinkingEnabled) {
@@ -200,6 +223,154 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
 
             const payload = await response.json().catch(() => ({}))
             return { response, payload }
+          }
+
+          const callSiliconFlowStream = async (payloadBody: Record<string, unknown>) => {
+            return fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(payloadBody),
+            })
+          }
+
+          if (shouldStream) {
+            let thinkingRequested = thinkingEnabled
+            let streamPayload = requestPayload
+            let response = await callSiliconFlowStream(streamPayload)
+
+            if (!response.ok && thinkingRequested) {
+              const upstreamError = await readSiliconFlowError(response)
+              if (isUnsupportedThinkingError(upstreamError.message)) {
+                const retryPayload = { ...requestPayload }
+                delete retryPayload.enable_thinking
+                thinkingRequested = false
+                streamPayload = retryPayload
+                response = await callSiliconFlowStream(streamPayload)
+              } else {
+                sendJson(res, 502, {
+                  error: upstreamError.message,
+                  source: 'siliconflow',
+                })
+                return
+              }
+            }
+
+            if (!response.ok) {
+              const upstreamError = await readSiliconFlowError(response)
+              sendJson(res, 502, {
+                error: upstreamError.message,
+                source: 'siliconflow',
+              })
+              return
+            }
+
+            if (!response.body) {
+              sendJson(res, 502, {
+                error: 'Empty SiliconFlow stream',
+                source: 'siliconflow',
+              })
+              return
+            }
+
+            startSse(res)
+            sendSse(res, 'meta', {
+              model,
+              mode,
+              hasImage,
+              thinkingEnabled: thinkingRequested,
+              source: 'siliconflow',
+            })
+
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+            let content = ''
+            let reasoningContent = ''
+            let providerModel = model
+            let usage
+
+            const handleSseBlock = (block: string) => {
+              const data = block
+                .split(/\r?\n/)
+                .filter((line) => line.startsWith('data:'))
+                .map((line) => line.slice(5).trimStart())
+                .join('\n')
+
+              if (!data || data === '[DONE]') return
+
+              let chunk
+              try {
+                chunk = JSON.parse(data)
+              } catch {
+                return
+              }
+
+              if (typeof chunk?.model === 'string') providerModel = chunk.model
+              if (chunk?.usage) usage = chunk.usage
+
+              const delta = chunk?.choices?.[0]?.delta ?? {}
+              const reasoningDelta = typeof delta.reasoning_content === 'string' ? delta.reasoning_content : ''
+              const contentDelta = typeof delta.content === 'string' ? delta.content : ''
+
+              if (reasoningDelta) {
+                reasoningContent += reasoningDelta
+                sendSse(res, 'reasoning', { delta: reasoningDelta })
+              }
+
+              if (contentDelta) {
+                content += contentDelta
+                sendSse(res, 'content', { delta: contentDelta })
+              }
+            }
+
+            try {
+              while (true) {
+                const { value, done } = await reader.read()
+                if (done) break
+                buffer += decoder.decode(value, { stream: true })
+
+                while (true) {
+                  const boundaryMatch = buffer.match(/\r?\n\r?\n/)
+                  if (!boundaryMatch || boundaryMatch.index === undefined) break
+
+                  const block = buffer.slice(0, boundaryMatch.index)
+                  buffer = buffer.slice(boundaryMatch.index + boundaryMatch[0].length)
+                  handleSseBlock(block)
+                }
+              }
+
+              buffer += decoder.decode()
+              if (buffer.trim()) handleSseBlock(buffer)
+
+              if (!content.trim()) {
+                sendSse(res, 'error', {
+                  error: 'Empty SiliconFlow response',
+                  source: 'siliconflow',
+                })
+              } else {
+                sendSse(res, 'done', {
+                  content: content.trim(),
+                  model: providerModel,
+                  mode,
+                  hasImage,
+                  thinkingEnabled: thinkingRequested,
+                  reasoningContent: reasoningContent.trim(),
+                  source: 'siliconflow',
+                  usage,
+                })
+              }
+            } catch (streamError) {
+              sendSse(res, 'error', {
+                error: streamError instanceof Error ? streamError.message : 'AlphaMind chat stream failed',
+                source: 'server',
+              })
+            } finally {
+              res.end()
+            }
+            return
           }
 
           let thinkingRequested = thinkingEnabled

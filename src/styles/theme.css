@@ -548,6 +548,10 @@ html.dark {
     animation: alphamind-type-cursor 0.8s step-end infinite;
   }
 
+  .am-thinking-cursor {
+    animation: alphamind-type-cursor 0.8s step-end infinite;
+  }
+
   html.light .bg-\[\#1F1410\],
   html.light .bg-\[\#121212\] {
     background-color: var(--am-bg-primary) !important;

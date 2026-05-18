@@ -19,7 +19,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { askAlphaMindChat, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
+import { askAlphaMindChat, askAlphaMindChatStream, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
 
 const mockMessages = [
   {
@@ -114,13 +114,6 @@ type AdvisorModePreference = 'auto' | 'fast' | 'deep';
 
 const MAX_IMAGE_DIMENSION = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.78;
-
-const deepAnalysisProgressSteps = [
-  '拆解问题边界',
-  '提取关键假设',
-  '校准风险因素',
-  '生成公开摘要',
-];
 
 const STOCK_NAME_MAP: Record<string, string> = {
   特斯拉: 'TSLA',
@@ -495,7 +488,6 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
   const [userProfile, setUserProfile] = useState<any>({});
   const [modePreference, setModePreference] = useState<AdvisorModePreference>('auto');
   const [activeChatMode, setActiveChatMode] = useState<AlphaMindChatMode>('fast');
-  const [analysisStepIndex, setAnalysisStepIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastNewChatRequestRef = useRef(newChatRequest);
@@ -513,19 +505,6 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAnalyzing]);
-
-  useEffect(() => {
-    if (!isAnalyzing || activeChatMode !== 'deep') {
-      setAnalysisStepIndex(0);
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setAnalysisStepIndex((current) => Math.min(current + 1, deepAnalysisProgressSteps.length - 1));
-    }, 850);
-
-    return () => window.clearInterval(intervalId);
-  }, [activeChatMode, isAnalyzing]);
 
   const generateSuggestions = (lastMessage: any, originalQuestion = '') => {
     const intent = lastMessage.intent ?? detectIntent(originalQuestion || lastMessage.content || '');
@@ -695,121 +674,180 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
       setUploadedImage(null);
       setSuggestedQuestions([]);
       setIsAnalyzing(true);
-      setAnalysisStepIndex(0);
-
-      const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile);
-      const aiResponse = intent === 'asset_xray'
-        ? { content: '', source: 'fallback' as const }
-        : await askAlphaMindChat(buildChatHistoryForAi(messages, userMessage), chatMode);
-      const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
-      const rawResponseContent = hasLiveAi ? aiResponse.content : localResponse.content;
-      const reasoningContent = hasLiveAi && chatMode === 'deep' ? aiResponse.reasoningContent?.trim() ?? '' : '';
-      const parsedReasoningSummary = hasLiveAi && chatMode === 'deep' && !reasoningContent ? extractReasoningSummary(rawResponseContent) : [];
-      const reasoningSummary = hasLiveAi && chatMode === 'deep'
-        ? reasoningContent
-          ? []
-          : parsedReasoningSummary.length > 0
-          ? parsedReasoningSummary
-          : buildPublicReasoningFallback(messageText, intent)
-        : [];
-      const responseContent = hasLiveAi && chatMode === 'deep'
-        ? stripReasoningSummaryFromContent(rawResponseContent)
-        : rawResponseContent;
-      const reasons = hasLiveAi
-        ? [
-            {
-              icon: aiResponse.hasImage ? '🖼️' : chatMode === 'deep' ? '🧠' : '⚡',
-              text: `${aiResponse.hasImage ? '图像理解' : chatMode === 'deep' ? '深度思考' : '快速响应'}模式已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
-            },
-            { icon: '📡', text: '资产行情与 K 线由 QuantDinger 通道支撑，个股细节可进入资产透视查看。' },
-            { icon: '🛡️', text: '回答仅用于辅助研究和学习，不构成投资建议。' },
-          ]
-        : localResponse.reasons;
-      const shouldShowChart = !hasLiveAi && localResponse.showInlineChart;
-      const providerSource = hasLiveAi ? 'siliconflow' : 'local';
-      const providerModel = hasLiveAi ? aiResponse.model : undefined;
-      const providerError = hasLiveAi ? undefined : aiResponse.error;
-
-      const riskScore = Math.floor(Math.random() * 40) + 50;
-      const showRiskScore = !hasLiveAi && supportsRiskScore(intent);
-      const showPortfolio = !hasLiveAi && supportsPortfolio(intent);
-      const showDecisionExplanation = !hasLiveAi && supportsDecisionExplanation(intent) && reasons.length > 0;
-      const analysisMessage = {
-        role: 'assistant',
-        content: responseContent,
-        type: 'analysis',
-        source: providerSource,
-        model: providerModel,
-        chatMode,
-        intent,
-        hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(uploadedImage),
-        thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
-        reasoningContent,
-        reasoningSummary,
-        providerError,
-        showInlineChart: shouldShowChart,
-        showRiskScore,
-        showDecisionExplanation,
-        riskScore: showRiskScore ? riskScore : undefined,
-        riskLevel: showRiskScore ? (riskScore < 40 ? '保守型' : riskScore < 70 ? '成长型' : '进取型') : undefined,
-        portfolio: !showPortfolio || intent === 'asset_xray'
-          ? []
-          : [
-              { name: '科技', value: Math.floor(Math.random() * 30) + 30, color: '#C44536' },
-              { name: '债券', value: Math.floor(Math.random() * 20) + 20, color: '#D97706' },
-              { name: '黄金', value: Math.floor(Math.random() * 20) + 10, color: '#FBBF24' },
-            ],
-        reasons,
-        warnings: intent === 'asset_xray'
-          ? []
-          : providerError
-          ? [`AI 服务暂不可用，已切换本地演示分析：${providerError}`]
-          : showRiskScore && riskScore > 75
-          ? ['⚠️ 高风险配置，请确保您能承受较大波动']
-          : [],
-        nextSteps: intent === 'asset_xray'
-          ? ['打开资产透视', '查看数据来源状态', '继续追问估值或风险']
-          : [
-              '定期复盘投资表现',
-              '考虑定投策略分批入场',
-              '学习相关投资知识',
-            ],
-        assetSymbol: intent === 'asset_xray' ? extractStockSymbol(messageText) ?? 'TSLA' : undefined,
-      };
-
-      if (analysisMessage.portfolio.length > 0) {
-        const total = analysisMessage.portfolio.reduce((sum, item) => sum + item.value, 0);
-        analysisMessage.portfolio = analysisMessage.portfolio.map(item => ({
-          ...item,
-          value: Math.round((item.value / total) * 100)
-        }));
-      }
-
-      const updatedMessages = [...newMessages, analysisMessage];
-      setMessages(updatedMessages);
-
-      setSuggestedQuestions(generateSuggestions(analysisMessage, messageText));
-
-      const updatedSessions = sessions.map(s =>
-        s.id === currentSessionId
-          ? {
-              ...s,
-              messages: updatedMessages,
-              title: messageText.substring(0, 12) + '...',
-              timestamp: '刚刚',
-              userProfile: { ...s.userProfile, ...extractedInfo }
-            }
-          : s
-      );
-      setSessions(updatedSessions);
 
       try {
-        localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
-      } catch (e) {
-        console.error('Failed to save sessions:', e);
-      }
+        const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile);
+        const chatHistory = buildChatHistoryForAi(messages, userMessage);
+        const shouldStreamDeepThinking = intent !== 'asset_xray' && chatMode === 'deep';
+        const streamMessageId = `stream-${Date.now()}`;
 
-      setIsAnalyzing(false);
+        if (shouldStreamDeepThinking) {
+          setMessages([
+            ...newMessages,
+            {
+              id: streamMessageId,
+              role: 'assistant',
+              content: '',
+              type: 'analysis',
+              source: 'siliconflow',
+              chatMode,
+              intent,
+              hasImageAnalysis: Boolean(userMessage.imageUrl),
+              thinkingEnabled: true,
+              reasoningContent: '',
+              reasoningSummary: [],
+              showInlineChart: false,
+              showRiskScore: false,
+              showDecisionExplanation: false,
+              portfolio: [],
+              reasons: [],
+              warnings: [],
+              nextSteps: [],
+              isStreaming: true,
+            },
+          ]);
+        }
+
+        let streamingReasoning = '';
+        let streamingContent = '';
+        const updateStreamingMessage = (patch: Record<string, unknown>) => {
+          setMessages((currentMessages) =>
+            currentMessages.map((message) =>
+              message.id === streamMessageId ? { ...message, ...patch } : message
+            )
+          );
+        };
+
+        const aiResponse = intent === 'asset_xray'
+          ? { content: '', source: 'fallback' as const }
+          : shouldStreamDeepThinking
+          ? await askAlphaMindChatStream(chatHistory, chatMode, {
+              onMeta: (meta) => updateStreamingMessage({
+                model: meta.model,
+                hasImageAnalysis: meta.hasImage,
+                thinkingEnabled: meta.thinkingEnabled,
+              }),
+              onReasoningDelta: (delta) => {
+                streamingReasoning += delta;
+                updateStreamingMessage({ reasoningContent: streamingReasoning });
+              },
+              onContentDelta: (delta) => {
+                streamingContent += delta;
+                updateStreamingMessage({ content: streamingContent });
+              },
+            })
+          : await askAlphaMindChat(chatHistory, chatMode);
+
+        const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
+        const rawResponseContent = hasLiveAi ? aiResponse.content : localResponse.content;
+        const reasoningContent = hasLiveAi && chatMode === 'deep' ? aiResponse.reasoningContent?.trim() ?? '' : '';
+        const parsedReasoningSummary = hasLiveAi && chatMode === 'deep' && !reasoningContent ? extractReasoningSummary(rawResponseContent) : [];
+        const reasoningSummary = hasLiveAi && chatMode === 'deep'
+          ? reasoningContent
+            ? []
+            : parsedReasoningSummary.length > 0
+            ? parsedReasoningSummary
+            : ['该模型本次未返回可展示的 reasoning_content。']
+          : [];
+        const responseContent = hasLiveAi && chatMode === 'deep'
+          ? stripReasoningSummaryFromContent(rawResponseContent)
+          : rawResponseContent;
+        const reasons = hasLiveAi
+          ? [
+              {
+                icon: aiResponse.hasImage ? '🖼️' : chatMode === 'deep' ? '🧠' : '⚡',
+                text: `${aiResponse.hasImage ? '图像理解' : chatMode === 'deep' ? '深度思考' : '快速响应'}模式已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
+              },
+              { icon: '📡', text: '资产行情与 K 线由 QuantDinger 通道支撑，个股细节可进入资产透视查看。' },
+              { icon: '🛡️', text: '回答仅用于辅助研究和学习，不构成投资建议。' },
+            ]
+          : localResponse.reasons;
+        const shouldShowChart = !hasLiveAi && localResponse.showInlineChart;
+        const providerSource = hasLiveAi ? 'siliconflow' : 'local';
+        const providerModel = hasLiveAi ? aiResponse.model : undefined;
+        const providerError = hasLiveAi ? undefined : aiResponse.error;
+
+        const riskScore = Math.floor(Math.random() * 40) + 50;
+        const showRiskScore = !hasLiveAi && supportsRiskScore(intent);
+        const showPortfolio = !hasLiveAi && supportsPortfolio(intent);
+        const showDecisionExplanation = !hasLiveAi && supportsDecisionExplanation(intent) && reasons.length > 0;
+        const analysisMessage = {
+          role: 'assistant',
+          content: responseContent,
+          type: 'analysis',
+          source: providerSource,
+          model: providerModel,
+          chatMode,
+          intent,
+          hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(userMessage.imageUrl),
+          thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
+          reasoningContent,
+          reasoningSummary,
+          providerError,
+          showInlineChart: shouldShowChart,
+          showRiskScore,
+          showDecisionExplanation,
+          riskScore: showRiskScore ? riskScore : undefined,
+          riskLevel: showRiskScore ? (riskScore < 40 ? '保守型' : riskScore < 70 ? '成长型' : '进取型') : undefined,
+          portfolio: !showPortfolio || intent === 'asset_xray'
+            ? []
+            : [
+                { name: '科技', value: Math.floor(Math.random() * 30) + 30, color: '#C44536' },
+                { name: '债券', value: Math.floor(Math.random() * 20) + 20, color: '#D97706' },
+                { name: '黄金', value: Math.floor(Math.random() * 20) + 10, color: '#FBBF24' },
+              ],
+          reasons,
+          warnings: intent === 'asset_xray'
+            ? []
+            : providerError
+            ? [`AI 服务暂不可用，已切换本地演示分析：${providerError}`]
+            : showRiskScore && riskScore > 75
+            ? ['⚠️ 高风险配置，请确保您能承受较大波动']
+            : [],
+          nextSteps: intent === 'asset_xray'
+            ? ['打开资产透视', '查看数据来源状态', '继续追问估值或风险']
+            : [
+                '定期复盘投资表现',
+                '考虑定投策略分批入场',
+                '学习相关投资知识',
+              ],
+          assetSymbol: intent === 'asset_xray' ? extractStockSymbol(messageText) ?? 'TSLA' : undefined,
+        };
+
+        if (analysisMessage.portfolio.length > 0) {
+          const total = analysisMessage.portfolio.reduce((sum, item) => sum + item.value, 0);
+          analysisMessage.portfolio = analysisMessage.portfolio.map(item => ({
+            ...item,
+            value: Math.round((item.value / total) * 100)
+          }));
+        }
+
+        const updatedMessages = [...newMessages, analysisMessage];
+        setMessages(updatedMessages);
+
+        setSuggestedQuestions(generateSuggestions(analysisMessage, messageText));
+
+        const updatedSessions = sessions.map(s =>
+          s.id === currentSessionId
+            ? {
+                ...s,
+                messages: updatedMessages,
+                title: messageText.substring(0, 12) + '...',
+                timestamp: '刚刚',
+                userProfile: { ...s.userProfile, ...extractedInfo }
+              }
+            : s
+        );
+        setSessions(updatedSessions);
+
+        try {
+          localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
+        } catch (e) {
+          console.error('Failed to save sessions:', e);
+        }
+      } finally {
+        setIsAnalyzing(false);
+      }
     }
   };
 
@@ -1017,7 +1055,13 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                             <span className="text-sm">🤖</span>
                           </div>
                           <div className="flex-1 space-y-3">
-                            <div className="space-y-2">{renderMessageText(message.content)}</div>
+                            <div className="space-y-2">
+                              {message.content
+                                ? renderMessageText(message.content)
+                                : message.isStreaming
+                                ? <p className="text-sm am-text-tertiary">正在等待模型生成正式回答...</p>
+                                : null}
+                            </div>
 
                             {message.type === 'analysis' && (
                               <>
@@ -1048,7 +1092,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>
 
-                                {message.reasoningContent && (
+                                {(message.reasoningContent || message.isStreaming) && (
                                   <div className="am-card-strong border rounded-xl p-4">
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
                                       <BrainCircuit size={16} className="am-brand" />
@@ -1057,7 +1101,12 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                     </div>
                                     <div className="max-h-56 overflow-y-auto rounded-lg am-input-surface border am-border-subtle px-3 py-2">
                                       <div className="text-xs leading-6 am-text-secondary">
-                                        {renderMessageText(message.reasoningContent)}
+                                        {message.reasoningContent
+                                          ? renderMessageText(message.reasoningContent)
+                                          : <span className="am-text-tertiary">已连接深度模型，正在等待 reasoning_content 流...</span>}
+                                        {message.isStreaming && (
+                                          <span className="ml-1 inline-block h-3 w-1 translate-y-0.5 am-brand-bg am-thinking-cursor" />
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -1212,7 +1261,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                   </motion.div>
                 ))}
 
-                {isAnalyzing && (
+                {isAnalyzing && !messages.some((message) => message.isStreaming) && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -1226,25 +1275,13 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                         <div className="flex items-center gap-2 am-text-secondary">
                           <div className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full am-loader-spin" />
                           <span className="text-sm">
-                            {activeChatMode === 'deep' ? '正在进行深度分析...' : '正在分析...'}
+                            {activeChatMode === 'deep' ? '正在连接深度模型...' : '正在分析...'}
                           </span>
                         </div>
                         {activeChatMode === 'deep' && (
-                          <div className="grid gap-1.5 text-xs">
-                            {deepAnalysisProgressSteps.map((step, idx) => (
-                              <span
-                                key={step}
-                                className={`flex items-center gap-2 transition-colors ${
-                                  idx <= analysisStepIndex ? 'am-text-secondary' : 'am-text-tertiary'
-                                }`}
-                              >
-                                <span className={`h-1.5 w-1.5 rounded-full ${
-                                  idx === analysisStepIndex ? 'am-brand-bg' : idx < analysisStepIndex ? 'am-brand-soft' : 'am-card'
-                                }`} />
-                                {step}
-                              </span>
-                            ))}
-                          </div>
+                          <p className="text-xs am-text-tertiary">
+                            连接成功后会直接展示模型返回的 reasoning_content，不再显示固定流程占位。
+                          </p>
                         )}
                       </div>
                     </div>
