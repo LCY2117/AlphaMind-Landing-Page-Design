@@ -112,6 +112,9 @@ const quickQuestions = [
 
 type AdvisorModePreference = 'auto' | 'fast' | 'deep';
 
+const MAX_IMAGE_DIMENSION = 1280;
+const IMAGE_COMPRESSION_QUALITY = 0.78;
+
 const deepAnalysisProgressSteps = [
   '拆解问题边界',
   '提取关键假设',
@@ -373,6 +376,45 @@ const normalizeMarkdownContent = (content: string) => {
         .replace(/\\(\|)/g, '$1');
     })
     .join('');
+};
+
+const loadImageFromFile = (file: File) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onerror = () => reject(new Error('图片读取失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。'));
+    reader.onloadend = () => {
+      const imageUrl = String(reader.result ?? '');
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('图片读取失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。'));
+      image.src = imageUrl;
+    };
+
+    reader.readAsDataURL(file);
+  });
+
+const compressImageForVision = async (file: File) => {
+  const image = await loadImageFromFile(file);
+
+  if (image.width <= 28 || image.height <= 28) {
+    throw new Error('图片尺寸过小，请上传宽高大于 28px 的图片。');
+  }
+
+  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('浏览器无法处理这张图片，请尝试换一张图片。');
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', IMAGE_COMPRESSION_QUALITY);
 };
 
 const renderMessageText = (content: string) => {
@@ -771,33 +813,18 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     }
   };
 
-  const handleImageFile = (file: File) => {
+  const handleImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const imageUrl = reader.result as string;
-      const probe = new Image();
-
-      probe.onload = () => {
-        if (probe.width <= 28 || probe.height <= 28) {
-          setInput('图片尺寸过小，请上传宽高大于 28px 的图片。');
-          return;
-        }
-
-        setUploadedImage(imageUrl);
-        if (!input.trim()) {
-          setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
-        }
-      };
-
-      probe.onerror = () => {
-        setInput('图片读取失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。');
-      };
-
-      probe.src = imageUrl;
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageUrl = await compressImageForVision(file);
+      setUploadedImage(imageUrl);
+      if (!input.trim()) {
+        setInput('请分析这张图片，并提取与投资、财务或页面信息相关的要点。');
+      }
+    } catch (error) {
+      setInput(error instanceof Error ? error.message : '图片处理失败，请重新上传清晰的 PNG、JPG 或 WebP 图片。');
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {

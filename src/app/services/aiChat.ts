@@ -60,7 +60,9 @@ export async function askAlphaMindChat(
     const message = error instanceof DOMException && error.name === 'AbortError'
       ? 'AI response timed out'
       : error instanceof Error
-        ? error.message
+        ? error.message === 'Failed to fetch'
+          ? '网络请求失败，可能是图片过大、网络连接中断或服务暂时不可达。'
+          : error.message
         : 'AI chat unavailable';
 
     return {

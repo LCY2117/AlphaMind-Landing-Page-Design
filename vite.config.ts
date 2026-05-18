@@ -25,16 +25,19 @@ function sendJson(res, statusCode: number, payload: unknown) {
 function readJsonBody(req): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let body = ''
+    let tooLarge = false
 
     req.on('data', (chunk) => {
+      if (tooLarge) return
       body += chunk
       if (body.length > 6_000_000) {
+        tooLarge = true
         reject(new Error('Request body too large'))
-        req.destroy()
       }
     })
 
     req.on('end', () => {
+      if (tooLarge) return
       try {
         resolve(body ? JSON.parse(body) : {})
       } catch {
@@ -244,8 +247,17 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             usage: payload.usage,
           })
         } catch (error) {
+          const message = error instanceof Error ? error.message : 'AlphaMind chat proxy failed'
+          if (message === 'Request body too large') {
+            sendJson(res, 413, {
+              error: '图片或对话内容过大，请裁剪图片或降低图片清晰度后重试。',
+              source: 'server',
+            })
+            return
+          }
+
           sendJson(res, 500, {
-            error: error instanceof Error ? error.message : 'AlphaMind chat proxy failed',
+            error: message,
             source: 'server',
           })
         }
