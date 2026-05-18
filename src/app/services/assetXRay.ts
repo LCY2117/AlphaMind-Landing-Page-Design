@@ -20,6 +20,8 @@ export interface AssetXRayReport {
   };
   metrics: Array<{ label: string; value: string; hint: string }>;
   catalysts: string[];
+  priceSeries?: AssetPricePoint[];
+  newsItems?: AssetNewsItem[];
   providerMeta: {
     mode: 'mock' | 'quantdinger' | 'marketdata';
     source: string;
@@ -29,6 +31,23 @@ export interface AssetXRayReport {
     coverage: Array<{ label: string; value: 'live' | 'mock' | 'derived' | 'pending' }>;
     raw?: unknown;
   };
+}
+
+export interface AssetPricePoint {
+  date: string;
+  close: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
+}
+
+export interface AssetNewsItem {
+  title: string;
+  source?: string;
+  publishedAt?: string;
+  description?: string;
+  url?: string;
 }
 
 export interface AssetXRayRequest {
@@ -91,6 +110,7 @@ interface AlphaMindMarketDataPayload {
       description?: string;
       publishedAt?: string;
       source?: { name?: string };
+      url?: string;
     }>;
   };
   providerErrors?: Record<string, string>;
@@ -283,6 +303,8 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
       { label: '预测置信度', value: '--', hint: '不输出伪置信度' },
     ],
     catalysts: matchedReport ? report.catalysts : ['等待行情源同步', '等待财务数据源同步', '等待新闻与公告源同步'],
+    priceSeries: matchedReport ? buildMockPriceSeries(report.symbol, report.changeValue) : [],
+    newsItems: matchedReport ? buildMockNewsItems(report.symbol) : [],
     providerMeta: {
       mode: 'mock',
       source: 'AlphaMind mock provider',
@@ -293,11 +315,13 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
         ? [
             { label: '行情', value: 'mock' },
             { label: 'K线', value: 'mock' },
+            { label: '新闻', value: 'mock' },
             { label: 'AI结论', value: 'mock' },
           ]
         : [
             { label: '行情', value: 'pending' },
             { label: 'K线', value: 'pending' },
+            { label: '新闻', value: 'pending' },
             { label: 'AI结论', value: 'mock' },
           ],
     },
@@ -338,6 +362,8 @@ async function getMarketDataAssetXRayReport(symbol: string): Promise<AssetXRayRe
   const profile = payload.profile ?? {};
   const articles = payload.news?.articles ?? [];
   const klines = mapTwelveDataKlines(payload.timeSeries);
+  const priceSeries = mapKlinesToPriceSeries(klines);
+  const newsItems = mapArticlesToNewsItems(articles);
   const latestClose = getLatestClose(klines);
   const price = toFiniteNumber(quote.c) ?? latestClose;
   const previousClose = toFiniteNumber(quote.pc) ?? getPreviousClose(klines);
@@ -383,6 +409,8 @@ async function getMarketDataAssetXRayReport(symbol: string): Promise<AssetXRayRe
       { label: '预测置信度', value: `${clampScore(52 + overallScore * 0.32)}%`, hint: '真实数据覆盖度估计' },
     ],
     catalysts: buildNewsCatalysts(symbol, articles),
+    priceSeries,
+    newsItems,
     providerMeta: {
       mode: 'marketdata',
       source: 'Finnhub / Twelve Data / NewsAPI',
@@ -436,6 +464,7 @@ async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>
   ]);
 
   const klines = Array.isArray(klineData) ? klineData : klineData?.klines ?? [];
+  const priceSeries = mapKlinesToPriceSeries(klines);
   const latestClose = getLatestClose(klines);
   const providerPrice = extractNumber(priceData, ['price', 'last', 'last_price', 'close', 'current_price']) ?? latestClose;
   const previousClose = getPreviousClose(klines);
@@ -477,6 +506,8 @@ async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>
       { label: '预测置信度', value: `${clampScore(55 + overallScore * 0.28)}%`, hint: '数据驱动估计' },
     ],
     catalysts: buildCatalysts(symbol, analysisData),
+    priceSeries,
+    newsItems: [],
     providerMeta: {
       mode: 'quantdinger',
       source: config.quantDingerAgentToken ? 'QuantDinger Agent Gateway' : 'QuantDinger indicator API',
@@ -592,6 +623,125 @@ function mapTwelveDataKlines(input?: AlphaMindMarketDataPayload['timeSeries']): 
       volume: item.volume,
     }))
     .filter((item) => Number.isFinite(toNumber(item.close)));
+}
+
+function mapKlinesToPriceSeries(klines: KlinePoint[]): AssetPricePoint[] {
+  return klines
+    .map((item, index) => {
+      const close = toFiniteNumber(item.close);
+      if (close === undefined) return null;
+
+      return {
+        date: formatKlineDate(item.time ?? item.timestamp ?? index),
+        close: roundPrice(close),
+        open: roundOptionalPrice(item.open),
+        high: roundOptionalPrice(item.high),
+        low: roundOptionalPrice(item.low),
+        volume: roundOptionalVolume(item.volume),
+      };
+    })
+    .filter((item): item is AssetPricePoint => Boolean(item));
+}
+
+function mapArticlesToNewsItems(
+  articles: NonNullable<AlphaMindMarketDataPayload['news']>['articles'] = [],
+): AssetNewsItem[] {
+  return articles
+    .map((article) => {
+      const title = article.title?.trim();
+      if (!title) return null;
+
+      return {
+        title,
+        source: article.source?.name?.trim() || 'NewsAPI',
+        publishedAt: formatNewsDate(article.publishedAt),
+        description: article.description?.trim(),
+        url: article.url,
+      };
+    })
+    .filter((item): item is AssetNewsItem => Boolean(item))
+    .slice(0, 8);
+}
+
+function buildMockPriceSeries(symbol: string, changeValue: number): AssetPricePoint[] {
+  const seed = symbol.split('').reduce((sum, char, index) => sum + char.charCodeAt(0) * (index + 5), 0);
+  const base = symbol === 'NVDA' ? 920 : symbol === 'AAPL' ? 190 : 177;
+  let close = base * (1 - changeValue / 100);
+
+  return Array.from({ length: 60 }, (_, index) => {
+    const wave = Math.sin(index * 0.34 + seed * 0.03) * (base * 0.012);
+    const drift = ((index - 30) / 60) * base * (changeValue / 100);
+    const open = close;
+    close = Math.max(1, base + drift + wave + Math.sin(index * 0.91 + seed) * base * 0.006);
+    const high = Math.max(open, close) * (1 + 0.004 + ((seed + index) % 5) * 0.001);
+    const low = Math.min(open, close) * (1 - 0.004 - ((seed + index) % 4) * 0.001);
+
+    return {
+      date: `D-${59 - index}`,
+      open: roundPrice(open),
+      high: roundPrice(high),
+      low: roundPrice(low),
+      close: roundPrice(close),
+      volume: Math.round((18_000_000 + ((seed + index * 7919) % 42_000_000)) / 1000) * 1000,
+    };
+  });
+}
+
+function buildMockNewsItems(symbol: string): AssetNewsItem[] {
+  const samples: Record<string, AssetNewsItem[]> = {
+    TSLA: [
+      { title: '交付节奏与毛利率变化成为短期关注点', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '储能业务增长和自动驾驶预期继续影响市场情绪', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '电动车需求与价格策略仍是估值分歧来源', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+    NVDA: [
+      { title: '数据中心订单与 AI 算力需求保持高关注度', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '市场继续评估高估值与盈利兑现节奏', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '供应链交付能力影响短期业绩预期', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+    AAPL: [
+      { title: '服务收入韧性与新品周期是主要观察线索', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '回购与现金流支撑长期防御属性', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '终端需求变化影响市场对成长性的判断', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+  };
+
+  return samples[symbol] ?? [];
+}
+
+function formatKlineDate(value: number | string) {
+  if (typeof value === 'number') {
+    const date = new Date(value > 1_000_000_000_000 ? value : value * 1000);
+    return Number.isNaN(date.getTime()) ? String(value) : `${date.getMonth() + 1}/${date.getDate()}`;
+  }
+
+  const trimmed = value.trim();
+  const numeric = Number(trimmed);
+  if (Number.isFinite(numeric)) return formatKlineDate(numeric);
+  const date = new Date(trimmed);
+  if (!Number.isNaN(date.getTime())) return `${date.getMonth() + 1}/${date.getDate()}`;
+  return trimmed.length > 10 ? trimmed.slice(0, 10) : trimmed;
+}
+
+function formatNewsDate(value?: string) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+}
+
+function roundPrice(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function roundOptionalPrice(value: unknown) {
+  const numeric = toFiniteNumber(value);
+  return numeric === undefined ? undefined : roundPrice(numeric);
+}
+
+function roundOptionalVolume(value: unknown) {
+  const numeric = toFiniteNumber(value);
+  return numeric === undefined ? undefined : Math.round(numeric);
 }
 
 function extractNumber(input: unknown, keys: string[]) {

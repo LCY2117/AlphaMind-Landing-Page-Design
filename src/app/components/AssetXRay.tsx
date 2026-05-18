@@ -273,6 +273,231 @@ function ProbabilityCone({
   );
 }
 
+function getFinitePrice(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function formatChartPrice(value?: number) {
+  if (value === undefined) return '--';
+  if (value >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatChartVolume(value?: number) {
+  if (!value || !Number.isFinite(value)) return '--';
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(Math.round(value));
+}
+
+function PriceKlineChart({
+  active,
+  report,
+}: {
+  active: boolean;
+  report: AssetXRayReport;
+}) {
+  const series = useMemo(
+    () => (report.priceSeries ?? []).filter((item) => Number.isFinite(item.close)).slice(-54),
+    [report.priceSeries],
+  );
+  const latest = series.at(-1);
+  const first = series[0];
+  const periodChange = latest && first && first.close > 0
+    ? ((latest.close - first.close) / first.close) * 100
+    : report.changeValue;
+
+  const geometry = useMemo(() => {
+    if (series.length === 0) return null;
+
+    const highs = series.map((item) => getFinitePrice(item.high) ?? item.close);
+    const lows = series.map((item) => getFinitePrice(item.low) ?? item.close);
+    const max = Math.max(...highs);
+    const min = Math.min(...lows);
+    const range = Math.max(0.01, max - min);
+    const top = 7;
+    const bottom = 55;
+    const width = 92;
+    const xStep = series.length > 1 ? width / (series.length - 1) : 0;
+    const bodyWidth = Math.max(0.65, Math.min(1.8, width / Math.max(28, series.length) * 0.52));
+    const yFor = (value: number) => top + ((max - value) / range) * (bottom - top);
+    const candles = series.map((item, index) => {
+      const open = getFinitePrice(item.open) ?? item.close;
+      const close = item.close;
+      const high = getFinitePrice(item.high) ?? Math.max(open, close);
+      const low = getFinitePrice(item.low) ?? Math.min(open, close);
+      const x = 4 + index * xStep;
+      const openY = yFor(open);
+      const closeY = yFor(close);
+      return {
+        ...item,
+        x,
+        highY: yFor(high),
+        lowY: yFor(low),
+        bodyY: Math.min(openY, closeY),
+        bodyHeight: Math.max(0.65, Math.abs(openY - closeY)),
+        color: close >= open ? '#22C55E' : '#EF4444',
+      };
+    });
+    const closePath = candles.map((item, index) => `${index === 0 ? 'M' : 'L'} ${item.x} ${yFor(item.close)}`).join(' ');
+
+    return { candles, closePath, max, min, bodyWidth };
+  }, [series]);
+
+  if (!geometry || !latest) {
+    return (
+      <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-dashed am-border-subtle am-card px-5 text-center">
+        <div>
+          <LineChart size={30} className="mx-auto mb-3 am-text-tertiary" />
+          <div className="text-sm font-semibold am-text-primary">K线待同步</div>
+          <p className="mt-2 text-xs leading-5 am-text-secondary">
+            当前数据源没有返回可绘制的 OHLC 日线，接入 Twelve Data 或 QuantDinger K线后会自动显示。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className="rounded-lg am-card border px-3 py-2">
+          <div className="text-[11px] am-text-tertiary">最新收盘</div>
+          <div className="mt-1 text-sm font-bold am-text-primary">${formatChartPrice(latest.close)}</div>
+        </div>
+        <div className="rounded-lg am-card border px-3 py-2">
+          <div className="text-[11px] am-text-tertiary">区间涨跌</div>
+          <div className={`mt-1 text-sm font-bold ${periodChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {periodChange >= 0 ? '+' : ''}{periodChange.toFixed(2)}%
+          </div>
+        </div>
+        <div className="rounded-lg am-card border px-3 py-2">
+          <div className="text-[11px] am-text-tertiary">成交量</div>
+          <div className="mt-1 text-sm font-bold am-text-primary">{formatChartVolume(latest.volume)}</div>
+        </div>
+      </div>
+      <div className="h-[306px]">
+        <svg viewBox="0 0 100 64" preserveAspectRatio="none" className="h-full w-full overflow-visible">
+          <defs>
+            <linearGradient id={`klineGlow-${report.symbol}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#C44536" stopOpacity="0.24" />
+              <stop offset="100%" stopColor="#C44536" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[13, 24, 35, 46, 55].map((y) => (
+            <line key={y} x1="4" x2="96" y1={y} y2={y} stroke="var(--am-chart-grid)" strokeWidth="0.25" strokeDasharray="1.4 2.4" />
+          ))}
+          <text x="4" y="5" fontSize="2.8" fill="var(--am-text-tertiary)">
+            High {formatChartPrice(geometry.max)}
+          </text>
+          <text x="4" y="62" fontSize="2.8" fill="var(--am-text-tertiary)">
+            Low {formatChartPrice(geometry.min)}
+          </text>
+          <motion.path
+            d={`${geometry.closePath} L 96 55 L 4 55 Z`}
+            fill={`url(#klineGlow-${report.symbol})`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: active ? 1 : 0.35 }}
+            transition={{ duration: 0.65, ease: [0.25, 1, 0.5, 1] }}
+          />
+          {geometry.candles.map((item, index) => (
+            <motion.g
+              key={`${item.date}-${index}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: active ? 1 : 0.28 }}
+              transition={{ delay: Math.min(index * 0.008, 0.28), duration: 0.35 }}
+            >
+              <line x1={item.x} x2={item.x} y1={item.highY} y2={item.lowY} stroke={item.color} strokeWidth="0.35" />
+              <rect
+                x={item.x - geometry.bodyWidth / 2}
+                y={item.bodyY}
+                width={geometry.bodyWidth}
+                height={item.bodyHeight}
+                rx="0.12"
+                fill={item.color}
+                opacity="0.88"
+              />
+            </motion.g>
+          ))}
+          <motion.path
+            d={geometry.closePath}
+            fill="none"
+            stroke="#F59E0B"
+            strokeWidth="0.55"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: active ? 1 : 0.16 }}
+            transition={{ duration: 1.05, ease: [0.25, 1, 0.5, 1] }}
+          />
+        </svg>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs am-text-tertiary">
+        <span>{series[0]?.date}</span>
+        <span>{series.length} 条日线 · OHLC</span>
+        <span>{latest.date}</span>
+      </div>
+    </div>
+  );
+}
+
+function NewsFeed({ report }: { report: AssetXRayReport }) {
+  const newsItems = report.newsItems ?? [];
+
+  if (newsItems.length === 0) {
+    return (
+      <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-dashed am-border-subtle am-card px-5 text-center">
+        <div>
+          <Newspaper size={30} className="mx-auto mb-3 am-text-tertiary" />
+          <div className="text-sm font-semibold am-text-primary">新闻待同步</div>
+          <p className="mt-2 text-xs leading-5 am-text-secondary">
+            当前标的没有返回新闻列表；接入 NewsAPI 或后续公告源后会在这里展示。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {newsItems.slice(0, 5).map((item, index) => {
+        const content = (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <h4 className="text-sm font-semibold leading-5 am-text-primary">{item.title}</h4>
+              {item.url && <ArrowUpRight size={14} className="mt-0.5 shrink-0 am-text-tertiary" />}
+            </div>
+            {item.description && (
+              <p className="mt-2 line-clamp-2 text-xs leading-5 am-text-secondary">{item.description}</p>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] am-text-tertiary">
+              <span>{item.source ?? 'News'}</span>
+              {item.publishedAt && <span>{item.publishedAt}</span>}
+            </div>
+          </>
+        );
+
+        return item.url ? (
+          <a
+            key={`${item.title}-${index}`}
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="block rounded-xl border am-card p-3 transition-all hover:border-[#C44536]/40"
+          >
+            {content}
+          </a>
+        ) : (
+          <div key={`${item.title}-${index}`} className="rounded-xl border am-card p-3">
+            {content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 interface AssetXRayProps {
   requestedSymbol?: string;
 }
@@ -421,7 +646,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold am-text-primary mb-3">资产透视</h2>
               <p className="am-text-secondary max-w-2xl">
-                输入股票代码，查看估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注演示数据。
+                输入股票代码，查看真实日线走势、新闻线索、估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注演示数据。
               </p>
             </motion.div>
 
@@ -599,15 +824,43 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
           </aside>
         </div>
 
+        <div className="grid lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6 mt-6">
+          <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
+            {isScanning && <AnalysisSkeleton values={scanValues} />}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
+                <LineChart size={18} className="text-[#C44536]" />
+                真实 K线走势
+              </h3>
+              <span className="text-xs am-text-tertiary">
+                {stock.providerMeta.mode === 'mock' ? '样例 OHLC 日线' : '后端行情源 · OHLC 日线'}
+              </span>
+            </div>
+            <PriceKlineChart active={isComplete} report={stock} />
+          </div>
+
+          <div className="am-card border rounded-2xl p-5 sm:p-6 relative overflow-hidden">
+            {isScanning && <AnalysisSkeleton values={scanValues} />}
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
+                <Newspaper size={18} className="text-[#C44536]" />
+                新闻情绪线索
+              </h3>
+              <span className="text-xs am-text-tertiary">{stock.newsItems?.length ?? 0} 条</span>
+            </div>
+            <NewsFeed report={stock} />
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)] gap-6 mt-6">
           <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
             {isScanning && <AnalysisSkeleton values={scanValues} />}
             <div className="flex items-center justify-between gap-3 mb-4">
               <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
                 <LineChart size={18} className="text-[#C44536]" />
-                概率预测锥
+                AI 概率预测锥
               </h3>
-              <span className="text-xs am-text-tertiary">20 个交易日 · 区间演示</span>
+              <span className="text-xs am-text-tertiary">20 个交易日 · 派生预测</span>
             </div>
             <ProbabilityCone active={isComplete} report={stock} />
           </div>
