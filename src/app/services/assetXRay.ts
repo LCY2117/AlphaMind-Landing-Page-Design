@@ -12,6 +12,7 @@ export interface AssetXRayReport {
   radar: Array<{ subject: string; value: number }>;
   sentiment: number;
   sentimentLabel: string;
+  sentimentAnalysis?: AssetSentimentAnalysis;
   conclusion: string;
   probabilities: {
     up: number;
@@ -49,6 +50,19 @@ export interface AssetNewsItem {
   publishedAt?: string;
   description?: string;
   url?: string;
+}
+
+export interface AssetSentimentAnalysis {
+  score: number;
+  label: string;
+  summary: string;
+  reasons: string[];
+  bullish: string[];
+  bearish: string[];
+  confidence: number;
+  source: 'siliconflow' | 'rule' | 'mock';
+  model?: string;
+  updatedAt?: string;
 }
 
 export interface AssetXRayRequest {
@@ -294,6 +308,29 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
     ],
     sentiment: matchedReport ? report.sentiment : 0,
     sentimentLabel: matchedReport ? report.sentimentLabel : '待同步',
+    sentimentAnalysis: matchedReport
+      ? {
+          score: report.sentiment,
+          label: report.sentimentLabel,
+          summary: report.conclusion.split('。')[0] || `${report.symbol} 情绪来自本地样例。`,
+          reasons: report.catalysts.slice(0, 3),
+          bullish: report.catalysts.slice(0, 2),
+          bearish: ['估值和波动仍需结合风险承受能力判断'],
+          confidence: 58,
+          source: 'mock',
+          updatedAt: '本地样例',
+        }
+      : {
+          score: 0,
+          label: '待同步',
+          summary: `${normalized} 暂无可用行情和新闻样本，无法生成可靠情绪解释。`,
+          reasons: ['等待行情源同步', '等待新闻源同步'],
+          bullish: [],
+          bearish: ['数据不足，不输出倾向性判断'],
+          confidence: 0,
+          source: 'mock',
+          updatedAt: '待同步',
+        },
     conclusion: matchedReport
       ? report.conclusion
       : `${normalized} 暂无本地样例或实时后端数据。当前页面仅展示 Asset X-Ray 的分析结构，正式结论需要接入行情、财务与新闻数据源后生成。`,
@@ -382,6 +419,26 @@ async function getMarketDataAssetXRayReport(symbol: string): Promise<AssetXRayRe
   const overallScore = clampScore((valuationScore + growthScore + profitabilityScore + newsSentimentScore + momentumScore + (100 - volatilityScore)) / 6);
   const providerErrors = Object.values(payload.providerErrors ?? {}).filter(Boolean);
   const errorSuffix = providerErrors.length > 0 ? `部分数据源未返回：${providerErrors.slice(0, 2).join('；')}` : undefined;
+  const fallbackSentiment = buildRuleSentimentAnalysis(
+    symbol,
+    newsSentimentScore,
+    changeValue,
+    momentumScore,
+    volatilityScore,
+    articles,
+  );
+  const sentimentAnalysis = await fetchAiSentimentAnalysis({
+    symbol,
+    name: companyName,
+    price: formatUsd(price),
+    change: `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(2)}%`,
+    momentumScore,
+    volatilityScore,
+    newsSentimentScore,
+    articles,
+    fallback: fallbackSentiment,
+  });
+  const finalSentimentScore = clampScore(sentimentAnalysis.score);
 
   return {
     symbol,
@@ -396,14 +453,15 @@ async function getMarketDataAssetXRayReport(symbol: string): Promise<AssetXRayRe
       { subject: '估值吸引力', value: valuationScore },
       { subject: '成长性', value: growthScore },
       { subject: '盈利', value: profitabilityScore },
-      { subject: '情绪', value: newsSentimentScore },
+      { subject: '情绪', value: finalSentimentScore },
       { subject: '动量', value: clampScore(momentumScore) },
       { subject: '安全边际', value: clampScore(84 - volatilityScore * 0.55) },
     ],
-    sentiment: clampScore(newsSentimentScore),
-    sentimentLabel: labelSentiment(newsSentimentScore),
-    conclusion: buildMarketDataConclusion(symbol, overallScore, momentumScore, volatilityScore, newsSentimentScore, articles),
-    probabilities: buildProbabilities(momentumScore, volatilityScore, newsSentimentScore),
+    sentiment: finalSentimentScore,
+    sentimentLabel: sentimentAnalysis.label,
+    sentimentAnalysis,
+    conclusion: buildMarketDataConclusion(symbol, overallScore, momentumScore, volatilityScore, finalSentimentScore, articles),
+    probabilities: buildProbabilities(momentumScore, volatilityScore, finalSentimentScore),
     metrics: [
       { label: 'AI 综合评分', value: String(overallScore), hint: '行情/K线/新闻派生' },
       { label: '波动风险', value: labelVolatility(volatilityScore), hint: 'Twelve Data 日线估算' },
@@ -445,6 +503,46 @@ async function fetchMarketDataPayload(symbol: string): Promise<AlphaMindMarketDa
   return payload as AlphaMindMarketDataPayload;
 }
 
+async function fetchAiSentimentAnalysis(input: {
+  symbol: string;
+  name: string;
+  price: string;
+  change: string;
+  momentumScore: number;
+  volatilityScore: number;
+  newsSentimentScore: number;
+  articles: NonNullable<AlphaMindMarketDataPayload['news']>['articles'];
+  fallback: AssetSentimentAnalysis;
+}): Promise<AssetSentimentAnalysis> {
+  try {
+    const response = await fetch('/api/alphamind/asset-sentiment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol: input.symbol,
+        name: input.name,
+        price: input.price,
+        change: input.change,
+        momentumScore: input.momentumScore,
+        volatilityScore: input.volatilityScore,
+        ruleSentimentScore: input.newsSentimentScore,
+        news: input.articles.slice(0, 6).map((article) => ({
+          title: article.title,
+          description: article.description,
+          source: article.source?.name,
+          publishedAt: article.publishedAt,
+        })),
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : `HTTP ${response.status}`);
+
+    return normalizeAiSentimentPayload(payload, input.fallback);
+  } catch {
+    return input.fallback;
+  }
+}
+
 async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>): Promise<AssetXRayReport> {
   const config = getAlphaMindConfig();
   const baseUrl = config.quantDingerBaseUrl.replace(/\/$/, '');
@@ -473,6 +571,7 @@ async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>
   const momentumScore = scoreMomentum(klines, changeValue);
   const volatilityScore = scoreVolatility(klines);
   const sentimentScore = extractNestedScore(analysisData, ['sentiment', 'scores.sentiment']) ?? Math.min(90, Math.max(35, 52 + changeValue * 4));
+  const sentimentAnalysis = buildRuleSentimentAnalysis(symbol, sentimentScore, changeValue, momentumScore, volatilityScore, []);
   const overallScore = extractNestedScore(analysisData, ['overall', 'scores.overall', 'confidence']) ?? Math.round((momentumScore + sentimentScore + (100 - volatilityScore)) / 3);
   const meta = COMPANY_META[symbol] ?? {
     name: `${symbol} Asset`,
@@ -499,6 +598,7 @@ async function getQuantDingerAssetXRayReport(request: Required<AssetXRayRequest>
     ],
     sentiment: clampScore(sentimentScore),
     sentimentLabel: labelSentiment(sentimentScore),
+    sentimentAnalysis,
     conclusion: buildQuantDingerConclusion(symbol, overallScore, momentumScore, volatilityScore, analysisData),
     probabilities: buildProbabilities(momentumScore, volatilityScore, sentimentScore),
     metrics: [
@@ -831,6 +931,77 @@ function labelVolatility(score: number) {
   if (score >= 55) return '中高';
   if (score >= 38) return '中';
   return '低';
+}
+
+function normalizeAiSentimentPayload(payload: unknown, fallback: AssetSentimentAnalysis): AssetSentimentAnalysis {
+  if (!payload || typeof payload !== 'object') return fallback;
+  const record = payload as Record<string, unknown>;
+  const rawScore = toFiniteNumber(record.score);
+  const score = rawScore === undefined ? fallback.score : clampScore(rawScore);
+  const label = typeof record.label === 'string' && record.label.trim() ? record.label.trim() : labelSentiment(score);
+  const summary = typeof record.summary === 'string' && record.summary.trim() ? record.summary.trim() : fallback.summary;
+  const reasons = normalizeStringList(record.reasons, fallback.reasons).slice(0, 4);
+  const bullish = normalizeStringList(record.bullish, fallback.bullish).slice(0, 3);
+  const bearish = normalizeStringList(record.bearish, fallback.bearish).slice(0, 3);
+  const confidence = clampScore(toFiniteNumber(record.confidence) ?? fallback.confidence);
+  const source = record.source === 'siliconflow' ? 'siliconflow' : fallback.source;
+  const model = typeof record.model === 'string' ? record.model : fallback.model;
+  const updatedAt = typeof record.updatedAt === 'string' ? record.updatedAt : new Date().toLocaleString('zh-CN', { hour12: false });
+
+  return {
+    score,
+    label,
+    summary,
+    reasons,
+    bullish,
+    bearish,
+    confidence,
+    source,
+    model,
+    updatedAt,
+  };
+}
+
+function normalizeStringList(value: unknown, fallback: string[]) {
+  if (!Array.isArray(value)) return fallback;
+  const normalized = value
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function buildRuleSentimentAnalysis(
+  symbol: string,
+  score: number,
+  changeValue: number,
+  momentum: number,
+  volatility: number,
+  articles: NonNullable<AlphaMindMarketDataPayload['news']>['articles'] = [],
+): AssetSentimentAnalysis {
+  const label = labelSentiment(score);
+  const headline = articles.find((article) => article.title)?.title;
+  const momentumLine = momentum >= 64 ? '价格动量偏强，短线资金仍在关注。' : momentum >= 45 ? '价格动量处于震荡确认区间。' : '价格动量偏弱，短线承压。';
+  const volatilityLine = volatility >= 65 ? '波动率较高，情绪信号需要打折处理。' : '波动率尚可控，情绪读数相对稳定。';
+  const newsLine = headline ? `近期新闻线索集中在“${headline}”。` : '当前新闻样本不足，更多依赖价格、波动与规则词典估算。';
+  const bearish = [
+    volatility >= 65 ? '波动率偏高，容易放大回撤' : '仍需观察成交量是否持续配合',
+    changeValue < 0 ? '最新涨跌幅为负，短线风险偏好下降' : '上涨后估值和兑现压力需要跟踪',
+  ];
+
+  return {
+    score: clampScore(score),
+    label,
+    summary: `${symbol} 当前多空情绪为“${label}”。${momentumLine}${volatilityLine}`,
+    reasons: [momentumLine, volatilityLine, newsLine],
+    bullish: [
+      momentum >= 55 ? '中短期价格趋势仍有支撑' : '若价格重新站上关键均线，情绪可能修复',
+      articles.length > 0 ? '新闻样本可用于继续验证市场叙事' : '等待新闻源恢复后可提升判断置信度',
+    ],
+    bearish,
+    confidence: clampScore(48 + Math.min(articles.length, 6) * 5 + (volatility < 60 ? 8 : 0)),
+    source: 'rule',
+    updatedAt: new Date().toLocaleString('zh-CN', { hour12: false }),
+  };
 }
 
 function formatMarketCap(value?: number) {

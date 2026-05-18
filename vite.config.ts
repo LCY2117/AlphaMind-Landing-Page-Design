@@ -313,6 +313,150 @@ function alphaMindAssetXRayProxy(env: Record<string, string>): Plugin {
   }
 }
 
+function safeStringList(value: unknown, limit = 3) {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => String(item).trim())
+    .filter(Boolean)
+    .slice(0, limit)
+}
+
+function extractJsonObject(text: string) {
+  const trimmed = text.trim()
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim()
+  const source = fenced || trimmed
+  const start = source.indexOf('{')
+  const end = source.lastIndexOf('}')
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('AI sentiment response is not JSON')
+  }
+  return JSON.parse(source.slice(start, end + 1))
+}
+
+function normalizeSentimentJson(input: any, model: string) {
+  const score = Math.max(5, Math.min(95, Math.round(Number(input?.score) || 50)))
+  const label = typeof input?.label === 'string' && input.label.trim()
+    ? input.label.trim().slice(0, 12)
+    : score >= 78 ? '贪婪' : score >= 62 ? '偏贪婪' : score >= 45 ? '中性' : score >= 30 ? '谨慎' : '恐慌'
+
+  return {
+    score,
+    label,
+    summary: typeof input?.summary === 'string' && input.summary.trim()
+      ? input.summary.trim().slice(0, 180)
+      : 'AI 已完成多空情绪校准，但摘要不足。',
+    reasons: safeStringList(input?.reasons, 4),
+    bullish: safeStringList(input?.bullish, 3),
+    bearish: safeStringList(input?.bearish, 3),
+    confidence: Math.max(0, Math.min(95, Math.round(Number(input?.confidence) || 55))),
+    source: 'siliconflow',
+    model,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+function alphaMindAssetSentimentProxy(env: Record<string, string>): Plugin {
+  const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
+  const fastModel = env.SILICONFLOW_SENTIMENT_MODEL || env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
+
+  return {
+    name: 'alphamind-asset-sentiment-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/alphamind/asset-sentiment', async (req, res) => {
+        if (req.method !== 'POST') {
+          sendJson(res, 405, { error: 'Method not allowed' })
+          return
+        }
+
+        const apiKey = process.env.SILICONFLOW_API_KEY || env.SILICONFLOW_API_KEY
+        if (!apiKey) {
+          sendJson(res, 503, { error: 'SiliconFlow is not configured', source: 'not_configured' })
+          return
+        }
+
+        try {
+          const body = await readJsonBody(req)
+          const symbol = normalizeProviderSymbol(body.symbol)
+          const news = Array.isArray(body.news) ? body.news.slice(0, 6) : []
+          const compactNews = news
+            .map((item: any, index: number) => `${index + 1}. ${String(item?.title || '').slice(0, 160)} ${String(item?.description || '').slice(0, 180)}`.trim())
+            .filter((line: string) => line.length > 4)
+
+          const systemPrompt = [
+            '你是 AlphaMind 的金融市场情绪分析器，只输出严格 JSON。',
+            '任务：根据股票行情、动量、波动率和新闻标题，生成专业的多空情绪评分与理由。',
+            '不要输出 Markdown，不要输出投资建议，不要承诺涨跌，不要暴露思考过程。',
+            'score 为 0-100，0 极度恐慌，50 中性，100 极度贪婪。',
+            'JSON schema: {"score":number,"label":"恐慌|谨慎|中性|偏贪婪|贪婪","summary":string,"reasons":string[],"bullish":string[],"bearish":string[],"confidence":number}',
+          ].join('\n')
+
+          const userPrompt = [
+            `标的：${symbol} ${String(body.name || '')}`,
+            `价格：${String(body.price || '未知')}，涨跌：${String(body.change || '未知')}`,
+            `动量分：${String(body.momentumScore ?? '未知')}/100`,
+            `波动分：${String(body.volatilityScore ?? '未知')}/100`,
+            `规则情绪分：${String(body.ruleSentimentScore ?? '未知')}/100`,
+            `新闻样本：\n${compactNews.length ? compactNews.join('\n') : '暂无新闻样本，请降低置信度并说明原因。'}`,
+            '请输出中文，理由短而具体，每个数组 2-3 条。',
+          ].join('\n')
+
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 6500)
+
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model: fastModel,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: userPrompt },
+                ],
+                temperature: 0.2,
+                max_tokens: 520,
+                stream: false,
+              }),
+              signal: controller.signal,
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok) {
+              sendJson(res, 502, { error: extractSiliconFlowError(payload, response.status), source: 'siliconflow' })
+              return
+            }
+
+            const content = payload?.choices?.[0]?.message?.content
+            if (typeof content !== 'string' || !content.trim()) {
+              sendJson(res, 502, { error: 'Empty SiliconFlow sentiment response', source: 'siliconflow' })
+              return
+            }
+
+            const parsed = extractJsonObject(content)
+            sendJson(res, 200, normalizeSentimentJson(parsed, payload.model || fastModel))
+          } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+              sendJson(res, 504, { error: 'SiliconFlow sentiment request timed out', source: 'siliconflow' })
+              return
+            }
+            throw error
+          } finally {
+            clearTimeout(timeoutId)
+          }
+        } catch (error) {
+          sendJson(res, 500, {
+            error: error instanceof Error ? error.message : 'AlphaMind sentiment proxy failed',
+            source: 'server',
+          })
+        }
+      })
+    },
+  }
+}
+
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
   const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
@@ -622,6 +766,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       figmaAssetResolver(),
       alphaMindAssetXRayProxy(env),
+      alphaMindAssetSentimentProxy(env),
       alphaMindChatProxy(env),
       // The React and Tailwind plugins are both required for Make, even if
       // Tailwind is not being actively used – do not remove them

@@ -130,51 +130,122 @@ function AnalysisSkeleton({ values }: { values: number[] }) {
   );
 }
 
-function SentimentGauge({ score, label, active }: { score: number; label: string; active: boolean }) {
-  const needleAngle = -90 + score * 1.8;
+function SentimentPanel({
+  analysis,
+  score,
+  label,
+  active,
+}: {
+  analysis?: AssetXRayReport['sentimentAnalysis'];
+  score: number;
+  label: string;
+  active: boolean;
+}) {
+  const displayScore = active ? analysis?.score ?? score : 0;
+  const displayLabel = active ? analysis?.label ?? label : '等待扫描';
+  const bearishShare = Math.max(0, Math.min(100, 100 - displayScore));
+  const neutralShare = Math.max(8, 100 - Math.abs(displayScore - 50) * 2);
+  const bullishShare = Math.max(0, Math.min(100, displayScore));
+  const sourceLabel = analysis?.source === 'siliconflow'
+    ? `AI 快模型 · ${analysis.model ?? 'SiliconFlow'}`
+    : analysis?.source === 'rule'
+      ? '规则兜底分析'
+      : '样例分析';
+  const confidence = active ? analysis?.confidence ?? 0 : 0;
+  const summary = active
+    ? analysis?.summary ?? `${label}，等待更多新闻与行情信号确认。`
+    : '等待行情、K线与新闻文本完成同步。';
+  const reasons = active ? analysis?.reasons?.slice(0, 4) ?? [] : [];
 
   return (
-    <div className="relative h-[230px]">
-      <svg viewBox="0 0 220 150" className="h-full w-full">
-        <path
-          d="M25 120 A85 85 0 0 1 195 120"
-          fill="none"
-          stroke="var(--am-chart-grid)"
-          strokeWidth="18"
-          strokeLinecap="round"
-        />
-        <motion.path
-          d="M25 120 A85 85 0 0 1 195 120"
-          fill="none"
-          stroke="url(#sentimentGaugeGradient)"
-          strokeWidth="18"
-          strokeLinecap="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: active ? score / 100 : 0.08 }}
-          transition={{ duration: 0.9, ease: [0.25, 1, 0.5, 1] }}
-        />
-        <defs>
-          <linearGradient id="sentimentGaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3B82F6" />
-            <stop offset="50%" stopColor="#F59E0B" />
-            <stop offset="100%" stopColor="#C44536" />
-          </linearGradient>
-        </defs>
-        <motion.g
-          style={{ transformOrigin: '110px 120px' }}
-          initial={{ rotate: -90 }}
-          animate={{ rotate: active ? needleAngle : -75 }}
-          transition={{ duration: 0.85, ease: [0.25, 1, 0.5, 1] }}
-        >
-          <line x1="110" y1="120" x2="110" y2="48" stroke="var(--am-text-primary)" strokeWidth="3" strokeLinecap="round" />
-          <circle cx="110" cy="120" r="7" fill="var(--am-brand-primary)" />
-        </motion.g>
-        <text x="25" y="145" className="fill-current am-text-tertiary" fontSize="10">恐慌</text>
-        <text x="177" y="145" className="fill-current am-text-tertiary" fontSize="10">贪婪</text>
-      </svg>
-      <div className="absolute inset-x-0 bottom-2 text-center">
-        <div className="text-4xl font-bold am-text-primary">{active ? score : '--'}</div>
-        <div className="text-sm am-text-secondary mt-1">{active ? label : '等待扫描'}</div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 rounded-xl border am-border-subtle am-card p-4">
+        <div>
+          <div className="text-xs am-text-tertiary">情绪指数</div>
+          <div className="mt-1 flex items-end gap-2">
+            <motion.span
+              className="text-4xl font-bold am-text-primary tabular-nums"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: active ? 1 : 0.55, y: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              {active ? displayScore : '--'}
+            </motion.span>
+            <span className="pb-1 text-sm font-semibold am-brand">{displayLabel}</span>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center justify-between text-xs am-text-tertiary">
+            <span>Bearish</span>
+            <span>{sourceLabel}</span>
+            <span>Bullish</span>
+          </div>
+          <div className="relative h-3 overflow-hidden rounded-full am-card border">
+            <div className="absolute inset-y-0 left-0 bg-blue-500/70" style={{ width: `${bearishShare}%` }} />
+            <div
+              className="absolute inset-y-0 bg-amber-400/70"
+              style={{ left: `${Math.max(0, 50 - neutralShare / 2)}%`, width: `${neutralShare}%` }}
+            />
+            <div className="absolute inset-y-0 right-0 bg-[#C44536]/80" style={{ width: `${bullishShare}%` }} />
+            <motion.div
+              className="absolute -top-1 h-5 w-0.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+              initial={{ left: '50%' }}
+              animate={{ left: `${displayScore}%` }}
+              transition={{ duration: 0.55, ease: [0.25, 1, 0.5, 1] }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-lg am-card border px-2 py-2">
+              <div className="am-text-tertiary">空头压力</div>
+              <div className="mt-1 font-semibold text-blue-400">{bearishShare}%</div>
+            </div>
+            <div className="rounded-lg am-card border px-2 py-2">
+              <div className="am-text-tertiary">置信度</div>
+              <div className="mt-1 font-semibold am-text-primary">{confidence}%</div>
+            </div>
+            <div className="rounded-lg am-card border px-2 py-2">
+              <div className="am-text-tertiary">多头动能</div>
+              <div className="mt-1 font-semibold text-[#C44536]">{bullishShare}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="rounded-xl border am-border-subtle am-surface p-4">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] am-text-tertiary">AI Sentiment Rationale</div>
+          <span className="text-[11px] am-text-tertiary">{analysis?.updatedAt ?? '待同步'}</span>
+        </div>
+        <p className="text-sm leading-6 am-text-secondary">{summary}</p>
+        {reasons.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {reasons.map((reason, index) => (
+              <div key={`${reason}-${index}`} className="flex items-start gap-2 text-sm am-text-secondary">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C44536]" />
+                <span>{reason}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {(analysis?.bullish?.length || analysis?.bearish?.length) && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+              <div className="mb-2 text-xs font-semibold text-green-500">看多依据</div>
+              <div className="space-y-1.5">
+                {(analysis?.bullish ?? []).slice(0, 2).map((item) => (
+                  <p key={item} className="text-xs leading-5 am-text-secondary">{item}</p>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+              <div className="mb-2 text-xs font-semibold text-blue-400">风险压力</div>
+              <div className="space-y-1.5">
+                {(analysis?.bearish ?? []).slice(0, 2).map((item) => (
+                  <p key={item} className="text-xs leading-5 am-text-secondary">{item}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -918,9 +989,16 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                     <Gauge size={18} className="text-[#C44536]" />
                     AI 多空情绪
                   </h3>
-                  <span className="text-xs am-text-tertiary">新闻/文本情绪</span>
+                  <span className="text-xs am-text-tertiary">
+                    {stock.sentimentAnalysis?.source === 'siliconflow' ? '硅基流动快模型' : '行情/文本情绪'}
+                  </span>
                 </div>
-                <SentimentGauge score={stock.sentiment} label={stock.sentimentLabel} active={isComplete} />
+                <SentimentPanel
+                  analysis={stock.sentimentAnalysis}
+                  score={stock.sentiment}
+                  label={stock.sentimentLabel}
+                  active={isComplete}
+                />
               </div>
             </div>
           </div>
