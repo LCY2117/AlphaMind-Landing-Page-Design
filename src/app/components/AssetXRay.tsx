@@ -1052,67 +1052,69 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
         </div>
 
         <div className="grid items-start lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] gap-6 mt-6">
-          <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
-            {isScanning && <AnalysisSkeleton values={scanValues} />}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
-              <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
-                <LineChart size={18} className="text-[#C44536]" />
-                真实 K线走势
-              </h3>
-              <span className="text-xs am-text-tertiary">
-                {stock.providerMeta.mode === 'mock' ? '样例 OHLC 日线' : '后端行情源 · OHLC 日线'}
-              </span>
-            </div>
-            <PriceKlineChart active={isComplete} report={stock} />
-          </div>
-
-          <div className="am-card border rounded-2xl p-5 sm:p-6 relative overflow-hidden">
-            {isScanning && <AnalysisSkeleton values={scanValues} />}
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
-                <Newspaper size={18} className="text-[#C44536]" />
-                新闻情绪线索
-              </h3>
-              <span className="text-xs am-text-tertiary">{stock.newsItems?.length ?? 0} 条</span>
-            </div>
-            <NewsFeed report={stock} />
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)] gap-6 mt-6">
-          <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
-            {isScanning && <AnalysisSkeleton values={scanValues} />}
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
-                <LineChart size={18} className="text-[#C44536]" />
-                AI 概率预测锥
-              </h3>
-              <span className="text-xs am-text-tertiary">20 个交易日 · 派生预测</span>
-            </div>
-            <ProbabilityCone active={isComplete} report={stock} />
-          </div>
-
-          <div className="am-card border rounded-2xl p-5 sm:p-6 relative overflow-hidden">
-            {isScanning && <AnalysisSkeleton values={scanValues} />}
-            <div className="flex items-center gap-2 mb-4">
-              <Brain size={20} className="text-[#C44536]" />
-              <h3 className="text-base sm:text-lg font-semibold am-text-primary">辅助研究结论</h3>
-            </div>
-            <div className="rounded-xl am-brand-soft border am-border-brand p-4 mb-4">
-              <div className="flex items-center gap-2 text-sm font-semibold am-brand">
-                <Sparkles size={16} />
-                {isComplete ? '研究视图已生成' : '等待输出'}
+          <div className="space-y-6">
+            <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
+              {isScanning && <AnalysisSkeleton values={scanValues} />}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
+                  <LineChart size={18} className="text-[#C44536]" />
+                  真实 K线走势
+                </h3>
+                <span className="text-xs am-text-tertiary">
+                  {stock.providerMeta.mode === 'mock' ? '样例 OHLC 日线' : '后端行情源 · OHLC 日线'}
+                </span>
               </div>
+              <PriceKlineChart active={isComplete} report={stock} />
             </div>
-            <p className="text-sm leading-7 am-text-secondary min-h-[168px]">
-              {typedConclusion || 'AlphaMind 正在等待扫描结果，结论将以逐字生成的方式输出。'}
-              {isComplete && typedConclusion.length < stock.conclusion.length && (
-                <span className="am-type-cursor">|</span>
-              )}
-            </p>
-            <div className="mt-5 flex items-center gap-2 text-xs am-text-tertiary">
-              <ShieldCheck size={14} />
-              该结果为辅助研究视图，不构成投资建议
+
+            <div className="am-card border rounded-2xl p-4 sm:p-6 relative overflow-hidden">
+              {isScanning && <AnalysisSkeleton values={scanValues} />}
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
+                  <LineChart size={18} className="text-[#C44536]" />
+                  AI 概率预测锥
+                </h3>
+                <span className="text-xs am-text-tertiary">20 个交易日 · 派生预测</span>
+              </div>
+              <ProbabilityCone active={isComplete} report={stock} />
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="am-card border rounded-2xl p-5 sm:p-6 relative overflow-hidden">
+              {isScanning && <AnalysisSkeleton values={scanValues} />}
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-base sm:text-lg font-semibold am-text-primary flex items-center gap-2">
+                  <Newspaper size={18} className="text-[#C44536]" />
+                  新闻情绪线索
+                </h3>
+                <span className="text-xs am-text-tertiary">{stock.newsItems?.length ?? 0} 条</span>
+              </div>
+              <NewsFeed report={stock} />
+            </div>
+
+            <div className="am-card border rounded-2xl p-5 sm:p-6 relative overflow-hidden">
+              {isScanning && <AnalysisSkeleton values={scanValues} />}
+              <div className="flex items-center gap-2 mb-4">
+                <Brain size={20} className="text-[#C44536]" />
+                <h3 className="text-base sm:text-lg font-semibold am-text-primary">辅助研究结论</h3>
+              </div>
+              <div className="rounded-xl am-brand-soft border am-border-brand p-4 mb-4">
+                <div className="flex items-center gap-2 text-sm font-semibold am-brand">
+                  <Sparkles size={16} />
+                  {isComplete ? '研究视图已生成' : '等待输出'}
+                </div>
+              </div>
+              <p className="text-sm leading-7 am-text-secondary min-h-[168px]">
+                {typedConclusion || 'AlphaMind 正在等待扫描结果，结论将以逐字生成的方式输出。'}
+                {isComplete && typedConclusion.length < stock.conclusion.length && (
+                  <span className="am-type-cursor">|</span>
+                )}
+              </p>
+              <div className="mt-5 flex items-center gap-2 text-xs am-text-tertiary">
+                <ShieldCheck size={14} />
+                该结果为辅助研究视图，不构成投资建议
+              </div>
             </div>
           </div>
         </div>
