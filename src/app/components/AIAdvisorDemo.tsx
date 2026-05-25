@@ -21,17 +21,29 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { askAlphaMindChat, askAlphaMindChatStream, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
+import { getMockAssetXRayReport, normalizeAssetSymbol } from '../services/assetXRay';
+import {
+  buildInvestmentAdviceCard,
+  getProfileEvidence,
+  loadUserProfileMemory,
+  recordAssetInterest,
+  syncRiskAssessmentToProfileMemory,
+  updateProfileFromMessage,
+  type InvestmentAdviceCardData,
+} from '../services/userProfile';
 
 const mockMessages = [
   {
     role: 'user',
     content: '我今年30岁,有20万闲钱,能接受一些波动',
-    type: 'text'
+    type: 'text',
+    createdAt: Date.now() - 1000 * 60 * 18,
   },
   {
     role: 'assistant',
     content: '已为您生成稳健增长型配置方案',
     type: 'analysis',
+    createdAt: Date.now() - 1000 * 60 * 17,
     riskScore: 65,
     riskLevel: '成长型',
     portfolio: [
@@ -69,6 +81,7 @@ interface Session {
   id: string;
   title: string;
   timestamp: string;
+  updatedAt?: number;
   messages: any[];
   userProfile?: {
     age?: number;
@@ -85,13 +98,14 @@ interface AIAdvisorDemoProps {
 }
 
 const mockSessions: Session[] = [
-  { id: 'demo-089', title: '示例：股票投资咨询', timestamp: '示例数据', messages: mockMessages, userProfile: { age: 30, amount: 200000 } },
+  { id: 'demo-089', title: '示例：股票投资咨询', timestamp: '示例数据', updatedAt: Date.now() - 1000 * 60 * 17, messages: mockMessages, userProfile: { age: 30, amount: 200000 } },
 ];
 
 const createEmptySession = (): Session => ({
   id: String(Math.floor(Math.random() * 900) + 100),
   title: '新对话',
   timestamp: '刚刚',
+  updatedAt: Date.now(),
   messages: [],
   userProfile: {},
 });
@@ -117,6 +131,17 @@ const MAX_IMAGE_DIMENSION = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.78;
 
 const STOCK_NAME_MAP: Record<string, string> = {
+  茅台: '600519',
+  贵州茅台: '600519',
+  宁德: '300750',
+  宁德时代: '300750',
+  黄金: '518880',
+  黄金ETF: '518880',
+  华安黄金: '518880',
+  招行: '600036',
+  招商银行: '600036',
+  沪深300: 'CSI300',
+  沪深: 'CSI300',
   特斯拉: 'TSLA',
   英伟达: 'NVDA',
   辉达: 'NVDA',
@@ -177,6 +202,43 @@ const supportsRiskScore = (intent: string) => ['risk_assessment', 'allocation', 
 const supportsPortfolio = (intent: string) => ['allocation', 'retirement'].includes(intent);
 const supportsInlineChart = (intent: string) => ['allocation', 'retirement', 'product'].includes(intent);
 const supportsDecisionExplanation = (intent: string) => ['risk_assessment', 'allocation', 'retirement', 'asset_xray'].includes(intent);
+
+const formatMessageTime = (value?: number | string) => {
+  if (typeof value === 'string' && value && !Number.isFinite(Number(value))) return value;
+  const timestamp = typeof value === 'number' ? value : Number(value);
+  const date = Number.isFinite(timestamp) ? new Date(timestamp) : new Date();
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
+const formatSessionTime = (value?: number | string) => {
+  if (typeof value === 'string' && value && !Number.isFinite(Number(value))) return value;
+  const timestamp = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(timestamp)) return '刚刚';
+  const date = new Date(timestamp);
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  return sameDay
+    ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+};
+
+const filterPublicReasoning = (content: string) => {
+  const blockedPatterns = [
+    /system prompt/gi,
+    /developer message/gi,
+    /你是.{0,24}(?:助手|顾问|模型)/g,
+    /不要提及.{0,80}/g,
+    /比赛|医创赛|演示项目/g,
+    /内部(?:开发|实现|提示|指令)/g,
+    /chain[- ]?of[- ]?thought/gi,
+  ];
+  return content
+    .split('\n')
+    .map((line) => blockedPatterns.reduce((acc, pattern) => acc.replace(pattern, '公开分析边界'), line))
+    .filter((line) => line.trim().length > 0)
+    .slice(0, 8)
+    .join('\n');
+};
 
 const getStableHash = (text: string) => {
   let hash = 0;
@@ -267,11 +329,11 @@ const buildPublicReasoningFallback = (messageText: string, intent: string) => {
 
 const extractStockSymbol = (text: string) => {
   const upper = text.toUpperCase();
-  const ticker = upper.match(/\b[A-Z]{1,5}(?:[.-][A-Z])?\b/)?.[0];
-  if (ticker) return ticker;
   for (const [name, symbol] of Object.entries(STOCK_NAME_MAP)) {
     if (text.includes(name)) return symbol;
   }
+  const code = upper.match(/\b(?:\d{6}|CSI300|HS300|[A-Z]{1,5}(?:[.-][A-Z])?)\b/)?.[0];
+  if (code) return normalizeAssetSymbol(code);
   return null;
 };
 
@@ -296,19 +358,20 @@ function buildLocalAnalysisResponse(messageText: string, intent: string, userPro
   let reasons = [];
 
   if (intent === 'asset_xray') {
-    const symbol = extractStockSymbol(messageText) ?? 'TSLA';
-    responseContent = `已识别 ${symbol} 个股研究请求。建议进入资产透视页查看结构化研究视图`;
+    const symbol = extractStockSymbol(messageText) ?? '600519';
+    const report = getMockAssetXRayReport(symbol);
+    responseContent = `已识别 ${report.name}（${report.symbol}）研究请求。下方已生成结构化投顾辅助卡，也可以进入资产透视页查看 K 线、雷达评分、新闻线索和情景推演。`;
     reasons = [
-      { icon: '🔎', text: `${symbol} 的资产透视会包含雷达评分、情绪仪表盘、概率区间和研究结论。` },
-      { icon: '📡', text: '若 QuantDinger 或真实数据源未连接，页面会明确显示演示/回退状态。' },
-      { icon: '🛡️', text: '当前仅做辅助研究展示，不触发交易，也不构成投资建议。' },
+      { icon: '🔎', text: `${report.name} 的资产透视会包含雷达评分、情绪解释、概率区间和研究结论。` },
+      { icon: '📡', text: '当前国内资产使用本地演示数据，界面会明确标注非实时行情。' },
+      { icon: '🛡️', text: '输出为辅助研究和风险教育，不触发交易，也不构成投资建议。' },
     ];
   } else if (intent === 'risk_assessment') {
     responseContent = `${getSmartGreeting()}！我已为您完成风险评估分析`;
     reasons = [
-      { icon: '🎯', text: `M3模型分析：基于您${userProfile.age ? `${userProfile.age}岁的年龄` : '的情况'}，风险承受能力评估为中等偏上` },
-      { icon: '📊', text: 'M4引擎建议：当前可适度提高权益类资产配置比例' },
-      { icon: '💡', text: 'LLM提示：建议定期 review 风险偏好，随年龄调整配置策略' },
+      { icon: '🎯', text: `画像校准：基于您${userProfile.age ? `${userProfile.age}岁的年龄` : '当前描述'}，风险承受能力暂评为中等偏上` },
+      { icon: '📊', text: '配置提示：可在权益、防御资产和现金流工具之间保持平衡' },
+      { icon: '💡', text: '复盘建议：当收入、期限或情绪状态变化时，重新校准风险画像' },
     ];
   } else if (intent === 'allocation') {
     responseContent = '根据您的资产情况，我为您定制了以下配置方案';
@@ -322,7 +385,7 @@ function buildLocalAnalysisResponse(messageText: string, intent: string, userPro
     reasons = [
       { icon: '🎯', text: `M3测算：假设${userProfile.age || 30}岁退休，需要提前${65 - (userProfile.age || 30)}年规划` },
       { icon: '📈', text: 'M4建议：采用目标日期策略，随年龄递减风险资产配置' },
-      { icon: '💡', text: 'LLM提示：考虑通货膨胀因素，建议配置部分抗通胀资产' },
+      { icon: '💡', text: '长期提示：考虑通货膨胀因素，可配置部分抗通胀资产' },
     ];
   } else {
     responseContent = '我可以先解释概念、收益与风险之间的关系，再根据您的期限、目标和风险承受能力进一步细化。';
@@ -371,6 +434,87 @@ const normalizeMarkdownContent = (content: string) => {
     })
     .join('');
 };
+
+function AdviceCard({ card, onOpenAssetXRay, symbol }: { card: InvestmentAdviceCardData; onOpenAssetXRay?: (symbol: string) => void; symbol?: string }) {
+  return (
+    <div className="am-card-strong border rounded-xl p-4 space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="text-xs font-semibold am-brand">结构化投顾辅助卡</div>
+          <h4 className="mt-1 text-base font-bold am-text-primary">{card.title}</h4>
+          <p className="mt-1 text-xs am-text-secondary">{card.subtitle}</p>
+        </div>
+        {symbol && (
+          <button
+            onClick={() => onOpenAssetXRay?.(symbol)}
+            className="inline-flex items-center justify-center gap-2 rounded-lg am-brand-bg px-3 py-2 text-xs font-semibold"
+          >
+            <ScanSearch size={14} />
+            打开透视
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-lg border am-border-subtle am-surface-muted p-3">
+        <div className="text-xs am-text-tertiary">用户画像摘要</div>
+        <p className="mt-1 text-sm font-semibold am-text-primary">{card.profileSummary}</p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <div className="mb-2 text-xs font-semibold am-text-tertiary">画像记忆证据</div>
+          <div className="space-y-2">
+            {card.evidence.slice(0, 4).map((item) => (
+              <div key={item} className="rounded-lg border am-border-subtle am-card px-3 py-2 text-xs am-text-secondary">{item}</div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="mb-2 text-xs font-semibold am-text-tertiary">当前资产信号</div>
+          <div className="space-y-2">
+            {card.assetSignals.map((item) => (
+              <div key={item} className="rounded-lg border am-border-subtle am-card px-3 py-2 text-xs am-text-secondary">{item}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 text-xs font-semibold am-text-tertiary">决策分支</div>
+        <div className="grid gap-2">
+          {card.branches.map((branch) => (
+            <div key={branch.name} className="rounded-lg border am-border-subtle am-card p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold am-text-primary">{branch.name}</div>
+                <span className="rounded-full am-brand-soft px-2 py-0.5 text-[11px] am-brand">{branch.fit}</span>
+              </div>
+              <p className="mt-1 text-xs leading-5 am-text-secondary">{branch.detail}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+          <div className="mb-2 text-xs font-semibold text-green-500">正面因素</div>
+          <div className="space-y-1.5">
+            {card.positives.map((item) => <p key={item} className="text-xs leading-5 am-text-secondary">{item}</p>)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+          <div className="mb-2 text-xs font-semibold text-amber-500">风险压力</div>
+          <div className="space-y-1.5">
+            {card.risks.slice(0, 3).map((item) => <p key={item} className="text-xs leading-5 am-text-secondary">{item}</p>)}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg am-danger-surface border px-3 py-2 text-xs leading-5">
+        {card.boundary}
+      </div>
+    </div>
+  );
+}
 
 const loadImageFromFile = (file: File) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -513,14 +657,15 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
     const seed = `${originalQuestion}-${intent}-${symbol ?? ''}-${lastMessage.model ?? ''}-${messages.length}`;
 
     if (symbol) {
-      const peer = symbol === 'NVDA' ? 'AMD' : 'NVDA';
+      const report = getMockAssetXRayReport(symbol);
+      const peer = symbol === '300750' ? '518880' : symbol === '518880' ? '600519' : '300750';
       return pickContextualQuestions([
-        `${symbol} 当前最大的下行风险是什么？`,
-        `用三句话总结 ${symbol} 的投资逻辑`,
-        `对比 ${symbol} 和 ${peer} 的估值性价比`,
-        `${symbol} 更适合短线还是长期持有？`,
-        `如果 ${symbol} 跌 10%，应该关注哪些信号？`,
-        `帮我拆解 ${symbol} 的情绪、估值和动量`,
+        `${report.name} 当前最大的下行风险是什么？`,
+        `用三句话总结 ${report.name} 的研究逻辑`,
+        `对比 ${report.name} 和 ${getMockAssetXRayReport(peer).name} 的组合价值`,
+        `${report.name} 更适合观察还是小仓位研究？`,
+        `如果 ${report.name} 回撤 10%，应该关注哪些信号？`,
+        `帮我拆解 ${report.name} 的情绪、估值和动量`,
       ], seed);
     }
 
@@ -667,6 +812,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
       }
 
       const intent = detectIntent(messageText);
+      const detectedSymbol = extractStockSymbol(messageText);
+      const normalizedSymbol = detectedSymbol ? normalizeAssetSymbol(detectedSymbol) : undefined;
+      const profileMemory = updateProfileFromMessage(messageText, normalizedSymbol);
       const chatMode = inferChatMode(messageText, intent, modePreference);
       setActiveChatMode(chatMode);
 
@@ -677,6 +825,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
         imageUrl: uploadedImage,
         intent,
         chatMode,
+        assetSymbol: normalizedSymbol,
+        createdAt: Date.now(),
       };
 
       const newMessages = [...messages, userMessage];
@@ -701,6 +851,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               content: '',
               type: 'analysis',
               source: 'siliconflow',
+              createdAt: Date.now(),
               chatMode,
               intent,
               hasImageAnalysis: Boolean(userMessage.imageUrl),
@@ -741,7 +892,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
               }),
               onReasoningDelta: (delta) => {
                 streamingReasoning += delta;
-                updateStreamingMessage({ reasoningContent: streamingReasoning });
+                updateStreamingMessage({ reasoningContent: filterPublicReasoning(streamingReasoning) });
               },
               onContentDelta: (delta) => {
                 streamingContent += delta;
@@ -759,11 +910,13 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
             ? []
             : parsedReasoningSummary.length > 0
             ? parsedReasoningSummary
-            : ['该模型本次未返回可展示的 reasoning_content。']
+            : ['该模型本次未返回可公开展示的分析摘要。']
           : [];
         const responseContent = hasLiveAi && chatMode === 'deep'
           ? stripReasoningSummaryFromContent(rawResponseContent)
           : rawResponseContent;
+        const adviceReport = normalizedSymbol ? getMockAssetXRayReport(normalizedSymbol) : undefined;
+        const adviceCard = adviceReport ? buildInvestmentAdviceCard(adviceReport, profileMemory) : undefined;
         const reasons = hasLiveAi
           ? [
               {
@@ -787,13 +940,14 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
           role: 'assistant',
           content: responseContent,
           type: 'analysis',
+          createdAt: Date.now(),
           source: providerSource,
           model: providerModel,
           chatMode,
           intent,
           hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(userMessage.imageUrl),
           thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
-          reasoningContent,
+          reasoningContent: filterPublicReasoning(reasoningContent),
           reasoningCollapsed: true,
           reasoningSummary,
           providerError,
@@ -824,7 +978,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                 '考虑定投策略分批入场',
                 '学习相关投资知识',
               ],
-          assetSymbol: intent === 'asset_xray' ? extractStockSymbol(messageText) ?? 'TSLA' : undefined,
+          assetSymbol: normalizedSymbol,
+          adviceCard,
         };
 
         if (analysisMessage.portfolio.length > 0) {
@@ -847,6 +1002,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                 messages: updatedMessages,
                 title: messageText.substring(0, 12) + '...',
                 timestamp: '刚刚',
+                updatedAt: Date.now(),
                 userProfile: { ...s.userProfile, ...extractedInfo }
               }
             : s
@@ -983,7 +1139,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                         <span className="text-xs opacity-60">#{session.id}</span>
                       </div>
                       <p className="text-sm truncate pr-6">{session.title}</p>
-                      <p className="text-xs opacity-40 mt-1">{session.timestamp}</p>
+                      <p className="text-xs opacity-40 mt-1">更新于 {formatSessionTime(session.updatedAt ?? session.timestamp)}</p>
                     </button>
 
                     {sessions.length > 1 && (
@@ -1059,6 +1215,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                             <img src={message.imageUrl} alt="Uploaded" className="w-full rounded-lg mb-2 max-h-32 object-cover" />
                           )}
                           <p className="am-text-primary text-sm">{message.content}</p>
+                          <p className="mt-1 text-right text-[11px] am-text-tertiary">{formatMessageTime(message.createdAt)}</p>
                         </div>
                       </div>
                     ) : (
@@ -1115,8 +1272,8 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                     >
                                       <span className="flex min-w-0 items-center gap-2">
                                         <BrainCircuit size={16} className="am-brand shrink-0" />
-                                        <span className="text-sm font-medium am-text-primary">模型思考内容</span>
-                                        <span className="text-[11px] am-text-tertiary">reasoning_content</span>
+                                        <span className="text-sm font-medium am-text-primary">公开分析摘要</span>
+                                        <span className="text-[11px] am-text-tertiary">已过滤内部推理</span>
                                       </span>
                                       <span className="flex items-center gap-2 text-[11px] am-text-tertiary">
                                         {message.isStreaming ? '接收中' : message.reasoningCollapsed === false ? '收起' : '展开'}
@@ -1131,7 +1288,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                         <div className="text-xs leading-6 am-text-secondary">
                                           {message.reasoningContent
                                             ? renderMessageText(message.reasoningContent)
-                                            : <span className="am-text-tertiary">已连接深度模型，正在等待 reasoning_content 流...</span>}
+                                            : <span className="am-text-tertiary">已连接深度模型，正在等待可公开分析摘要...</span>}
                                           {message.isStreaming && (
                                             <span className="ml-1 inline-block h-3 w-1 translate-y-0.5 am-brand-bg am-thinking-cursor" />
                                           )}
@@ -1200,6 +1357,21 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                   </div>
                                 )}
 
+                                {message.adviceCard && (
+                                  <AdviceCard
+                                    card={message.adviceCard}
+                                    symbol={message.assetSymbol}
+                                    onOpenAssetXRay={(symbol) => {
+                                      recordAssetInterest(symbol, 'chat');
+                                      if (onOpenAssetXRay) {
+                                        onOpenAssetXRay(symbol);
+                                      } else {
+                                        onNavigate?.(3);
+                                      }
+                                    }}
+                                  />
+                                )}
+
                                 {message.portfolio?.length > 0 && (
                                   <div className="am-card rounded-xl p-4">
                                   <h4 className="text-sm font-medium am-text-primary mb-3">💼 资产配置建议</h4>
@@ -1266,10 +1438,11 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                         <div className="text-xs am-text-secondary mt-1">查看数据状态、雷达评分、情绪仪表盘与概率区间</div>
                                       </div>
                                       <button
-                                        onClick={() => {
-                                          if (onOpenAssetXRay) {
-                                            onOpenAssetXRay(message.assetSymbol);
-                                          } else {
+                        onClick={() => {
+                          recordAssetInterest(message.assetSymbol, 'chat');
+                          if (onOpenAssetXRay) {
+                            onOpenAssetXRay(message.assetSymbol);
+                          } else {
                                             onNavigate?.(3);
                                           }
                                         }}
@@ -1283,6 +1456,9 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                 )}
                               </>
                             )}
+                            <div className="text-[11px] am-text-tertiary">
+                              {formatMessageTime(message.createdAt)}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1309,7 +1485,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                         </div>
                         {activeChatMode === 'deep' && (
                           <p className="text-xs am-text-tertiary">
-                            连接成功后会直接展示模型返回的 reasoning_content，不再显示固定流程占位。
+                            连接成功后会展示可公开分析摘要，不显示固定流程占位。
                           </p>
                         )}
                       </div>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Sun, Moon, Monitor, Globe, User, Database, FileText, Settings as SettingsIcon, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeMode, useThemeMode } from '../contexts/ThemeContext';
+import { USER_PROFILE_MEMORY_STORAGE_KEY } from '../services/userProfile';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -37,9 +38,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   ];
 
   const handleClearLocalData = () => {
-    ['alphamind_user', 'alphamind_sessions', 'alphamind_risk_profile', 'alphamind_theme'].forEach((key) => {
+    ['alphamind_user', 'alphamind_sessions', 'alphamind_risk_profile', USER_PROFILE_MEMORY_STORAGE_KEY, 'alphamind_theme'].forEach((key) => {
       localStorage.removeItem(key);
     });
+    window.dispatchEvent(new CustomEvent('alphamind-profile-updated'));
     logout();
     setClearMessage('本地演示数据已清除，刷新后将恢复默认演示状态。');
   };

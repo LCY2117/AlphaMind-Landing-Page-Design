@@ -133,6 +133,31 @@ interface AlphaMindMarketDataPayload {
 }
 
 const COMPANY_META: Record<string, Pick<AssetXRayReport, 'name' | 'sector' | 'marketCap'>> = {
+  '600519': {
+    name: '贵州茅台',
+    sector: '白酒 / 高端消费',
+    marketCap: '约 ¥2.1T',
+  },
+  '300750': {
+    name: '宁德时代',
+    sector: '新能源电池 / 储能',
+    marketCap: '约 ¥900B',
+  },
+  '518880': {
+    name: '华安黄金ETF',
+    sector: '黄金 ETF / 防御资产',
+    marketCap: '基金规模样例',
+  },
+  '600036': {
+    name: '招商银行',
+    sector: '股份制银行 / 零售金融',
+    marketCap: '约 ¥900B',
+  },
+  CSI300: {
+    name: '沪深300',
+    sector: '宽基指数 / A股核心资产',
+    marketCap: '指数样本组合',
+  },
   TSLA: {
     name: 'Tesla Inc.',
     sector: '智能电动车 / 能源',
@@ -151,6 +176,211 @@ const COMPANY_META: Record<string, Pick<AssetXRayReport, 'name' | 'sector' | 'ma
 };
 
 export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
+  {
+    symbol: '600519',
+    name: '贵州茅台',
+    market: '上交所',
+    sector: '白酒 / 高端消费',
+    price: '¥1,690.00',
+    change: '+0.86%',
+    changeValue: 0.86,
+    marketCap: '约 ¥2.1T',
+    radar: [
+      { subject: '估值吸引力', value: 58 },
+      { subject: '成长性', value: 62 },
+      { subject: '盈利', value: 91 },
+      { subject: '情绪', value: 66 },
+      { subject: '动量', value: 57 },
+      { subject: '安全边际', value: 68 },
+    ],
+    sentiment: 66,
+    sentimentLabel: '中性偏积极',
+    conclusion:
+      '贵州茅台在路演演示数据中代表高现金流、高品牌壁垒的消费龙头。当前情景推演认为基本面质量仍强，但估值、消费复苏节奏和市场风险偏好会影响短期波动，更适合稳健型用户以观察或小仓位研究方式纳入组合讨论。',
+    probabilities: { up: 38, flat: 41, down: 21 },
+    metrics: [
+      { label: 'AI 综合评分', value: '72', hint: '盈利质量突出' },
+      { label: '波动风险', value: '中', hint: '消费龙头但估值敏感' },
+      { label: '预测置信度', value: '66%', hint: '基于样例走势和事件线索' },
+    ],
+    catalysts: ['高端消费韧性', '现金流与分红能力', '估值与消费复苏节奏的再平衡'],
+    providerMeta: {
+      mode: 'mock',
+      source: 'AlphaMind 国内资产演示数据',
+      status: 'ok',
+      freshnessLabel: '本地演示数据 · 非实时行情',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: '新闻', value: 'mock' },
+        { label: 'AI结论', value: 'derived' },
+      ],
+    },
+  },
+  {
+    symbol: '300750',
+    name: '宁德时代',
+    market: '深交所',
+    sector: '新能源电池 / 储能',
+    price: '¥203.40',
+    change: '+2.18%',
+    changeValue: 2.18,
+    marketCap: '约 ¥900B',
+    radar: [
+      { subject: '估值吸引力', value: 64 },
+      { subject: '成长性', value: 86 },
+      { subject: '盈利', value: 76 },
+      { subject: '情绪', value: 72 },
+      { subject: '动量', value: 74 },
+      { subject: '安全边际', value: 52 },
+    ],
+    sentiment: 72,
+    sentimentLabel: '偏积极',
+    conclusion:
+      '宁德时代在演示数据中代表高成长、高波动的新能源资产。AI 情景推演显示，储能、电池技术迭代和全球装机需求提供上行叙事，但产业周期、价格竞争和估值弹性也会放大回撤，适合进取型用户作为卫星资产研究。',
+    probabilities: { up: 52, flat: 27, down: 21 },
+    metrics: [
+      { label: 'AI 综合评分', value: '75', hint: '成长弹性较高' },
+      { label: '波动风险', value: '中高', hint: '产业周期敏感' },
+      { label: '预测置信度', value: '68%', hint: '基于样例走势和行业叙事' },
+    ],
+    catalysts: ['储能需求扩张', '电池技术迭代', '海外供应链与价格竞争'],
+    providerMeta: {
+      mode: 'mock',
+      source: 'AlphaMind 国内资产演示数据',
+      status: 'ok',
+      freshnessLabel: '本地演示数据 · 非实时行情',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: '新闻', value: 'mock' },
+        { label: 'AI结论', value: 'derived' },
+      ],
+    },
+  },
+  {
+    symbol: '518880',
+    name: '华安黄金ETF',
+    market: '上交所',
+    sector: '黄金 ETF / 防御资产',
+    price: '¥5.68',
+    change: '+0.34%',
+    changeValue: 0.34,
+    marketCap: '基金规模样例',
+    radar: [
+      { subject: '估值吸引力', value: 61 },
+      { subject: '成长性', value: 48 },
+      { subject: '盈利', value: 52 },
+      { subject: '情绪', value: 69 },
+      { subject: '动量', value: 63 },
+      { subject: '安全边际', value: 78 },
+    ],
+    sentiment: 69,
+    sentimentLabel: '防御偏强',
+    conclusion:
+      '华安黄金ETF在演示数据中代表避险与组合平衡工具。情景推演认为，当市场波动、利率预期或地缘不确定性上升时，黄金类资产有助于降低组合相关性；但其收益来源不同于权益资产，适合作为风险缓冲而非单一进攻仓位。',
+    probabilities: { up: 35, flat: 46, down: 19 },
+    metrics: [
+      { label: 'AI 综合评分', value: '69', hint: '防御属性明确' },
+      { label: '波动风险', value: '中低', hint: '适合组合平衡' },
+      { label: '预测置信度', value: '64%', hint: '基于宏观情景推演' },
+    ],
+    catalysts: ['避险需求变化', '美元与实际利率预期', '权益市场波动对冲'],
+    providerMeta: {
+      mode: 'mock',
+      source: 'AlphaMind 国内资产演示数据',
+      status: 'ok',
+      freshnessLabel: '本地演示数据 · 非实时行情',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: '新闻', value: 'mock' },
+        { label: 'AI结论', value: 'derived' },
+      ],
+    },
+  },
+  {
+    symbol: '600036',
+    name: '招商银行',
+    market: '上交所',
+    sector: '股份制银行 / 零售金融',
+    price: '¥37.20',
+    change: '-0.18%',
+    changeValue: -0.18,
+    marketCap: '约 ¥900B',
+    radar: [
+      { subject: '估值吸引力', value: 74 },
+      { subject: '成长性', value: 52 },
+      { subject: '盈利', value: 78 },
+      { subject: '情绪', value: 56 },
+      { subject: '动量', value: 48 },
+      { subject: '安全边际', value: 72 },
+    ],
+    sentiment: 56,
+    sentimentLabel: '中性',
+    conclusion:
+      '招商银行在演示数据中代表分红、资产质量和零售金融能力较强的稳健金融资产。AI 情景推演显示其适合稳健型用户做价值观察，但仍需关注净息差、地产链风险和宏观信用周期变化。',
+    probabilities: { up: 31, flat: 49, down: 20 },
+    metrics: [
+      { label: 'AI 综合评分', value: '67', hint: '估值与分红吸引力较好' },
+      { label: '波动风险', value: '中', hint: '金融周期敏感' },
+      { label: '预测置信度', value: '63%', hint: '基于样例走势和行业风险' },
+    ],
+    catalysts: ['零售金融韧性', '分红与估值修复', '净息差和资产质量观察'],
+    providerMeta: {
+      mode: 'mock',
+      source: 'AlphaMind 国内资产演示数据',
+      status: 'ok',
+      freshnessLabel: '本地演示数据 · 非实时行情',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: '新闻', value: 'mock' },
+        { label: 'AI结论', value: 'derived' },
+      ],
+    },
+  },
+  {
+    symbol: 'CSI300',
+    name: '沪深300',
+    market: '中证指数',
+    sector: '宽基指数 / A股核心资产',
+    price: '3,940.00',
+    change: '+0.52%',
+    changeValue: 0.52,
+    marketCap: '指数样本组合',
+    radar: [
+      { subject: '估值吸引力', value: 66 },
+      { subject: '成长性', value: 58 },
+      { subject: '盈利', value: 63 },
+      { subject: '情绪', value: 59 },
+      { subject: '动量', value: 54 },
+      { subject: '安全边际', value: 70 },
+    ],
+    sentiment: 59,
+    sentimentLabel: '中性观察',
+    conclusion:
+      '沪深300在演示数据中代表A股核心资产组合。相比单一个股，宽基指数更适合作为长期配置和组合基准，但短期仍会受到宏观预期、风险偏好和权重行业表现影响。',
+    probabilities: { up: 34, flat: 45, down: 21 },
+    metrics: [
+      { label: 'AI 综合评分', value: '65', hint: '适合作为市场基准' },
+      { label: '波动风险', value: '中', hint: '分散度高于单一个股' },
+      { label: '预测置信度', value: '62%', hint: '基于指数情景推演' },
+    ],
+    catalysts: ['宏观预期修复', '权重行业盈利变化', '长期定投与再平衡价值'],
+    providerMeta: {
+      mode: 'mock',
+      source: 'AlphaMind 国内资产演示数据',
+      status: 'ok',
+      freshnessLabel: '本地演示数据 · 非实时行情',
+      coverage: [
+        { label: '行情', value: 'mock' },
+        { label: 'K线', value: 'mock' },
+        { label: '新闻', value: 'mock' },
+        { label: 'AI结论', value: 'derived' },
+      ],
+    },
+  },
   {
     symbol: 'TSLA',
     name: 'Tesla Inc.',
@@ -275,10 +505,46 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
 
 export const SUPPORTED_ASSET_SYMBOLS = MOCK_ASSET_REPORTS.map((report) => report.symbol);
 
+const ASSET_ALIASES: Record<string, string> = {
+  茅台: '600519',
+  贵州茅台: '600519',
+  MOUTAI: '600519',
+  宁德: '300750',
+  宁德时代: '300750',
+  CATL: '300750',
+  黄金: '518880',
+  黄金ETF: '518880',
+  华安黄金: '518880',
+  华安黄金ETF: '518880',
+  招行: '600036',
+  招商银行: '600036',
+  沪深300: 'CSI300',
+  沪深: 'CSI300',
+  CSI300: 'CSI300',
+  HS300: 'CSI300',
+  特斯拉: 'TSLA',
+  英伟达: 'NVDA',
+  辉达: 'NVDA',
+  苹果: 'AAPL',
+};
+
+export function isDomesticDemoSymbol(symbol: string) {
+  return ['600519', '300750', '518880', '600036', 'CSI300'].includes(symbol);
+}
+
 export function normalizeAssetSymbol(input: string) {
-  const normalized = input.trim().toUpperCase();
-  const byName = MOCK_ASSET_REPORTS.find((item) => item.name.toUpperCase().includes(normalized));
-  return byName?.symbol ?? (normalized.replace(/[^A-Z0-9./-]/g, '') || 'TSLA');
+  const trimmed = input.trim();
+  if (!trimmed) return '600519';
+  const compact = trimmed.replace(/\s+/g, '');
+  const upper = compact.toUpperCase();
+  const directAlias = ASSET_ALIASES[compact] ?? ASSET_ALIASES[upper];
+  if (directAlias) return directAlias;
+
+  const byChineseName = MOCK_ASSET_REPORTS.find((item) => item.name.includes(compact));
+  if (byChineseName) return byChineseName.symbol;
+
+  const byName = MOCK_ASSET_REPORTS.find((item) => item.name.toUpperCase().includes(upper));
+  return byName?.symbol ?? (upper.replace(/[^A-Z0-9./-]/g, '') || '600519');
 }
 
 export function getMockAssetXRayReport(symbol: string, message?: string): AssetXRayReport {
@@ -369,6 +635,10 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
 export async function getAssetXRayReport(request: AssetXRayRequest): Promise<AssetXRayReport> {
   const config = getAlphaMindConfig();
   const symbol = normalizeAssetSymbol(request.symbol);
+
+  if (isDomesticDemoSymbol(symbol)) {
+    return getMockAssetXRayReport(symbol);
+  }
 
   try {
     return await getMarketDataAssetXRayReport(symbol);
@@ -768,7 +1038,17 @@ function mapArticlesToNewsItems(
 
 function buildMockPriceSeries(symbol: string, changeValue: number): AssetPricePoint[] {
   const seed = symbol.split('').reduce((sum, char, index) => sum + char.charCodeAt(0) * (index + 5), 0);
-  const base = symbol === 'NVDA' ? 920 : symbol === 'AAPL' ? 190 : 177;
+  const baseMap: Record<string, number> = {
+    '600519': 1690,
+    '300750': 203,
+    '518880': 5.68,
+    '600036': 37.2,
+    CSI300: 3940,
+    NVDA: 920,
+    AAPL: 190,
+    TSLA: 177,
+  };
+  const base = baseMap[symbol] ?? 177;
   let close = base * (1 - changeValue / 100);
 
   return Array.from({ length: 60 }, (_, index) => {
@@ -794,6 +1074,31 @@ function buildMockPriceSeries(symbol: string, changeValue: number): AssetPricePo
 
 function buildMockNewsItems(symbol: string): AssetNewsItem[] {
   const samples: Record<string, AssetNewsItem[]> = {
+    '600519': [
+      { title: '高端白酒消费韧性与渠道库存成为市场观察线索', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '分红能力、现金流质量和估值再平衡影响稳健型用户关注度', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '消费复苏节奏仍是短期情绪波动的重要变量', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+    '300750': [
+      { title: '储能需求、电池技术迭代和海外供应链成为成长叙事核心', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '价格竞争与产业周期波动影响新能源资产风险定价', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '高成长资产适合与防御资产搭配进行情景推演', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+    '518880': [
+      { title: '黄金类资产在波动市场中承担避险与组合平衡功能', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '美元、实际利率与地缘不确定性仍是黄金价格关键变量', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '防御资产更适合作为风险缓冲，不宜被理解为确定性收益来源', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+    '600036': [
+      { title: '零售金融韧性、分红和资产质量是银行股研究主线', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '净息差与信用周期变化仍会影响短期估值弹性', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '稳健型用户可将金融资产作为价值与分红观察对象', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
+    CSI300: [
+      { title: '宽基指数适合作为A股核心资产与组合基准观察', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '权重行业盈利变化与宏观预期影响指数情绪', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '长期定投和再平衡适合用情景推演方式解释', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+    ],
     TSLA: [
       { title: '交付节奏与毛利率变化成为短期关注点', source: 'AlphaMind sample', publishedAt: '样例新闻' },
       { title: '储能业务增长和自动驾驶预期继续影响市场情绪', source: 'AlphaMind sample', publishedAt: '样例新闻' },

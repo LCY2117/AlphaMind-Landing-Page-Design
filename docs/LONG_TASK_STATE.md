@@ -2,10 +2,10 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-26 01:41 CST
-Status: paused
-Current priority: Roadshow long task startup gate prepared
-Current task: AlphaMind roadshow plan baseline committed; waiting for explicit implementation start
+Last updated: 2026-05-26 02:19 CST
+Status: validating
+Current priority: GitHub sync and cloud deployment
+Current task: Local roadshow optimization validation passed; preparing commit, push, and cloud deploy
 
 ## Resume Instructions
 
@@ -13,10 +13,36 @@ Current task: AlphaMind roadshow plan baseline committed; waiting for explicit i
 2. Read this file.
 3. Read `docs/LONG_TASK_BLOCKERS.md`.
 4. Treat `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md` as the active PLAN even though `scripts/check-overnight-plan.ps1` still prints the older overnight plan.
-5. Check Git status and confirm whether checkpoint commits/pushes are authorized for the implementation run.
-6. Continue from `Next Unblocked Action`.
+5. Check Git status and preserve any user or earlier Codex changes already in progress.
+6. Remember that final GitHub sync and cloud deployment are mandatory acceptance criteria for this AlphaMind roadshow optimization run.
+7. Continue from `Next Unblocked Action`.
 
 ## Last Completed Step
+
+- Completed final local validation before GitHub/cloud sync:
+  - Re-ran the long-task guardrail script; four anchors are present and the active roadshow plan remains `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`.
+  - Re-ran `npm run build`; passed with the existing Vite chunk-size warning only.
+  - Ran a sensitive-value scan for key-like SiliconFlow/API strings across tracked source/doc files; no committed secret was detected.
+  - Added `.playwright-cli/` and `output/playwright/` to `.gitignore` so browser validation artifacts are excluded from Git.
+  - Confirmed generated Playwright/output artifacts are not part of the commit scope.
+
+- Completed P1/P2 visible-loop batch:
+  - Added portfolio monitoring demo to `FeatureCards` with sample holdings, 14-day account curve, risk alert, and profile-linked language.
+  - Removed stale voice-input positioning from core feature copy.
+  - Replaced US ticker items in `StockTicker` with domestic demo assets.
+  - Replaced leftover `reasoning_content` user-facing text with public-analysis wording.
+  - Ran `npm run build`; passed with Vite chunk-size warning only.
+
+- Completed the first P0 implementation batch:
+  - Added `src/app/services/userProfile.ts` for local profile memory, risk sync, focus-asset tracking, personalized candidates, and structured advice-card data.
+  - Added domestic demo assets to `src/app/services/assetXRay.ts`: 贵州茅台 `600519`, 宁德时代 `300750`, 华安黄金ETF `518880`, 招商银行 `600036`, 沪深300 `CSI300`.
+  - Domestic assets now short-circuit to local demo data instead of failing through US market providers.
+  - Homepage now shows a demo profile summary, memory evidence, personalized domestic research candidates, mini trends, scenario probabilities, and asset search.
+  - Asset X-Ray defaults to `600519`, uses domestic search placeholders, and records viewed assets into profile memory.
+  - AI Advisor now recognizes domestic asset aliases, records focus evidence, displays message/session timestamps, and can render structured advisory cards.
+  - Risk Assessment now uses a daily-stable 4 core questions + 1 emotion/state question flow and syncs results into profile memory.
+  - Settings data clearing now removes the new profile memory key.
+  - Ran `npm run build`; passed.
 
 - Prepared the AlphaMind roadshow long task contract:
   - Created `docs/TEAM_FEEDBACK_SYNTHESIS.md` from team feedback and meeting notes.
@@ -26,6 +52,11 @@ Current task: AlphaMind roadshow plan baseline committed; waiting for explicit i
   - Added the Skill checklist so future resumes remember `long-task-guardrail`, `git-vibe-workflow`, `browser:browser`, `playwright`, `remote-1panel-deploy`, `python-project-venv`, document/PDF/spreadsheet/presentation skills, and related workflows.
   - Committed the plan baseline as `293d385 Add AlphaMind roadshow long task plan`.
   - No feature implementation has started.
+
+- Updated the roadshow acceptance contract:
+  - GitHub sync and cloud deployment are now mandatory final acceptance criteria, not optional validation.
+  - Final reporting must include GitHub sync status, cloud deploy result, and online smoke-test evidence.
+  - If external cloud deployment is impossible, the reason must be recorded in `docs/LONG_TASK_BLOCKERS.md` with local validation and recovery instructions.
 
 - Fixed AI Advisor product-facing identity:
   - Removed internal competition/demo wording from the SiliconFlow server-side system prompt in `vite.config.ts`.
@@ -128,19 +159,18 @@ Previous completed integration steps:
 
 ## Work In Progress
 
-- No active implementation in progress.
-- Roadshow long task startup gate is prepared, but P0 implementation has not started.
-- User previously authorized sub-agent/parallel agent usage for an earlier long task; for this roadshow implementation run, confirm authorization again if parallel agents should write code.
+- P0/P1/P2 roadshow implementation is locally complete for this pass; final sync and deployment are in progress.
+- User explicitly authorized sub-agent use for this run on 2026-05-26.
+- Current startup Git state before feature edits:
+  - Branch: `main`
+  - HEAD: `fbc0ca6`
+  - Status: local `main` ahead of `origin/main` by 2 commits
+  - Dirty files before feature edits: `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`, `docs/LONG_TASK_STATE.md`
+- Final GitHub sync and cloud deployment are mandatory acceptance criteria.
 
 ## Next Unblocked Action
 
-- Wait for the user's explicit instruction to start implementation.
-- On start, begin with P0 in `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`:
-  1. Establish lightweight user profile storage/service.
-  2. Fix prompt leakage and public reasoning display.
-  3. Build domestic demo asset data provider.
-  4. Add homepage personalized research candidates and search.
-- Before editing feature code, record Git status and whether checkpoint commits/pushes are authorized.
+- Stage source/docs only, commit the roadshow optimization checkpoint, push `main`, deploy `/opt/AlphaMind`, restart PM2, and verify `https://alphamind.mddcommunity.top`.
 - The existing QuantDinger/SiliconFlow blockers are not startup blockers for this roadshow task; use demo data when keys or real providers are absent.
 
 ## Files Changed Or In Scope
@@ -202,9 +232,20 @@ Remote server files changed, not part of this repository:
 
 ## Sub-Agent Ledger
 
-- Authorized: not yet confirmed for the roadshow implementation run. Earlier QuantDinger/optimization work allowed sub-agents, but this run should re-confirm if write-capable agents are desired.
+- Authorized: yes, user explicitly said "开始长任务，你可以用子agent" on 2026-05-26.
 - Active agents:
-  - none.
+  - `019e6045-7449-7f91-a235-a33fc3867ffd` / Tesla: read-only homepage/profile/asset-provider reconnaissance.
+    Permission: read-only
+    Owned scope: none
+    Expected output: key files, patterns, gotchas, implementation order for homepage/profile/domestic assets/search.
+    Status: completed
+    Result: confirmed best integration points for userProfile service, domestic dataset, HeroSection, App navigation, AssetXRay defaults, Settings cleanup; findings integrated into first P0 batch.
+  - `019e6045-aea6-75e3-862e-063a8f8c32d6` / Linnaeus: read-only AI chat/reasoning/risk-test reconnaissance.
+    Permission: read-only
+    Owned scope: none
+    Expected output: key files, data shapes, leakage/Markdown risks, implementation order for AI cards/timestamps/risk questions.
+    Status: completed
+    Result: confirmed AIAdvisorDemo/vite/RiskAssessment risks, raw reasoning UI risk, timestamps, domestic aliases, and daily emotion question flow; findings integrated into first P0 batch.
 - Completed agents:
   - `019e3524-5bcd-70c2-b2d5-d938d9c19c0e` / Godel: read-only UI/UX audit; findings integrated into mobile nav, empty chat, demo data honesty, and keyboard behavior.
   - `019e3524-7937-7842-aa32-d8b71956e5d6` / Galileo: read-only auth/session audit; findings integrated into local demo auth, masked phone storage, demo copy, and data clearing.
@@ -218,6 +259,11 @@ Remote server files changed, not part of this repository:
 
 | Time | Command | Result |
 | --- | --- | --- |
+| 2026-05-26 02:18 CST | `powershell -ExecutionPolicy Bypass -File scripts\check-overnight-plan.ps1` | Passed; script still references the older overnight plan but four anchors and current Git state were reported. |
+| 2026-05-26 02:18 CST | `npm run build` | Passed; Vite production build succeeded with chunk-size warning only. |
+| 2026-05-26 02:18 CST | `git grep -n -I "sk-..." -- . ':!dist' ':!node_modules'` | Passed; no committed key-like SiliconFlow/API secret match was found. |
+| 2026-05-26 02:23 CST | `npm run build` | Passed; Vite production build succeeded. |
+| 2026-05-26 02:34 CST | `npm run build` | Passed; Vite production build succeeded with chunk-size warning. |
 | 2026-05-17 | _initialization_ | State file created |
 | 2026-05-17 | `C:\Users\LCY\.codex\tool-venvs\python-tools\Scripts\python.exe C:\Users\LCY\.codex\skills\.system\skill-creator\scripts\quick_validate.py C:\Users\LCY\.codex\skills\long-task-guardrail` | Passed |
 | 2026-05-17 | `powershell -ExecutionPolicy Bypass -File scripts\check-overnight-plan.ps1` | Passed; branch `main`, HEAD `f7048ee` |

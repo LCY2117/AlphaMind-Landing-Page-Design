@@ -95,7 +95,7 @@ export function DataStream() {
     'predict(riskScore)',
     'analyze(volatility)',
     'optimize(returns)',
-    'execute(trade)',
+    'explain(decision)',
   ];
 
   return (

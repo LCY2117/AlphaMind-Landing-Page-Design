@@ -156,7 +156,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
   const [newChatRequest, setNewChatRequest] = useState(0);
-  const [assetXRaySymbol, setAssetXRaySymbol] = useState('TSLA');
+  const [assetXRaySymbol, setAssetXRaySymbol] = useState('600519');
 
   const handleNavigate = useCallback((newPage: number) => {
     setCurrentPage((previousPage) => {

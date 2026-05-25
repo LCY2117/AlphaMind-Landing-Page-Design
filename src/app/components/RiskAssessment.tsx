@@ -18,6 +18,7 @@ import {
   Cell,
 } from 'recharts';
 import { StockTicker } from './StockTicker';
+import { syncRiskAssessmentToProfileMemory } from '../services/userProfile';
 
 interface TestAnswer {
   questionId: number;
@@ -99,7 +100,7 @@ const generateBehaviorData = () => {
   }));
 };
 
-// 完整的20道题目库
+// 路演版 15 道核心题库，每天稳定抽取 4 道，最后 1 道来自情绪题池。
 const allQuestions = [
   {
     id: 1,
@@ -251,55 +252,38 @@ const allQuestions = [
       { id: 'C', text: '长期（3年以上）', icon: Target, risk: 45 },
     ]
   },
+];
+
+const emotionQuestions = [
   {
-    id: 16,
-    category: '家庭财务状况',
-    question: '您的家庭负债情况如何？',
+    id: 101,
+    category: '今日情绪状态',
+    question: '如果今天账户波动比较明显，您此刻更接近哪种状态？',
     options: [
-      { id: 'A', text: '负债较多，还款压力大', icon: TrendingDown, risk: 25 },
-      { id: 'B', text: '有少量负债，压力适中', icon: Minus, risk: 50 },
-      { id: 'C', text: '无负债或负债很少', icon: Check, risk: 75 },
-    ]
+      { id: 'A', text: '有点焦虑，想先降低波动', icon: TrendingDown, risk: 25 },
+      { id: 'B', text: '能接受波动，但想看清原因', icon: Brain, risk: 55 },
+      { id: 'C', text: '比较兴奋，想寻找机会', icon: TrendingUp, risk: 78 },
+    ],
   },
   {
-    id: 17,
-    category: '投资产品多样性',
-    question: '您投资过哪些类型的产品？',
+    id: 102,
+    category: '今日情绪状态',
+    question: '面对热门资产突然上涨，您今天最可能怎么做？',
     options: [
-      { id: 'A', text: '只有储蓄和理财', icon: Award, risk: 30 },
-      { id: 'B', text: '基金、债券等', icon: BarChart3, risk: 55 },
-      { id: 'C', text: '股票、期权、外汇等', icon: TrendingUp, risk: 80 },
-    ]
+      { id: 'A', text: '担心追高，先观察', icon: ShieldCheck, risk: 32 },
+      { id: 'B', text: '看完风险收益再决定', icon: Brain, risk: 58 },
+      { id: 'C', text: '想快速参与，但愿意控制仓位', icon: TrendingUp, risk: 74 },
+    ],
   },
   {
-    id: 18,
-    category: '信息获取能力',
-    question: '您通常如何获取投资信息？',
+    id: 103,
+    category: '今日情绪状态',
+    question: '今天做投资决策时，您最希望 AlphaMind 帮您守住什么？',
     options: [
-      { id: 'A', text: '很少关注，偶尔看看', icon: Activity, risk: 35 },
-      { id: 'B', text: '定期浏览财经新闻', icon: Brain, risk: 55 },
-      { id: 'C', text: '深入研究，多渠道对比', icon: Award, risk: 75 },
-    ]
-  },
-  {
-    id: 19,
-    category: '心理抗压能力',
-    question: '面对持续亏损，您的心态如何？',
-    options: [
-      { id: 'A', text: '非常焦虑，难以承受', icon: TrendingDown, risk: 20 },
-      { id: 'B', text: '有些担心，但能坚持', icon: Minus, risk: 50 },
-      { id: 'C', text: '保持冷静，理性分析', icon: Brain, risk: 80 },
-    ]
-  },
-  {
-    id: 20,
-    category: '调整策略灵活度',
-    question: '当投资策略失效时，您会怎么做？',
-    options: [
-      { id: 'A', text: '立即退出，减少损失', icon: TrendingDown, risk: 30 },
-      { id: 'B', text: '观察一段时间再决定', icon: Minus, risk: 55 },
-      { id: 'C', text: '优化策略，继续执行', icon: Target, risk: 75 },
-    ]
+      { id: 'A', text: '守住本金安全感', icon: ShieldCheck, risk: 28 },
+      { id: 'B', text: '守住组合纪律', icon: Target, risk: 55 },
+      { id: 'C', text: '守住机会窗口', icon: Zap, risk: 76 },
+    ],
   },
 ];
 
@@ -312,10 +296,18 @@ const EMPTY_RADAR_DATA = [
   { id: 'behavior-pattern-empty', subject: '行为模式', value: 0, fullMark: 100 },
 ];
 
-// 快速版固定抽取 5 个核心维度，保证每次演示可复现。
 const selectRandomQuestions = (allQuestions: any[], count: number = 5) => {
-  const indices = [0, 4, 8, 12, 16];
-  return indices.map(i => allQuestions[i]).filter(Boolean);
+  const dayKey = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+  const scored = allQuestions
+    .map((question, index) => ({
+      question,
+      score: ((question.id * 1103515245 + dayKey * 2654435761 + index * 97) >>> 0),
+    }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, Math.max(0, count - 1))
+    .map((item) => item.question);
+  const emotion = emotionQuestions[dayKey % emotionQuestions.length];
+  return [...scored, emotion];
 };
 
 export function RiskAssessment() {
@@ -456,6 +448,7 @@ export function RiskAssessment() {
 
       setAssessmentResult(result);
       saveRiskProfile(result);
+      syncRiskAssessmentToProfileMemory(result);
       setIsAnalyzing(false);
       setShowTestModal(false);
       setCurrentQuestion(0);

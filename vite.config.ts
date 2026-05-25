@@ -127,6 +127,40 @@ function isUnsupportedThinkingError(message: string) {
   )
 }
 
+function toPublicReasoningSummary(input: string) {
+  const text = input.trim()
+  if (!text) return ''
+
+  const blockedPatterns = [
+    /system prompt/gi,
+    /developer message/gi,
+    /chain[- ]?of[- ]?thought/gi,
+    /你是.{0,24}(?:助手|顾问|模型)/g,
+    /不要提及.{0,80}/g,
+    /比赛|医创赛|演示项目/g,
+    /内部(?:开发|实现|提示|指令)/g,
+  ]
+
+  const sanitized = text
+    .split(/\r?\n+/)
+    .map((line) => blockedPatterns.reduce((acc, pattern) => acc.replace(pattern, '公开分析边界'), line).trim())
+    .filter(Boolean)
+    .slice(0, 4)
+
+  if (!sanitized.length) {
+    return [
+      '1. 问题拆解：先界定资产、期限与风险边界。',
+      '2. 关键假设：以用户已提供信息为主，不补造未给出的个人约束。',
+      '3. 风险因素：重点检查市场波动、流动性和集中度。',
+      '4. 结论边界：仅输出研究辅助，不替代独立决策。',
+    ].join('\n')
+  }
+
+  return sanitized
+    .map((line, index) => `${index + 1}. ${line.replace(/^\d+[.)、]\s*/, '')}`)
+    .join('\n')
+}
+
 async function readSiliconFlowError(response: Response) {
   const payload = await response.json().catch(() => ({}))
   return {
@@ -639,7 +673,6 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
 
               if (reasoningDelta) {
                 reasoningContent += reasoningDelta
-                sendSse(res, 'reasoning', { delta: reasoningDelta })
               }
 
               if (contentDelta) {
@@ -679,7 +712,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
                   mode,
                   hasImage,
                   thinkingEnabled: thinkingRequested,
-                  reasoningContent: reasoningContent.trim(),
+                  reasoningContent: toPublicReasoningSummary(reasoningContent),
                   source: 'siliconflow',
                   usage,
                 })
@@ -735,7 +768,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             mode,
             hasImage,
             thinkingEnabled: thinkingRequested,
-            reasoningContent,
+            reasoningContent: toPublicReasoningSummary(reasoningContent),
             source: 'siliconflow',
             usage: payload.usage,
           })

@@ -13,3 +13,5 @@ coverage/
 *.tgz
 *.7z
 *.rar
+.playwright-cli/
+output/playwright/

@@ -1,8 +1,16 @@
-import { CSSProperties } from 'react';
+import { CSSProperties, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { Activity, Brain, Shield, Target, TrendingUp } from 'lucide-react';
+import { Activity, ArrowUpRight, Brain, Search, Shield, Target, TrendingUp } from 'lucide-react';
 import { DataStream, HexGrid } from './TechVisualization';
 import { useAuth } from '../contexts/AuthContext';
+import { getMockAssetXRayReport, normalizeAssetSymbol } from '../services/assetXRay';
+import {
+  getPersonalizedResearchCandidates,
+  getProfileEvidence,
+  loadUserProfileMemory,
+  recordAssetInterest,
+  type UserProfileMemory,
+} from '../services/userProfile';
 
 const satellites = [
   {
@@ -214,6 +222,21 @@ function CognitiveTopology() {
 
 export function HeroSection() {
   const { isAuthenticated, openLoginModal } = useAuth();
+  const [profile, setProfile] = useState<UserProfileMemory>(() => loadUserProfileMemory());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const refreshProfile = () => setProfile(loadUserProfileMemory());
+    window.addEventListener('alphamind-profile-updated', refreshProfile);
+    window.addEventListener('storage', refreshProfile);
+    return () => {
+      window.removeEventListener('alphamind-profile-updated', refreshProfile);
+      window.removeEventListener('storage', refreshProfile);
+    };
+  }, []);
+
+  const candidates = getPersonalizedResearchCandidates(profile);
+  const evidence = getProfileEvidence(profile);
 
   const handleStartExperience = () => {
     if (!isAuthenticated) {
@@ -224,9 +247,23 @@ export function HeroSection() {
     }
   };
 
+  const openAssetXRay = (symbol: string) => {
+    const normalized = normalizeAssetSymbol(symbol);
+    recordAssetInterest(normalized, 'home');
+    const event = new CustomEvent('navigate-to-page', { detail: { page: 3, assetSymbol: normalized } });
+    window.dispatchEvent(event);
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!searchQuery.trim()) return;
+    openAssetXRay(searchQuery);
+    setSearchQuery('');
+  };
+
   return (
-    <section id="home" className="w-full min-h-screen flex items-center am-page-gradient">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 lg:py-20">
+    <section id="home" className="w-full min-h-screen am-page-gradient">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12 lg:py-14">
         <div className="grid lg:grid-cols-2 gap-8 md:gap-10 lg:gap-12 items-center">
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -242,6 +279,36 @@ export function HeroSection() {
             <p className="text-base sm:text-lg md:text-xl am-text-secondary">
               以金融语义、风险画像与资产透视为核心，构建可演示、可扩展的智能投顾体验
             </p>
+            <div className="rounded-2xl border am-card-strong p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-xs font-semibold am-brand mb-1">演示账户画像</div>
+                  <div className="text-lg font-bold am-text-primary">
+                    {profile.riskLevel} · 风险分 {Math.round(profile.riskScore)}/100
+                  </div>
+                  <div className="mt-1 text-sm am-text-secondary">
+                    {profile.emotionTag || '平稳'}状态 · {profile.focusTopics.slice(0, 3).join(' / ')}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const event = new CustomEvent('navigate-to-page', { detail: 2 });
+                    window.dispatchEvent(event);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border am-card px-4 py-2 text-sm font-semibold am-text-primary am-hover-surface"
+                >
+                  校准画像
+                  <ArrowUpRight size={15} />
+                </button>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {evidence.slice(0, 4).map((item) => (
+                  <div key={item} className="rounded-lg border am-border-subtle am-surface-muted px-3 py-2 text-xs am-text-secondary">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -274,6 +341,117 @@ export function HeroSection() {
             <CognitiveTopology />
           </motion.div>
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.25 }}
+          className="mt-8 sm:mt-10"
+        >
+          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] am-brand">Personalized Research</div>
+              <h2 className="mt-2 text-2xl sm:text-3xl font-bold am-text-primary">个性化研究候选</h2>
+              <p className="mt-2 max-w-2xl text-sm sm:text-base am-text-secondary">
+                根据本地画像、最近关注与演示资产信号生成，不承诺收益，仅作为路演版研究入口。
+              </p>
+            </div>
+            <form onSubmit={handleSearchSubmit} className="flex min-w-0 flex-col gap-2 sm:flex-row lg:w-[420px]">
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border am-input-surface px-3 py-2">
+                <Search size={17} className="am-text-tertiary" />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="搜索：茅台 / 宁德时代 / 黄金ETF / 600519"
+                  className="min-w-0 flex-1 bg-transparent text-sm am-text-primary am-placeholder focus:outline-none"
+                />
+              </div>
+              <button type="submit" className="rounded-xl am-brand-bg px-4 py-2 text-sm font-semibold">
+                资产透视
+              </button>
+            </form>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {candidates.map((asset) => {
+              const report = getMockAssetXRayReport(asset.symbol);
+              const trend = report.priceSeries?.slice(-14) ?? [];
+              const closes = trend.map((item) => item.close);
+              const min = Math.min(...closes);
+              const max = Math.max(...closes);
+              const points = trend.map((item, index) => {
+                const x = trend.length <= 1 ? 4 : 4 + (index / (trend.length - 1)) * 92;
+                const ratio = max === min ? 0.5 : (item.close - min) / (max - min);
+                const y = 42 - ratio * 30;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+              }).join(' ');
+
+              return (
+                <motion.button
+                  key={asset.symbol}
+                  whileHover={{ y: -4 }}
+                  onClick={() => openAssetXRay(asset.symbol)}
+                  className="group rounded-2xl border am-card p-4 text-left transition-all hover:border-[#C44536]/45 hover:shadow-[0_18px_45px_rgba(196,69,54,0.12)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs am-text-tertiary">{asset.market} · {asset.symbol}</div>
+                      <div className="mt-1 text-lg font-bold am-text-primary">{asset.name}</div>
+                      <div className="mt-1 text-xs am-text-secondary">{asset.sector}</div>
+                    </div>
+                    <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${asset.changeValue >= 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                      {asset.change}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 h-14 rounded-xl border am-border-subtle am-surface-muted px-2 py-2">
+                    <svg viewBox="0 0 100 46" preserveAspectRatio="none" className="h-full w-full">
+                      <polyline
+                        points={points}
+                        fill="none"
+                        stroke={asset.changeValue >= 0 ? '#22C55E' : '#EF4444'}
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg border am-border-subtle px-2 py-2">
+                      <div className="am-text-tertiary">上涨</div>
+                      <div className="mt-1 font-semibold text-green-500">{asset.probabilities.up}%</div>
+                    </div>
+                    <div className="rounded-lg border am-border-subtle px-2 py-2">
+                      <div className="am-text-tertiary">横盘</div>
+                      <div className="mt-1 font-semibold text-amber-500">{asset.probabilities.flat}%</div>
+                    </div>
+                    <div className="rounded-lg border am-border-subtle px-2 py-2">
+                      <div className="am-text-tertiary">下跌</div>
+                      <div className="mt-1 font-semibold text-red-500">{asset.probabilities.down}%</div>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-sm leading-6 am-text-secondary">
+                    {profile.riskLevel === '保守型'
+                      ? `以${profile.riskLevel}画像观察，重点看回撤与安全边际。`
+                      : profile.riskLevel === '进取型'
+                      ? `以${profile.riskLevel}画像观察，可作为弹性或主题资产研究。`
+                      : `以${profile.riskLevel}画像观察，适合放进组合平衡框架讨论。`}
+                  </p>
+
+                  <div className="mt-4 flex items-center justify-between text-xs">
+                    <span className="am-text-tertiary">演示数据 / 情景推演</span>
+                    <span className="inline-flex items-center gap-1 am-brand">
+                      查看透视
+                      <ArrowUpRight size={13} />
+                    </span>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
       </div>
     </section>
   );

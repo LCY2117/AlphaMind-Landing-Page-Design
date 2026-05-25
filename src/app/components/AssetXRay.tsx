@@ -36,10 +36,12 @@ import {
 import {
   getAssetXRayReport,
   getMockAssetXRayReport,
+  isDomesticDemoSymbol,
   MOCK_ASSET_REPORTS,
   normalizeAssetSymbol,
   type AssetXRayReport,
 } from '../services/assetXRay';
+import { recordAssetInterest } from '../services/userProfile';
 
 type ScanState = 'idle' | 'scanning' | 'complete';
 
@@ -722,7 +724,7 @@ interface AssetXRayProps {
   requestedSymbol?: string;
 }
 
-export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
+export function AssetXRay({ requestedSymbol = '600519' }: AssetXRayProps) {
   const initialSymbol = normalizeAssetSymbol(requestedSymbol);
   const [query, setQuery] = useState(initialSymbol);
   const [stock, setStock] = useState<AssetXRayReport>(() => getMockAssetXRayReport(initialSymbol));
@@ -788,9 +790,13 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
     }
 
     try {
-      const report = await getAssetXRayReport({ symbol: normalized, market: 'USStock' });
+      const report = await getAssetXRayReport({
+        symbol: normalized,
+        market: isDomesticDemoSymbol(normalized) ? 'CNStock' : 'USStock',
+      });
       if (activeRequestRef.current !== requestId) return;
       setStock(report);
+      recordAssetInterest(report.symbol, 'asset-xray');
     } catch (error) {
       if (activeRequestRef.current !== requestId) return;
       const message = error instanceof Error ? error.message : 'unknown provider error';
@@ -866,7 +872,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold am-text-primary mb-3">资产透视</h2>
               <p className="am-text-secondary max-w-2xl">
-                输入股票代码，查看真实日线走势、新闻线索、估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注演示数据。
+                输入国内股票、ETF 或指数名称，查看样例日线走势、新闻线索、估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注演示数据。
               </p>
             </motion.div>
 
@@ -880,7 +886,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') runScan();
                     }}
-                    placeholder="输入股票代码，如 TSLA / NVDA / AAPL"
+                    placeholder="输入股票代码或名称，如 600519 / 茅台 / 黄金ETF"
                     className="flex-1 bg-transparent am-text-primary am-placeholder focus:outline-none text-sm"
                   />
                 </div>
@@ -1126,7 +1132,7 @@ export function AssetXRay({ requestedSymbol = 'TSLA' }: AssetXRayProps) {
             </div>
             <div>
               <div className="text-sm font-semibold am-text-primary">也可以在对话投顾里继续追问</div>
-              <div className="text-xs am-text-secondary">例如：帮我解释 TSLA 的估值风险，或者对比 NVDA 与 AAPL</div>
+              <div className="text-xs am-text-secondary">例如：帮我解释贵州茅台的估值风险，或者对比宁德时代与黄金ETF</div>
             </div>
           </div>
           <button
