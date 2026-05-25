@@ -2,20 +2,30 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-17 20:03 CST
-Status: done
-Current priority: AI Advisor prompt contamination fixed and deployed
-Current task: Keep AlphaMind AI Advisor product-facing and free of internal competition/demo wording
+Last updated: 2026-05-26 01:41 CST
+Status: paused
+Current priority: Roadshow long task startup gate prepared
+Current task: AlphaMind roadshow plan baseline committed; waiting for explicit implementation start
 
 ## Resume Instructions
 
-1. Read `docs/ALPHAMIND_OPTIMIZATION_PLAN.md`.
+1. Read `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`.
 2. Read this file.
 3. Read `docs/LONG_TASK_BLOCKERS.md`.
-4. Run `powershell -ExecutionPolicy Bypass -File scripts/check-overnight-plan.ps1`.
-5. Continue from `Next Unblocked Action`.
+4. Treat `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md` as the active PLAN even though `scripts/check-overnight-plan.ps1` still prints the older overnight plan.
+5. Check Git status and confirm whether checkpoint commits/pushes are authorized for the implementation run.
+6. Continue from `Next Unblocked Action`.
 
 ## Last Completed Step
+
+- Prepared the AlphaMind roadshow long task contract:
+  - Created `docs/TEAM_FEEDBACK_SYNTHESIS.md` from team feedback and meeting notes.
+  - Created `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md` as the active roadshow implementation plan.
+  - Added the execution rules: missing API keys do not block; use researched demo data instead.
+  - Added non-goals: no real WeChat QR login, real SMS verification, real account/password system, live trading, or precise return prediction.
+  - Added the Skill checklist so future resumes remember `long-task-guardrail`, `git-vibe-workflow`, `browser:browser`, `playwright`, `remote-1panel-deploy`, `python-project-venv`, document/PDF/spreadsheet/presentation skills, and related workflows.
+  - Committed the plan baseline as `293d385 Add AlphaMind roadshow long task plan`.
+  - No feature implementation has started.
 
 - Fixed AI Advisor product-facing identity:
   - Removed internal competition/demo wording from the SiliconFlow server-side system prompt in `vite.config.ts`.
@@ -118,21 +128,27 @@ Previous completed integration steps:
 
 ## Work In Progress
 
-- No active implementation in progress. QuantDinger runtime verification is complete.
-- User authorized sub-agent/parallel agent usage for this long task.
+- No active implementation in progress.
+- Roadshow long task startup gate is prepared, but P0 implementation has not started.
+- User previously authorized sub-agent/parallel agent usage for an earlier long task; for this roadshow implementation run, confirm authorization again if parallel agents should write code.
 
 ## Next Unblocked Action
 
-- User can open `https://alphamind.mddcommunity.top`, enter `资产透视`, and verify live QuantDinger status for supported symbols.
-- Continue product optimization from the synced cloud baseline.
-- Consider standardizing the server deployment command to PM2's Node 24 environment, or upgrading the system Node used by direct SSH `npm` commands, to remove the `react-router` engine warning.
-- Review the single high severity `npm audit` finding in a separate dependency-maintenance pass.
-- If real Agent Gateway backtests are needed, resolve the active token blocker in `docs/LONG_TASK_BLOCKERS.md`.
+- Wait for the user's explicit instruction to start implementation.
+- On start, begin with P0 in `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`:
+  1. Establish lightweight user profile storage/service.
+  2. Fix prompt leakage and public reasoning display.
+  3. Build domestic demo asset data provider.
+  4. Add homepage personalized research candidates and search.
+- Before editing feature code, record Git status and whether checkpoint commits/pushes are authorized.
+- The existing QuantDinger/SiliconFlow blockers are not startup blockers for this roadshow task; use demo data when keys or real providers are absent.
 
 ## Files Changed Or In Scope
 
-- `.env.example`
+- `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`
+- `docs/TEAM_FEEDBACK_SYNTHESIS.md`
 - `docs/LONG_TASK_STATE.md`
+- `.env.example`
 - `docs/LONG_TASK_BLOCKERS.md`
 - `docs/LONG_TASK_DEVELOPMENT_WORKFLOW.md`
 - `docs/OVERNIGHT_IMPLEMENTATION_PLAN.md`
@@ -170,22 +186,23 @@ Remote server files changed, not part of this repository:
 ## Git State
 
 - Branch: `main`
-- HEAD: `7e35bde`
-- Current dirty files: none before this PCB update; this state update may be committed as a docs-only follow-up.
-- Pre-existing dirty files before this optimization task: untracked `docs/API_APPLICATION_CHECKLIST.md`
-- Checkpoint commits authorized: no
-- Latest synchronized commit: `7e35bde Improve AlphaMind UX and connect QuantDinger runtime`
+- HEAD: `293d385`
+- Current dirty files: `docs/LONG_TASK_STATE.md`
+- Pre-existing dirty files before the roadshow startup gate: untracked `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`, untracked `docs/TEAM_FEEDBACK_SYNTHESIS.md`; both are now committed in `293d385`.
+- Checkpoint commits authorized for the roadshow implementation: not yet confirmed.
+- Latest local roadshow plan baseline commit: `293d385 Add AlphaMind roadshow long task plan`
+- Remote sync status: local `main` is ahead of `origin/main` until the startup-state commit/push is completed.
 
 ## Four Anchors Check
 
-- PLAN: `docs/ALPHAMIND_OPTIMIZATION_PLAN.md`
+- PLAN: `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`
 - STATE/PCB: `docs/LONG_TASK_STATE.md`
 - BLOCKERS: `docs/LONG_TASK_BLOCKERS.md`
-- GIT: branch `main`, HEAD `7e35bde`, synchronized to `origin/main` and cloud `/opt/AlphaMind`
+- GIT: branch `main`, HEAD `293d385`, dirty file `docs/LONG_TASK_STATE.md`; startup state update is in progress
 
 ## Sub-Agent Ledger
 
-- Authorized: yes, user allowed sub-agent/parallel agent use for this long task.
+- Authorized: not yet confirmed for the roadshow implementation run. Earlier QuantDinger/optimization work allowed sub-agents, but this run should re-confirm if write-capable agents are desired.
 - Active agents:
   - none.
 - Completed agents:
@@ -248,9 +265,12 @@ Remote server files changed, not part of this repository:
 | 2026-05-17 | Server PM2 restart `alphamind --update-env` | Passed; process `alphamind` online |
 | 2026-05-17 | `Invoke-WebRequest https://alphamind.mddcommunity.top` | Passed; HTTP 200 |
 | 2026-05-17 | `POST https://alphamind.mddcommunity.top/api/alphamind/chat` | Passed; returned SiliconFlow product-facing AlphaMind advisor answer without internal competition/demo wording |
+| 2026-05-26 | `git commit -m "Add AlphaMind roadshow long task plan"` | Created commit `293d385` with `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md` and `docs/TEAM_FEEDBACK_SYNTHESIS.md` |
+| 2026-05-26 | `git status --short --branch` | Branch `main`; local branch ahead of `origin/main`; current dirty file after PCB update: `docs/LONG_TASK_STATE.md` |
 
 ## Validation State
 
+- Latest readiness gate: plan docs committed; Node/npm/rg/node_modules available; Git remote fetch works; SSH to `/opt/AlphaMind` works; browser automation became ready after using the current browser plugin cache path. No feature implementation or acceptance validation has started for the roadshow plan.
 - Latest local validation: `npm run build` passed after AI Advisor prompt cleanup; internal competition wording and pasted-key-fragment scan returned no matches.
 - Latest remote validation: `/opt/AlphaMind` is at `26b17fd`, PM2 `alphamind` is online, public page returns HTTP 200, `/api/alphamind/chat` returns SiliconFlow product-facing wording, QuantDinger containers remain healthy, and indicator API works through the AlphaMind same-origin proxy.
 - Browser validation note: Playwright smoke test on `http://127.0.0.1:5174` passed earlier for demo login, Risk page, Asset X-Ray, and Chat-to-Asset-X-Ray CTA. A later ad hoc Playwright network smoke did not run because the temporary package was not importable without adding a dependency.
@@ -271,6 +291,9 @@ Remote server files changed, not part of this repository:
 - Remote QuantDinger should stay loopback-only; public access should go through AlphaMind/OpenResty same-origin proxy.
 - Agent Gateway and fast-analysis tokens remain user-only secrets and must not be copied into chat or committed files.
 - The SiliconFlow key pasted into chat should be treated as exposed; only a rotated replacement key should be placed into server-only env.
+- For the roadshow task, missing API keys do not go to the blocker queue; use researched demo data and local mock providers instead.
+- Real WeChat QR login, real SMS verification, and real account/password auth are out of scope for the roadshow task.
+- The active roadshow PLAN supersedes older optimization/overnight plans for new implementation decisions.
 
 ## Open Blockers Summary
 
