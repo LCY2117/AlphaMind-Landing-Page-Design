@@ -21,8 +21,8 @@ Current task: AlphaMind roadshow advisory loop implemented, synced to GitHub, de
 
 - Completed final GitHub and cloud deployment acceptance:
   - Created and pushed roadshow implementation commit `1ebfe9e Improve AlphaMind roadshow advisory loop`.
-  - GitHub `main` is synced at `1ebfe9e`.
-  - Cloud `/opt/AlphaMind` fast-forwarded from `74be880` to `1ebfe9e` with `git pull --ff-only origin main`.
+  - GitHub `main` was synced to the implementation commit, then a completion documentation commit was pushed after validation.
+  - Cloud `/opt/AlphaMind` fast-forwarded from `74be880` to the implementation commit with `git pull --ff-only origin main`; final documentation sync followed without runtime code changes.
   - Preserved server-only `/opt/AlphaMind/.env.local`.
   - Rebuilt on the server with Node `v24.14.0`; `npm run build` passed with only the existing Vite chunk-size warning.
   - Restarted PM2 process `alphamind`; status is `online`.
@@ -232,20 +232,21 @@ Remote server files changed, not part of this repository:
 ## Git State
 
 - Branch: `main`
-- HEAD: `1ebfe9e`
-- Current dirty files: `docs/LONG_TASK_STATE.md` final completion note before final documentation commit.
+- HEAD: final completion documentation commit on `main`.
+- Current dirty files: none expected after final sync.
 - Pre-existing dirty files before the roadshow startup gate: untracked `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`, untracked `docs/TEAM_FEEDBACK_SYNTHESIS.md`; both are now committed in `293d385`.
 - Checkpoint commits authorized for the roadshow implementation: yes, user required GitHub sync and cloud deployment.
 - Latest local roadshow plan baseline commit: `293d385 Add AlphaMind roadshow long task plan`
 - Latest implementation commit: `1ebfe9e Improve AlphaMind roadshow advisory loop`
-- Remote sync status: GitHub `origin/main` is synced at `1ebfe9e`; final PCB-only completion note still needs its own commit/push if preserved.
+- Latest completion documentation commit: recorded after the implementation commit.
+- Remote sync status: GitHub `origin/main` is synced through the completion documentation commit.
 
 ## Four Anchors Check
 
 - PLAN: `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`
 - STATE/PCB: `docs/LONG_TASK_STATE.md`
 - BLOCKERS: `docs/LONG_TASK_BLOCKERS.md`
-- GIT: branch `main`, HEAD `1ebfe9e`, GitHub `origin/main` synced at `1ebfe9e`; final PCB note pending commit.
+- GIT: branch `main`, GitHub `origin/main`, and cloud `/opt/AlphaMind` are expected to be synced through the final completion documentation commit.
 
 ## Sub-Agent Ledger
 
@@ -284,6 +285,8 @@ Remote server files changed, not part of this repository:
 | 2026-05-26 02:25 CST | `Invoke-WebRequest https://alphamind.mddcommunity.top` | Passed; HTTP 200. |
 | 2026-05-26 02:25 CST | `Invoke-WebRequest https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/price?market=USStock&symbol=TSLA` | Passed; HTTP 200, upstream returned `No price data found` rather than proxy failure. |
 | 2026-05-26 02:32 CST | Online browser smoke with local Chrome and Playwright package | Passed: homepage personalized candidates, Asset X-Ray `600519`, chat structured advisory card for 茅台, mobile 390px no horizontal overflow. |
+| 2026-05-26 02:34 CST | `git commit -m "Record AlphaMind roadshow deployment completion"` | Created completion documentation commit after feature deploy. |
+| 2026-05-26 02:34 CST | `git push origin main` | Passed; GitHub `main` updated with completion documentation. |
 | 2026-05-26 02:18 CST | `powershell -ExecutionPolicy Bypass -File scripts\check-overnight-plan.ps1` | Passed; script still references the older overnight plan but four anchors and current Git state were reported. |
 | 2026-05-26 02:18 CST | `npm run build` | Passed; Vite production build succeeded with chunk-size warning only. |
 | 2026-05-26 02:18 CST | `git grep -n -I "sk-..." -- . ':!dist' ':!node_modules'` | Passed; no committed key-like SiliconFlow/API secret match was found. |
@@ -343,7 +346,7 @@ Remote server files changed, not part of this repository:
 
 - Latest readiness gate: plan docs committed; Node/npm/rg/node_modules available; Git remote fetch works; SSH to `/opt/AlphaMind` works; browser automation works through local Chrome with the Codex runtime Playwright package.
 - Latest local validation: `npm run build` passed after roadshow implementation; key-like secret scan returned no matches in tracked source/doc scope; generated Playwright/output artifacts are ignored.
-- Latest remote validation: `/opt/AlphaMind` is at `1ebfe9e`, PM2 `alphamind` is online under Node `24.14.0`, public page returns HTTP 200, QuantDinger proxy is reachable, and server build passed.
+- Latest remote validation: runtime validation was performed at implementation commit `1ebfe9e`; PM2 `alphamind` is online under Node `24.14.0`, public page returns HTTP 200, QuantDinger proxy is reachable, and server build passed. Final documentation commits do not change runtime code.
 - Latest browser validation: online smoke against `https://alphamind.mddcommunity.top` passed for homepage personalized candidates, Asset X-Ray default domestic asset, chat structured advisory card for 茅台, and mobile 390px no horizontal overflow.
 
 ## Decisions
