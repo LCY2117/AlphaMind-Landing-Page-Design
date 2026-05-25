@@ -2,10 +2,10 @@
 
 This file is the process control block (PCB) for unattended long tasks. Update it whenever the task changes phase, after meaningful edits, after validation, when a blocker appears, and before any stop/resume handoff.
 
-Last updated: 2026-05-26 02:19 CST
-Status: validating
-Current priority: GitHub sync and cloud deployment
-Current task: Local roadshow optimization validation passed; preparing commit, push, and cloud deploy
+Last updated: 2026-05-26 02:34 CST
+Status: done
+Current priority: Roadshow optimization complete
+Current task: AlphaMind roadshow advisory loop implemented, synced to GitHub, deployed to cloud, and smoke-tested online
 
 ## Resume Instructions
 
@@ -18,6 +18,22 @@ Current task: Local roadshow optimization validation passed; preparing commit, p
 7. Continue from `Next Unblocked Action`.
 
 ## Last Completed Step
+
+- Completed final GitHub and cloud deployment acceptance:
+  - Created and pushed roadshow implementation commit `1ebfe9e Improve AlphaMind roadshow advisory loop`.
+  - GitHub `main` is synced at `1ebfe9e`.
+  - Cloud `/opt/AlphaMind` fast-forwarded from `74be880` to `1ebfe9e` with `git pull --ff-only origin main`.
+  - Preserved server-only `/opt/AlphaMind/.env.local`.
+  - Rebuilt on the server with Node `v24.14.0`; `npm run build` passed with only the existing Vite chunk-size warning.
+  - Restarted PM2 process `alphamind`; status is `online`.
+  - Verified `https://alphamind.mddcommunity.top` returns HTTP 200.
+  - Verified QuantDinger same-origin proxy is reachable at `/api/quantdinger/...` with HTTP 200, though the sample TSLA price request returned `No price data found` from upstream data rather than a proxy failure.
+  - Ran online browser smoke with local Chrome + Playwright package:
+    - Homepage personalized candidates visible.
+    - Asset X-Ray defaults to domestic demo asset `600519`.
+    - Chat question `帮我分析一下茅台` renders the structured advisory card.
+    - Mobile 390px homepage loads without horizontal overflow.
+  - Confirmed generated Playwright/output artifacts remain ignored and are not committed.
 
 - Completed final local validation before GitHub/cloud sync:
   - Re-ran the long-task guardrail script; four anchors are present and the active roadshow plan remains `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`.
@@ -159,7 +175,7 @@ Previous completed integration steps:
 
 ## Work In Progress
 
-- P0/P1/P2 roadshow implementation is locally complete for this pass; final sync and deployment are in progress.
+- No active implementation remains in progress for this pass.
 - User explicitly authorized sub-agent use for this run on 2026-05-26.
 - Current startup Git state before feature edits:
   - Branch: `main`
@@ -170,7 +186,7 @@ Previous completed integration steps:
 
 ## Next Unblocked Action
 
-- Stage source/docs only, commit the roadshow optimization checkpoint, push `main`, deploy `/opt/AlphaMind`, restart PM2, and verify `https://alphamind.mddcommunity.top`.
+- Optional future work: rotate and install a server-only SiliconFlow key, add read/backtest-scoped QuantDinger Agent token if desired, and continue real-data provider enrichment. No current roadshow acceptance task is blocked.
 - The existing QuantDinger/SiliconFlow blockers are not startup blockers for this roadshow task; use demo data when keys or real providers are absent.
 
 ## Files Changed Or In Scope
@@ -216,19 +232,20 @@ Remote server files changed, not part of this repository:
 ## Git State
 
 - Branch: `main`
-- HEAD: `293d385`
-- Current dirty files: `docs/LONG_TASK_STATE.md`
+- HEAD: `1ebfe9e`
+- Current dirty files: `docs/LONG_TASK_STATE.md` final completion note before final documentation commit.
 - Pre-existing dirty files before the roadshow startup gate: untracked `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`, untracked `docs/TEAM_FEEDBACK_SYNTHESIS.md`; both are now committed in `293d385`.
-- Checkpoint commits authorized for the roadshow implementation: not yet confirmed.
+- Checkpoint commits authorized for the roadshow implementation: yes, user required GitHub sync and cloud deployment.
 - Latest local roadshow plan baseline commit: `293d385 Add AlphaMind roadshow long task plan`
-- Remote sync status: local `main` is ahead of `origin/main` until the startup-state commit/push is completed.
+- Latest implementation commit: `1ebfe9e Improve AlphaMind roadshow advisory loop`
+- Remote sync status: GitHub `origin/main` is synced at `1ebfe9e`; final PCB-only completion note still needs its own commit/push if preserved.
 
 ## Four Anchors Check
 
 - PLAN: `docs/ALPHAMIND_ROADSHOW_LONG_TASK_PLAN.md`
 - STATE/PCB: `docs/LONG_TASK_STATE.md`
 - BLOCKERS: `docs/LONG_TASK_BLOCKERS.md`
-- GIT: branch `main`, HEAD `293d385`, dirty file `docs/LONG_TASK_STATE.md`; startup state update is in progress
+- GIT: branch `main`, HEAD `1ebfe9e`, GitHub `origin/main` synced at `1ebfe9e`; final PCB note pending commit.
 
 ## Sub-Agent Ledger
 
@@ -259,6 +276,14 @@ Remote server files changed, not part of this repository:
 
 | Time | Command | Result |
 | --- | --- | --- |
+| 2026-05-26 02:20 CST | `git commit -m "Improve AlphaMind roadshow advisory loop"` | Created commit `1ebfe9e`. |
+| 2026-05-26 02:21 CST | `git push origin main` | Passed; GitHub `main` updated to `1ebfe9e`. |
+| 2026-05-26 02:23 CST | Server `git pull --ff-only origin main` in `/opt/AlphaMind` | Passed; cloud repo updated from `74be880` to `1ebfe9e`; `.env.local` preserved. |
+| 2026-05-26 02:24 CST | Server `npm install && npm run build` | Passed; first install showed Node path warnings, then a second build was run with explicit Node `v24.14.0`; only Vite chunk-size warning remained. |
+| 2026-05-26 02:25 CST | Server PM2 restart `alphamind --update-env` | Passed; process `alphamind` online under Node `24.14.0`. |
+| 2026-05-26 02:25 CST | `Invoke-WebRequest https://alphamind.mddcommunity.top` | Passed; HTTP 200. |
+| 2026-05-26 02:25 CST | `Invoke-WebRequest https://alphamind.mddcommunity.top/api/quantdinger/api/indicator/price?market=USStock&symbol=TSLA` | Passed; HTTP 200, upstream returned `No price data found` rather than proxy failure. |
+| 2026-05-26 02:32 CST | Online browser smoke with local Chrome and Playwright package | Passed: homepage personalized candidates, Asset X-Ray `600519`, chat structured advisory card for 茅台, mobile 390px no horizontal overflow. |
 | 2026-05-26 02:18 CST | `powershell -ExecutionPolicy Bypass -File scripts\check-overnight-plan.ps1` | Passed; script still references the older overnight plan but four anchors and current Git state were reported. |
 | 2026-05-26 02:18 CST | `npm run build` | Passed; Vite production build succeeded with chunk-size warning only. |
 | 2026-05-26 02:18 CST | `git grep -n -I "sk-..." -- . ':!dist' ':!node_modules'` | Passed; no committed key-like SiliconFlow/API secret match was found. |
@@ -316,10 +341,10 @@ Remote server files changed, not part of this repository:
 
 ## Validation State
 
-- Latest readiness gate: plan docs committed; Node/npm/rg/node_modules available; Git remote fetch works; SSH to `/opt/AlphaMind` works; browser automation became ready after using the current browser plugin cache path. No feature implementation or acceptance validation has started for the roadshow plan.
-- Latest local validation: `npm run build` passed after AI Advisor prompt cleanup; internal competition wording and pasted-key-fragment scan returned no matches.
-- Latest remote validation: `/opt/AlphaMind` is at `26b17fd`, PM2 `alphamind` is online, public page returns HTTP 200, `/api/alphamind/chat` returns SiliconFlow product-facing wording, QuantDinger containers remain healthy, and indicator API works through the AlphaMind same-origin proxy.
-- Browser validation note: Playwright smoke test on `http://127.0.0.1:5174` passed earlier for demo login, Risk page, Asset X-Ray, and Chat-to-Asset-X-Ray CTA. A later ad hoc Playwright network smoke did not run because the temporary package was not importable without adding a dependency.
+- Latest readiness gate: plan docs committed; Node/npm/rg/node_modules available; Git remote fetch works; SSH to `/opt/AlphaMind` works; browser automation works through local Chrome with the Codex runtime Playwright package.
+- Latest local validation: `npm run build` passed after roadshow implementation; key-like secret scan returned no matches in tracked source/doc scope; generated Playwright/output artifacts are ignored.
+- Latest remote validation: `/opt/AlphaMind` is at `1ebfe9e`, PM2 `alphamind` is online under Node `24.14.0`, public page returns HTTP 200, QuantDinger proxy is reachable, and server build passed.
+- Latest browser validation: online smoke against `https://alphamind.mddcommunity.top` passed for homepage personalized candidates, Asset X-Ray default domestic asset, chat structured advisory card for 茅台, and mobile 390px no horizontal overflow.
 
 ## Decisions
 
