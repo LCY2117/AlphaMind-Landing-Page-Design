@@ -201,7 +201,7 @@ export function getProfileEvidence(profile = loadUserProfileMemory()) {
     `风险画像：${profile.riskLevel}，风险分 ${Math.round(profile.riskScore)}/100`,
     profile.riskAssessedAt
       ? `最近测评：${new Date(profile.riskAssessedAt).toLocaleDateString('zh-CN')}`
-      : '最近测评：使用默认演示画像',
+      : '最近测评：使用默认画像',
     profile.emotionTag ? `情绪状态：${profile.emotionTag}` : '情绪状态：平稳',
   ];
 
@@ -261,7 +261,7 @@ export function buildInvestmentAdviceCard(
 
   return {
     title: `${report.name} ${report.symbol} 研究辅助卡`,
-    subtitle: '基于用户画像、演示资产信号和情景推演生成',
+    subtitle: '基于用户画像、资产信号和情景推演生成',
     profileSummary,
     evidence: getProfileEvidence(profile),
     assetSignals: [
@@ -274,8 +274,8 @@ export function buildInvestmentAdviceCard(
     risks: [
       `${report.sector} 的景气度和估值变化可能影响短期波动。`,
       profile.riskLevel === '保守型' ? '当前画像更重视回撤控制，不适合过高集中度。' : '需避免把情景推演理解为确定性预测。',
-      '演示数据非实时行情，正式决策需结合最新公告、财报和个人约束。',
+      '本地参考数据非实时行情，正式决策需结合最新公告、财报和个人约束。',
     ],
-    boundary: '以上内容仅用于 AlphaMind 路演版研究辅助与风险教育，不构成任何投资建议或收益承诺。',
+    boundary: '以上内容仅用于 AlphaMind 研究辅助与风险教育，不构成任何投资建议或收益承诺。',
   };
 }

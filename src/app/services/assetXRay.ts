@@ -146,7 +146,7 @@ const COMPANY_META: Record<string, Pick<AssetXRayReport, 'name' | 'sector' | 'ma
   '518880': {
     name: '华安黄金ETF',
     sector: '黄金 ETF / 防御资产',
-    marketCap: '基金规模样例',
+    marketCap: '基金规模参考',
   },
   '600036': {
     name: '招商银行',
@@ -196,19 +196,19 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     sentiment: 66,
     sentimentLabel: '中性偏积极',
     conclusion:
-      '贵州茅台在路演演示数据中代表高现金流、高品牌壁垒的消费龙头。当前情景推演认为基本面质量仍强，但估值、消费复苏节奏和市场风险偏好会影响短期波动，更适合稳健型用户以观察或小仓位研究方式纳入组合讨论。',
+      '贵州茅台在当前研究模型中代表高现金流、高品牌壁垒的消费龙头。当前情景推演认为基本面质量仍强，但估值、消费复苏节奏和市场风险偏好会影响短期波动，更适合稳健型用户以观察或小仓位研究方式纳入组合讨论。',
     probabilities: { up: 38, flat: 41, down: 21 },
     metrics: [
       { label: 'AI 综合评分', value: '72', hint: '盈利质量突出' },
       { label: '波动风险', value: '中', hint: '消费龙头但估值敏感' },
-      { label: '预测置信度', value: '66%', hint: '基于样例走势和事件线索' },
+      { label: '预测置信度', value: '66%', hint: '基于参考走势和事件线索' },
     ],
     catalysts: ['高端消费韧性', '现金流与分红能力', '估值与消费复苏节奏的再平衡'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind 国内资产演示数据',
+      source: 'AlphaMind 国内资产参考数据',
       status: 'ok',
-      freshnessLabel: '本地演示数据 · 非实时行情',
+      freshnessLabel: '本地参考数据 · 非实时行情',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -237,19 +237,19 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     sentiment: 72,
     sentimentLabel: '偏积极',
     conclusion:
-      '宁德时代在演示数据中代表高成长、高波动的新能源资产。AI 情景推演显示，储能、电池技术迭代和全球装机需求提供上行叙事，但产业周期、价格竞争和估值弹性也会放大回撤，适合进取型用户作为卫星资产研究。',
+      '宁德时代在当前研究模型中代表高成长、高波动的新能源资产。AI 情景推演显示，储能、电池技术迭代和全球装机需求提供上行叙事，但产业周期、价格竞争和估值弹性也会放大回撤，适合进取型用户作为卫星资产研究。',
     probabilities: { up: 52, flat: 27, down: 21 },
     metrics: [
       { label: 'AI 综合评分', value: '75', hint: '成长弹性较高' },
       { label: '波动风险', value: '中高', hint: '产业周期敏感' },
-      { label: '预测置信度', value: '68%', hint: '基于样例走势和行业叙事' },
+      { label: '预测置信度', value: '68%', hint: '基于参考走势和行业叙事' },
     ],
     catalysts: ['储能需求扩张', '电池技术迭代', '海外供应链与价格竞争'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind 国内资产演示数据',
+      source: 'AlphaMind 国内资产参考数据',
       status: 'ok',
-      freshnessLabel: '本地演示数据 · 非实时行情',
+      freshnessLabel: '本地参考数据 · 非实时行情',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -266,7 +266,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     price: '¥5.68',
     change: '+0.34%',
     changeValue: 0.34,
-    marketCap: '基金规模样例',
+    marketCap: '基金规模参考',
     radar: [
       { subject: '估值吸引力', value: 61 },
       { subject: '成长性', value: 48 },
@@ -278,7 +278,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     sentiment: 69,
     sentimentLabel: '防御偏强',
     conclusion:
-      '华安黄金ETF在演示数据中代表避险与组合平衡工具。情景推演认为，当市场波动、利率预期或地缘不确定性上升时，黄金类资产有助于降低组合相关性；但其收益来源不同于权益资产，适合作为风险缓冲而非单一进攻仓位。',
+      '华安黄金ETF在当前研究模型中代表避险与组合平衡工具。情景推演认为，当市场波动、利率预期或地缘不确定性上升时，黄金类资产有助于降低组合相关性；但其收益来源不同于权益资产，适合作为风险缓冲而非单一进攻仓位。',
     probabilities: { up: 35, flat: 46, down: 19 },
     metrics: [
       { label: 'AI 综合评分', value: '69', hint: '防御属性明确' },
@@ -288,9 +288,9 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     catalysts: ['避险需求变化', '美元与实际利率预期', '权益市场波动对冲'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind 国内资产演示数据',
+      source: 'AlphaMind 国内资产参考数据',
       status: 'ok',
-      freshnessLabel: '本地演示数据 · 非实时行情',
+      freshnessLabel: '本地参考数据 · 非实时行情',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -319,19 +319,19 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     sentiment: 56,
     sentimentLabel: '中性',
     conclusion:
-      '招商银行在演示数据中代表分红、资产质量和零售金融能力较强的稳健金融资产。AI 情景推演显示其适合稳健型用户做价值观察，但仍需关注净息差、地产链风险和宏观信用周期变化。',
+      '招商银行在当前研究模型中代表分红、资产质量和零售金融能力较强的稳健金融资产。AI 情景推演显示其适合稳健型用户做价值观察，但仍需关注净息差、地产链风险和宏观信用周期变化。',
     probabilities: { up: 31, flat: 49, down: 20 },
     metrics: [
       { label: 'AI 综合评分', value: '67', hint: '估值与分红吸引力较好' },
       { label: '波动风险', value: '中', hint: '金融周期敏感' },
-      { label: '预测置信度', value: '63%', hint: '基于样例走势和行业风险' },
+      { label: '预测置信度', value: '63%', hint: '基于参考走势和行业风险' },
     ],
     catalysts: ['零售金融韧性', '分红与估值修复', '净息差和资产质量观察'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind 国内资产演示数据',
+      source: 'AlphaMind 国内资产参考数据',
       status: 'ok',
-      freshnessLabel: '本地演示数据 · 非实时行情',
+      freshnessLabel: '本地参考数据 · 非实时行情',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -360,7 +360,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     sentiment: 59,
     sentimentLabel: '中性观察',
     conclusion:
-      '沪深300在演示数据中代表A股核心资产组合。相比单一个股，宽基指数更适合作为长期配置和组合基准，但短期仍会受到宏观预期、风险偏好和权重行业表现影响。',
+      '沪深300在当前研究模型中代表A股核心资产组合。相比单一个股，宽基指数更适合作为长期配置和组合基准，但短期仍会受到宏观预期、风险偏好和权重行业表现影响。',
     probabilities: { up: 34, flat: 45, down: 21 },
     metrics: [
       { label: 'AI 综合评分', value: '65', hint: '适合作为市场基准' },
@@ -370,9 +370,9 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     catalysts: ['宏观预期修复', '权重行业盈利变化', '长期定投与再平衡价值'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind 国内资产演示数据',
+      source: 'AlphaMind 国内资产参考数据',
       status: 'ok',
-      freshnessLabel: '本地演示数据 · 非实时行情',
+      freshnessLabel: '本地参考数据 · 非实时行情',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -413,7 +413,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: 'ok',
-      freshnessLabel: '本地样例数据 · 非实时',
+      freshnessLabel: '本地参考数据 · 非实时',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -453,7 +453,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: 'ok',
-      freshnessLabel: '本地样例数据 · 非实时',
+      freshnessLabel: '本地参考数据 · 非实时',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -493,7 +493,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
       mode: 'mock',
       source: 'AlphaMind mock provider',
       status: 'ok',
-      freshnessLabel: '本地样例数据 · 非实时',
+      freshnessLabel: '本地参考数据 · 非实时',
       coverage: [
         { label: '行情', value: 'mock' },
         { label: 'K线', value: 'mock' },
@@ -528,7 +528,7 @@ const ASSET_ALIASES: Record<string, string> = {
   苹果: 'AAPL',
 };
 
-export function isDomesticDemoSymbol(symbol: string) {
+export function isDomesticReferenceSymbol(symbol: string) {
   return ['600519', '300750', '518880', '600036', 'CSI300'].includes(symbol);
 }
 
@@ -553,7 +553,7 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
   const report = matchedReport ?? MOCK_ASSET_REPORTS[0];
   const unsupportedMessage = matchedReport
     ? message
-    : `暂无 ${normalized} 的本地样例，已使用 TSLA 模板估算结构。${message ?? ''}`.trim();
+    : `暂无 ${normalized} 的本地参考数据，已使用 TSLA 模板估算结构。${message ?? ''}`.trim();
   return {
     ...report,
     symbol: matchedReport ? report.symbol : normalized,
@@ -578,13 +578,13 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
       ? {
           score: report.sentiment,
           label: report.sentimentLabel,
-          summary: report.conclusion.split('。')[0] || `${report.symbol} 情绪来自本地样例。`,
+          summary: report.conclusion.split('。')[0] || `${report.symbol} 情绪来自本地参考数据。`,
           reasons: report.catalysts.slice(0, 3),
           bullish: report.catalysts.slice(0, 2),
           bearish: ['估值和波动仍需结合风险承受能力判断'],
           confidence: 58,
           source: 'mock',
-          updatedAt: '本地样例',
+          updatedAt: '本地参考',
         }
       : {
           score: 0,
@@ -599,10 +599,10 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
         },
     conclusion: matchedReport
       ? report.conclusion
-      : `${normalized} 暂无本地样例或实时后端数据。当前页面仅展示 Asset X-Ray 的分析结构，正式结论需要接入行情、财务与新闻数据源后生成。`,
+      : `${normalized} 暂无本地参考数据或实时后端数据。当前页面仅展示 Asset X-Ray 的分析结构，正式结论需要接入行情、财务与新闻数据源后生成。`,
     probabilities: matchedReport ? report.probabilities : { up: 0, flat: 0, down: 0 },
     metrics: matchedReport ? report.metrics : [
-      { label: '样例结构完整度', value: '演示', hint: '暂无该标的本地样例' },
+      { label: '结构完整度', value: '参考', hint: '暂无该标的本地参考数据' },
       { label: '行情状态', value: '待同步', hint: '等待真实数据源接入' },
       { label: '预测置信度', value: '--', hint: '不输出伪置信度' },
     ],
@@ -614,7 +614,7 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
       source: 'AlphaMind mock provider',
       status: unsupportedMessage ? 'fallback' : 'ok',
       message: unsupportedMessage,
-      freshnessLabel: matchedReport ? '本地样例数据 · 非实时' : '未连接实时源 · 使用结构演示',
+      freshnessLabel: matchedReport ? '本地参考数据 · 非实时' : '未连接实时源 · 使用结构参考',
       coverage: matchedReport
         ? [
             { label: '行情', value: 'mock' },
@@ -636,7 +636,7 @@ export async function getAssetXRayReport(request: AssetXRayRequest): Promise<Ass
   const config = getAlphaMindConfig();
   const symbol = normalizeAssetSymbol(request.symbol);
 
-  if (isDomesticDemoSymbol(symbol)) {
+  if (isDomesticReferenceSymbol(symbol)) {
     return getMockAssetXRayReport(symbol);
   }
 
@@ -645,7 +645,7 @@ export async function getAssetXRayReport(request: AssetXRayRequest): Promise<Ass
   } catch (error) {
     if (config.dataMode !== 'quantdinger') {
       const message = error instanceof Error ? error.message : 'market data provider unavailable';
-      return getMockAssetXRayReport(symbol, `真实行情源暂不可用，已切换到本地演示数据：${message}`);
+      return getMockAssetXRayReport(symbol, `真实行情源暂不可用，已切换到本地参考数据：${message}`);
     }
   }
 
@@ -660,7 +660,7 @@ export async function getAssetXRayReport(request: AssetXRayRequest): Promise<Ass
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'QuantDinger provider unavailable';
-    return getMockAssetXRayReport(symbol, `QuantDinger 暂不可用，已切换到本地演示数据：${message}`);
+    return getMockAssetXRayReport(symbol, `QuantDinger 暂不可用，已切换到本地参考数据：${message}`);
   }
 }
 
@@ -1075,44 +1075,44 @@ function buildMockPriceSeries(symbol: string, changeValue: number): AssetPricePo
 function buildMockNewsItems(symbol: string): AssetNewsItem[] {
   const samples: Record<string, AssetNewsItem[]> = {
     '600519': [
-      { title: '高端白酒消费韧性与渠道库存成为市场观察线索', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '分红能力、现金流质量和估值再平衡影响稳健型用户关注度', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '消费复苏节奏仍是短期情绪波动的重要变量', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '高端白酒消费韧性与渠道库存成为市场观察线索', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '分红能力、现金流质量和估值再平衡影响稳健型用户关注度', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '消费复苏节奏仍是短期情绪波动的重要变量', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     '300750': [
-      { title: '储能需求、电池技术迭代和海外供应链成为成长叙事核心', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '价格竞争与产业周期波动影响新能源资产风险定价', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '高成长资产适合与防御资产搭配进行情景推演', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '储能需求、电池技术迭代和海外供应链成为成长叙事核心', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '价格竞争与产业周期波动影响新能源资产风险定价', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '高成长资产适合与防御资产搭配进行情景推演', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     '518880': [
-      { title: '黄金类资产在波动市场中承担避险与组合平衡功能', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '美元、实际利率与地缘不确定性仍是黄金价格关键变量', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '防御资产更适合作为风险缓冲，不宜被理解为确定性收益来源', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '黄金类资产在波动市场中承担避险与组合平衡功能', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '美元、实际利率与地缘不确定性仍是黄金价格关键变量', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '防御资产更适合作为风险缓冲，不宜被理解为确定性收益来源', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     '600036': [
-      { title: '零售金融韧性、分红和资产质量是银行股研究主线', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '净息差与信用周期变化仍会影响短期估值弹性', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '稳健型用户可将金融资产作为价值与分红观察对象', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '零售金融韧性、分红和资产质量是银行股研究主线', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '净息差与信用周期变化仍会影响短期估值弹性', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '稳健型用户可将金融资产作为价值与分红观察对象', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     CSI300: [
-      { title: '宽基指数适合作为A股核心资产与组合基准观察', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '权重行业盈利变化与宏观预期影响指数情绪', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '长期定投和再平衡适合用情景推演方式解释', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '宽基指数适合作为A股核心资产与组合基准观察', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '权重行业盈利变化与宏观预期影响指数情绪', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '长期定投和再平衡适合用情景推演方式解释', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     TSLA: [
-      { title: '交付节奏与毛利率变化成为短期关注点', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '储能业务增长和自动驾驶预期继续影响市场情绪', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '电动车需求与价格策略仍是估值分歧来源', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '交付节奏与毛利率变化成为短期关注点', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '储能业务增长和自动驾驶预期继续影响市场情绪', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '电动车需求与价格策略仍是估值分歧来源', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     NVDA: [
-      { title: '数据中心订单与 AI 算力需求保持高关注度', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '市场继续评估高估值与盈利兑现节奏', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '供应链交付能力影响短期业绩预期', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '数据中心订单与 AI 算力需求保持高关注度', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '市场继续评估高估值与盈利兑现节奏', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '供应链交付能力影响短期业绩预期', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
     AAPL: [
-      { title: '服务收入韧性与新品周期是主要观察线索', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '回购与现金流支撑长期防御属性', source: 'AlphaMind sample', publishedAt: '样例新闻' },
-      { title: '终端需求变化影响市场对成长性的判断', source: 'AlphaMind sample', publishedAt: '样例新闻' },
+      { title: '服务收入韧性与新品周期是主要观察线索', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '回购与现金流支撑长期防御属性', source: 'AlphaMind research', publishedAt: '参考新闻' },
+      { title: '终端需求变化影响市场对成长性的判断', source: 'AlphaMind research', publishedAt: '参考新闻' },
     ],
   };
 

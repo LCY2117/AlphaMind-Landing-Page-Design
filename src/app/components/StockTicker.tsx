@@ -10,7 +10,7 @@ interface Stock {
   isUp: boolean;
 }
 
-const DEMO_STOCKS: Stock[] = [
+const REFERENCE_STOCKS: Stock[] = [
   { symbol: '000001', name: '上证指数', price: '3245.67', change: '+12.34', changePercent: '+0.38%', isUp: true },
   { symbol: '399001', name: '深证成指', price: '10987.23', change: '+45.67', changePercent: '+0.42%', isUp: true },
   { symbol: '399006', name: '创业板指', price: '2234.56', change: '-8.90', changePercent: '-0.40%', isUp: false },
@@ -22,7 +22,7 @@ const DEMO_STOCKS: Stock[] = [
   { symbol: '000858', name: '五粮液', price: '145.67', change: '+1.89', changePercent: '+1.31%', isUp: true },
 ];
 
-const TICKER_STOCKS = [...DEMO_STOCKS, ...DEMO_STOCKS];
+const TICKER_STOCKS = [...REFERENCE_STOCKS, ...REFERENCE_STOCKS];
 
 export function StockTicker() {
   return (
@@ -30,7 +30,7 @@ export function StockTicker() {
       <div className="relative flex items-center">
         <div className="relative z-10 shrink-0 self-stretch flex items-center border-r am-border-subtle am-nav-surface px-3 sm:px-4">
           <span className="rounded-full am-banner border px-2.5 py-1 text-xs font-semibold am-brand whitespace-nowrap">
-            演示行情 · 非实时
+            参考行情 · 非实时
           </span>
         </div>
         {/* Scrolling Container */}

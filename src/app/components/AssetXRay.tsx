@@ -36,7 +36,7 @@ import {
 import {
   getAssetXRayReport,
   getMockAssetXRayReport,
-  isDomesticDemoSymbol,
+  isDomesticReferenceSymbol,
   MOCK_ASSET_REPORTS,
   normalizeAssetSymbol,
   type AssetXRayReport,
@@ -152,7 +152,7 @@ function SentimentPanel({
     ? `AI 快模型 · ${analysis.model ?? 'SiliconFlow'}`
     : analysis?.source === 'rule'
       ? '规则兜底分析'
-      : '样例分析';
+      : '规则分析';
   const confidence = active ? analysis?.confidence ?? 0 : 0;
   const summary = active
     ? analysis?.summary ?? `${label}，等待更多新闻与行情信号确认。`
@@ -756,22 +756,22 @@ export function AssetXRay({ requestedSymbol = '600519' }: AssetXRayProps) {
 
     if (stock.providerMeta.status === 'fallback') {
       return {
-        label: '服务未连接 · 演示回退',
+        label: '服务未连接 · 本地回退',
         detail: '当前不会输出伪实时行情',
         className: 'border-amber-500/30 bg-amber-500/10 text-amber-500',
       };
     }
 
     return {
-      label: '本地演示数据',
-      detail: '用于展示交互与分析结构',
+      label: '本地参考数据',
+      detail: '用于呈现交互与分析结构',
       className: 'am-card am-text-secondary',
     };
   }, [stock.providerMeta.mode, stock.providerMeta.status]);
 
   const coverageText: Record<AssetXRayReport['providerMeta']['coverage'][number]['value'], string> = {
     live: '实时/后端',
-    mock: '演示',
+    mock: '参考',
     derived: '规则估算',
     pending: '待同步',
   };
@@ -792,7 +792,7 @@ export function AssetXRay({ requestedSymbol = '600519' }: AssetXRayProps) {
     try {
       const report = await getAssetXRayReport({
         symbol: normalized,
-        market: isDomesticDemoSymbol(normalized) ? 'CNStock' : 'USStock',
+        market: isDomesticReferenceSymbol(normalized) ? 'CNStock' : 'USStock',
       });
       if (activeRequestRef.current !== requestId) return;
       setStock(report);
@@ -872,7 +872,7 @@ export function AssetXRay({ requestedSymbol = '600519' }: AssetXRayProps) {
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold am-text-primary mb-3">资产透视</h2>
               <p className="am-text-secondary max-w-2xl">
-                输入国内股票、ETF 或指数名称，查看样例日线走势、新闻线索、估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注演示数据。
+                输入国内股票、ETF 或指数名称，查看参考日线走势、新闻线索、估值吸引力、成长、盈利、情绪、动量与预测区间；未接入实时源时会明确标注非实时数据。
               </p>
             </motion.div>
 
@@ -1067,7 +1067,7 @@ export function AssetXRay({ requestedSymbol = '600519' }: AssetXRayProps) {
                   真实 K线走势
                 </h3>
                 <span className="text-xs am-text-tertiary">
-                  {stock.providerMeta.mode === 'mock' ? '样例 OHLC 日线' : '后端行情源 · OHLC 日线'}
+                  {stock.providerMeta.mode === 'mock' ? '参考 OHLC 日线' : '后端行情源 · OHLC 日线'}
                 </span>
               </div>
               <PriceKlineChart active={isComplete} report={stock} />

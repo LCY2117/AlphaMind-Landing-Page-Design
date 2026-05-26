@@ -100,7 +100,7 @@ const generateBehaviorData = () => {
   }));
 };
 
-// 路演版 15 道核心题库，每天稳定抽取 4 道，最后 1 道来自情绪题池。
+// 15 道核心题库，每天稳定抽取 4 道，最后 1 道来自情绪题池。
 const allQuestions = [
   {
     id: 1,
@@ -407,7 +407,7 @@ export function RiskAssessment() {
     const finalAnalysisSteps = [
       '整合 5 个核心维度的问卷数据...',
       '计算风险承受能力与损失容忍度...',
-      '比对本地演示行为序列...',
+      '比对本地行为序列...',
       '生成动态风险容忍度...',
       '生成资产配置参考视图...',
       '风险画像构建完成',
@@ -534,7 +534,7 @@ export function RiskAssessment() {
 
   return (
     <section id="risk-test" className="w-full min-h-screen flex flex-col am-page-gradient">
-      {/* Stock Ticker - demo market data display */}
+      {/* Stock Ticker - reference market data display */}
       <StockTicker />
 
       <div className="w-full flex-1 flex items-center py-8 sm:py-12 lg:py-16">
@@ -973,7 +973,7 @@ export function RiskAssessment() {
                           </div>
                           <p className="text-sm font-semibold am-text-primary">暂无行为序列</p>
                           <p className="text-xs am-text-secondary mt-2">
-                            完成测评后，这里会显示本地演示行为曲线。
+                            完成测评后，这里会显示本地行为曲线。
                           </p>
                         </div>
                       </div>
@@ -991,7 +991,7 @@ export function RiskAssessment() {
                           <span className="am-text-secondary">交易频率</span>
                         </div>
                       </div>
-                      <span className="am-text-tertiary">当前为本地演示行为序列，后续可替换为真实交易/问答行为数据。</span>
+                      <span className="am-text-tertiary">当前为本地行为序列，后续可替换为真实交易/问答行为数据。</span>
                     </div>
                   )}
                 </motion.div>

@@ -79,7 +79,7 @@ export function Navigation({ currentPage, onNavigate, onNewChat }: NavigationPro
                     )}
                     <span className="text-sm am-text-primary hidden sm:inline">{user?.name}</span>
                     <span className="hidden lg:inline-flex rounded-full am-banner border px-2 py-0.5 text-[10px] am-brand">
-                      Demo
+                      本地
                     </span>
                     <ChevronDown size={16} className="am-text-tertiary" />
                   </button>
@@ -105,7 +105,7 @@ export function Navigation({ currentPage, onNavigate, onNewChat }: NavigationPro
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-sm am-text-primary font-medium">{user?.name}</p>
                               <span className="rounded-full am-banner border px-2 py-0.5 text-[10px] am-brand">
-                                本地演示
+                                本地身份
                               </span>
                             </div>
                             {user?.phone && (
@@ -124,7 +124,7 @@ export function Navigation({ currentPage, onNavigate, onNewChat }: NavigationPro
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm am-text-secondary am-hover-surface am-hover-text-primary transition-colors"
                           >
                             <Settings size={16} />
-                            <span>演示身份设置</span>
+                            <span>身份设置</span>
                           </button>
                           <button
                             onClick={() => {
@@ -147,8 +147,8 @@ export function Navigation({ currentPage, onNavigate, onNewChat }: NavigationPro
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#C44536] to-orange-600 am-on-brand rounded-lg font-semibold hover:shadow-[0_0_20px_rgba(196,69,54,0.4)] transition-all text-sm"
                 >
                   <LogIn size={16} />
-                  <span className="hidden sm:inline">进入演示</span>
-                  <span className="sm:hidden">演示</span>
+                  <span className="hidden sm:inline">进入 AlphaMind</span>
+                  <span className="sm:hidden">进入</span>
                 </button>
               )}
             </div>

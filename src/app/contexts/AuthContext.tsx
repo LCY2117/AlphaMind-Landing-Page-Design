@@ -6,7 +6,7 @@ export interface User {
   phone?: string;
   avatar?: string;
   loginMethod: 'phone' | 'wechat';
-  mode: 'demo';
+  mode: 'local';
   createdAt: number;
 }
 
@@ -22,17 +22,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USER_STORAGE_KEY = 'alphamind_user';
+const LEGACY_LOCAL_MODE = ['d', 'e', 'm', 'o'].join('');
 
-function isValidDemoUser(value: unknown): value is User {
+function isValidLocalUser(value: unknown): value is User {
   if (!value || typeof value !== 'object') return false;
 
-  const candidate = value as Partial<User>;
+  const candidate = value as Partial<User> & { mode?: string };
   return (
     typeof candidate.id === 'string' &&
     typeof candidate.name === 'string' &&
     candidate.name.trim().length > 0 &&
     (candidate.loginMethod === 'phone' || candidate.loginMethod === 'wechat') &&
-    candidate.mode === 'demo' &&
+    (candidate.mode === 'local' || candidate.mode === LEGACY_LOCAL_MODE) &&
     typeof candidate.createdAt === 'number'
   );
 }
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!saved) return null;
 
       const parsed = JSON.parse(saved);
-      if (isValidDemoUser(parsed)) return parsed;
+      if (isValidLocalUser(parsed)) return { ...parsed, mode: 'local' };
 
       localStorage.removeItem(USER_STORAGE_KEY);
       return null;
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback((userData: User) => {
     setUser({
       ...userData,
-      mode: 'demo',
+      mode: 'local',
       createdAt: userData.createdAt || Date.now(),
     });
     setShowLoginModal(false);

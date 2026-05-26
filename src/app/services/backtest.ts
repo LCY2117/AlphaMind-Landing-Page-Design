@@ -39,7 +39,7 @@ interface QuantDingerJob {
   error?: string;
 }
 
-const DEMO_STRATEGY_CODE = `
+const REFERENCE_STRATEGY_CODE = `
 def signal(ctx):
     fast = sma(ctx.close, 12)
     slow = sma(ctx.close, 26)
@@ -73,7 +73,7 @@ export async function submitAlphaMindBacktest(
         'Idempotency-Key': `alphamind-${symbol}-${Date.now()}`,
       },
       body: JSON.stringify({
-        code: DEMO_STRATEGY_CODE,
+        code: REFERENCE_STRATEGY_CODE,
         market: request.market ?? 'USStock',
         symbol,
         timeframe: request.timeframe ?? '1D',
@@ -85,7 +85,7 @@ export async function submitAlphaMindBacktest(
         leverage: 1,
         trade_direction: 'long',
         strategy_config: {
-          name: 'AlphaMind SMA demo',
+          name: 'AlphaMind SMA reference',
           live_trading_enabled: false,
         },
       }),
@@ -117,8 +117,8 @@ export function getMockBacktestResult(symbolInput: string, message?: string): Al
     title: `${symbol} 趋势策略回测`,
     summary: 'AlphaMind 已预留 QuantDinger 回测通道。当前展示的是本地模拟结果，用于验证 UI 和数据流，不触发实盘交易。',
     metrics: [
-      { label: '模拟年化收益', value: '+18.6%', hint: 'SMA demo strategy' },
-      { label: '最大回撤', value: '-9.4%', hint: '本地样例结果' },
+      { label: '模拟年化收益', value: '+18.6%', hint: 'SMA reference strategy' },
+      { label: '最大回撤', value: '-9.4%', hint: '本地参考结果' },
       { label: '胜率', value: '57%', hint: '等待真实回测同步' },
     ],
     providerMeta: {

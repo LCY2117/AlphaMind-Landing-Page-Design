@@ -90,7 +90,7 @@ interface Session {
   };
 }
 
-interface AIAdvisorDemoProps {
+interface AIAdvisorProps {
   currentPage?: number;
   onNavigate?: (page: number) => void;
   onOpenAssetXRay?: (symbol: string) => void;
@@ -98,7 +98,7 @@ interface AIAdvisorDemoProps {
 }
 
 const mockSessions: Session[] = [
-  { id: 'demo-089', title: '示例：股票投资咨询', timestamp: '示例数据', updatedAt: Date.now() - 1000 * 60 * 17, messages: mockMessages, userProfile: { age: 30, amount: 200000 } },
+  { id: 'local-089', title: '股票投资咨询', timestamp: '历史会话', updatedAt: Date.now() - 1000 * 60 * 17, messages: mockMessages, userProfile: { age: 30, amount: 200000 } },
 ];
 
 const createEmptySession = (): Session => ({
@@ -228,7 +228,7 @@ const filterPublicReasoning = (content: string) => {
     /developer message/gi,
     /你是.{0,24}(?:助手|顾问|模型)/g,
     /不要提及.{0,80}/g,
-    /比赛|医创赛|演示项目/g,
+    /比赛|医创赛|内部项目/g,
     /内部(?:开发|实现|提示|指令)/g,
     /chain[- ]?of[- ]?thought/gi,
   ];
@@ -363,7 +363,7 @@ function buildLocalAnalysisResponse(messageText: string, intent: string, userPro
     responseContent = `已识别 ${report.name}（${report.symbol}）研究请求。下方已生成结构化投顾辅助卡，也可以进入资产透视页查看 K 线、雷达评分、新闻线索和情景推演。`;
     reasons = [
       { icon: '🔎', text: `${report.name} 的资产透视会包含雷达评分、情绪解释、概率区间和研究结论。` },
-      { icon: '📡', text: '当前国内资产使用本地演示数据，界面会明确标注非实时行情。' },
+      { icon: '📡', text: '当前国内资产使用本地参考数据，界面会明确标注非实时行情。' },
       { icon: '🛡️', text: '输出为辅助研究和风险教育，不触发交易，也不构成投资建议。' },
     ];
   } else if (intent === 'risk_assessment') {
@@ -608,7 +608,7 @@ const renderMessageText = (content: string) => {
   );
 };
 
-export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, newChatRequest = 0 }: AIAdvisorDemoProps) {
+export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newChatRequest = 0 }: AIAdvisorProps) {
   const [sessions, setSessions] = useState<Session[]>(() => {
     try {
       const saved = localStorage.getItem('alphamind_sessions');
@@ -967,7 +967,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
           warnings: intent === 'asset_xray'
             ? []
             : providerError
-            ? [`AI 服务暂不可用，已切换本地演示分析：${providerError}`]
+            ? [`AI 服务暂不可用，已切换本地规则分析：${providerError}`]
             : showRiskScore && riskScore > 75
             ? ['⚠️ 高风险配置，请确保您能承受较大波动']
             : [],
@@ -1055,7 +1055,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
   };
 
   return (
-    <section id="demo" className="w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] am-page-bg flex overflow-hidden">
+    <section id="ai-advisor" className="w-full h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] am-page-bg flex overflow-hidden">
       {/* Backdrop for mobile sidebar */}
       <AnimatePresence>
         {showSidebar && (
@@ -1246,7 +1246,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                         : message.chatMode === 'deep'
                                         ? '硅基流动 AI · 深度思考'
                                         : '硅基流动 AI · 快速响应'
-                                      : '本地演示分析'}
+                                      : '本地规则分析'}
                                   </span>
                                   {message.source === 'siliconflow' && (
                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
@@ -1257,7 +1257,7 @@ export function AIAdvisorDemo({ currentPage = 1, onNavigate, onOpenAssetXRay, ne
                                     </span>
                                   )}
                                   <span className="am-text-tertiary">
-                                    来源：{message.source === 'siliconflow' ? message.model ?? 'SiliconFlow' : '浏览器本地规则 / 样例数据'}
+                                    来源：{message.source === 'siliconflow' ? message.model ?? 'SiliconFlow' : '浏览器本地规则 / 参考数据'}
                                   </span>
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>

@@ -277,12 +277,12 @@ export function HeroSection() {
               从工具到伴侣的进化
             </h1>
             <p className="text-base sm:text-lg md:text-xl am-text-secondary">
-              以金融语义、风险画像与资产透视为核心，构建可演示、可扩展的智能投顾体验
+              以金融语义、风险画像与资产透视为核心，构建可解释、可扩展的智能投顾体验
             </p>
             <div className="rounded-2xl border am-card-strong p-4 sm:p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="text-xs font-semibold am-brand mb-1">演示账户画像</div>
+                  <div className="text-xs font-semibold am-brand mb-1">本地账户画像</div>
                   <div className="text-lg font-bold am-text-primary">
                     {profile.riskLevel} · 风险分 {Math.round(profile.riskScore)}/100
                   </div>
@@ -353,7 +353,7 @@ export function HeroSection() {
               <div className="text-xs font-semibold uppercase tracking-[0.2em] am-brand">Personalized Research</div>
               <h2 className="mt-2 text-2xl sm:text-3xl font-bold am-text-primary">个性化研究候选</h2>
               <p className="mt-2 max-w-2xl text-sm sm:text-base am-text-secondary">
-                根据本地画像、最近关注与演示资产信号生成，不承诺收益，仅作为路演版研究入口。
+                根据本地画像、最近关注与资产信号生成，不承诺收益，仅作为研究辅助入口。
               </p>
             </div>
             <form onSubmit={handleSearchSubmit} className="flex min-w-0 flex-col gap-2 sm:flex-row lg:w-[420px]">
@@ -441,7 +441,7 @@ export function HeroSection() {
                   </p>
 
                   <div className="mt-4 flex items-center justify-between text-xs">
-                    <span className="am-text-tertiary">演示数据 / 情景推演</span>
+                    <span className="am-text-tertiary">参考数据 / 情景推演</span>
                     <span className="inline-flex items-center gap-1 am-brand">
                       查看透视
                       <ArrowUpRight size={13} />

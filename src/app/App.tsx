@@ -8,7 +8,7 @@ import { LoginModal } from './components/LoginModal';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
-const AIAdvisorDemo = lazy(() => import('./components/AIAdvisorDemo').then((module) => ({ default: module.AIAdvisorDemo })));
+const AIAdvisor = lazy(() => import('./components/AIAdvisor').then((module) => ({ default: module.AIAdvisor })));
 const RiskAssessment = lazy(() => import('./components/RiskAssessment').then((module) => ({ default: module.RiskAssessment })));
 const AssetXRay = lazy(() => import('./components/AssetXRay').then((module) => ({ default: module.AssetXRay })));
 
@@ -180,7 +180,7 @@ export default function App() {
   const currentPageElement = useMemo(() => {
     if (currentPage === 1) {
       return (
-        <AIAdvisorDemo
+        <AIAdvisor
           currentPage={currentPage}
           onNavigate={handleNavigate}
           onOpenAssetXRay={handleOpenAssetXRay}

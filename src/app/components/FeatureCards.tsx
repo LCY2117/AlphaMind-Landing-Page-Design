@@ -32,7 +32,7 @@ const portfolioSeries = [
   { day: '今天', value: 208600, risk: 56 },
 ];
 
-const demoHoldings = [
+const referenceHoldings = [
   { name: '贵州茅台', type: '消费龙头', weight: '28%', change: '+0.86%', risk: '中' },
   { name: '华安黄金ETF', type: '防御资产', weight: '22%', change: '+0.34%', risk: '中低' },
   { name: '沪深300', type: '宽基指数', weight: '35%', change: '+0.52%', risk: '中' },
@@ -98,17 +98,17 @@ export function FeatureCards() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full am-brand-soft am-brand px-3 py-1 text-xs font-semibold">
                 <BarChart3 size={14} />
-                Portfolio Monitor Demo
+                Portfolio Monitor
               </div>
-              <h3 className="mt-3 text-2xl font-bold am-text-primary">持仓动态监控演示</h3>
+              <h3 className="mt-3 text-2xl font-bold am-text-primary">持仓动态监控</h3>
               <p className="mt-2 max-w-2xl text-sm am-text-secondary">
-                默认演示账户的样例持仓，不连接真实券商账户；用于展示收益走势、风险评分、波动提醒与画像联动。
+                默认本地账户的参考持仓，不连接真实券商账户；用于呈现收益走势、风险评分、波动提醒与画像联动。
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center text-xs sm:min-w-[360px]">
               <div className="rounded-xl border am-card px-3 py-2">
                 <div className="am-text-tertiary">账户</div>
-                <div className="mt-1 font-semibold am-text-primary">演示账户</div>
+                <div className="mt-1 font-semibold am-text-primary">本地账户</div>
               </div>
               <div className="rounded-xl border am-card px-3 py-2">
                 <div className="am-text-tertiary">画像</div>
@@ -125,7 +125,7 @@ export function FeatureCards() {
             <div className="rounded-xl border am-card p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-semibold am-text-primary">近 14 天样例收益走势</div>
+                  <div className="text-sm font-semibold am-text-primary">近 14 天参考收益走势</div>
                   <div className="text-xs am-text-tertiary">账户 / 全资产 / 近两周</div>
                 </div>
                 <div className="rounded-full bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-500">+4.3%</div>
@@ -163,11 +163,11 @@ export function FeatureCards() {
                   风险提醒
                 </div>
                 <p className="text-sm leading-6 am-text-secondary">
-                  宁德时代样例仓位属于高弹性资产，当前占比 15%。以{profile.riskLevel}画像看，建议继续保持卫星仓位，不把情景推演理解为确定性收益。
+                  宁德时代参考仓位属于高弹性资产，当前占比 15%。以{profile.riskLevel}画像看，建议继续保持卫星仓位，不把情景推演理解为确定性收益。
                 </p>
               </div>
               <div className="grid gap-2">
-                {demoHoldings.map((item) => (
+                {referenceHoldings.map((item) => (
                   <div key={item.name} className="rounded-xl border am-card p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -181,7 +181,7 @@ export function FeatureCards() {
                     </div>
                     <div className="mt-2 flex items-center justify-between text-xs am-text-secondary">
                       <span>风险等级：{item.risk}</span>
-                      <span>样例持仓</span>
+                      <span>参考持仓</span>
                     </div>
                   </div>
                 ))}

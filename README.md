@@ -2,7 +2,7 @@
 
 > 面向资产研究、风险画像与智能投顾交互的 AI 投资研究工作台。
 
-AlphaMind 不是一个静态落地页，而是一个正在从高保真演示走向真实可用产品的 AI 投资研究系统。它把 AI 对话投顾、个股深度检测、风险承受能力画像、行情图表、新闻情绪分析和深浅色主题系统整合在一个沉浸式工作台中，帮助用户用更结构化、更可解释的方式理解资产与风险。
+AlphaMind 不是一个静态落地页，而是一个正在走向真实可用产品的 AI 投资研究系统。它把 AI 对话投顾、个股深度检测、风险承受能力画像、行情图表、新闻情绪分析和深浅色主题系统整合在一个沉浸式工作台中，帮助用户用更结构化、更可解释的方式理解资产与风险。
 
 线上访问：[https://alphamind.mddcommunity.top](https://alphamind.mddcommunity.top)<br>
 GitHub 仓库：[https://github.com/LCY2117/AlphaMind-Landing-Page-Design](https://github.com/LCY2117/AlphaMind-Landing-Page-Design)
@@ -167,7 +167,7 @@ npm run build
 src/
   app/
     components/
-      AIAdvisorDemo.tsx      # AI 对话投顾
+      AIAdvisor.tsx          # AI 对话投顾
       AssetXRay.tsx          # 个股资产透视
       RiskAssessment.tsx     # 风险画像与测评
       HeroSection.tsx        # 首页与 AI 拓扑视觉
@@ -211,7 +211,7 @@ pm2 save
 
 ## 风险提示
 
-AlphaMind 输出内容仅用于金融知识学习、资产研究辅助与产品演示，不构成投资建议、收益承诺或交易指令。任何真实投资决策都应结合个人风险承受能力、资金状况和独立判断。
+AlphaMind 输出内容仅用于金融知识学习与资产研究辅助，不构成投资建议、收益承诺或交易指令。任何真实投资决策都应结合个人风险承受能力、资金状况和独立判断。
 
 ## 设计来源
 

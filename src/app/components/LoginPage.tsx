@@ -38,8 +38,8 @@ export function LoginPage() {
             <img src={logoImg} alt="AlphaMind" className="h-16 w-auto" />
           </div>
 
-          <h1 className="text-2xl font-bold text-white text-center mb-2">AlphaMind 演示入口</h1>
-          <p className="text-gray-400 text-center mb-8">当前为本地演示登录，不会发起真实认证</p>
+          <h1 className="text-2xl font-bold text-white text-center mb-2">AlphaMind 入口</h1>
+          <p className="text-gray-400 text-center mb-8">当前为本地登录，不会发起真实认证</p>
 
           {/* Login Method Tabs */}
           <div className="flex gap-2 mb-6">
@@ -52,7 +52,7 @@ export function LoginPage() {
               }`}
             >
               <Phone size={18} />
-              <span>手机演示</span>
+              <span>手机方式</span>
             </button>
             <button
               onClick={() => setLoginMethod('wechat')}
@@ -63,7 +63,7 @@ export function LoginPage() {
               }`}
             >
               <MessageSquare size={18} />
-              <span>微信演示</span>
+              <span>微信方式</span>
             </button>
           </div>
 
@@ -75,24 +75,24 @@ export function LoginPage() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm text-gray-400 mb-2">演示手机号</label>
+                <label className="block text-sm text-gray-400 mb-2">手机号</label>
                 <input
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                  placeholder="输入 11 位手机号，仅用于演示"
+                  placeholder="输入 11 位手机号，仅保存脱敏展示"
                   className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#C44536] focus:ring-2 focus:ring-[#C44536]/20 transition-all"
                 />
               </div>
 
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="block text-sm text-gray-400 mb-2">演示验证码</label>
+                  <label className="block text-sm text-gray-400 mb-2">验证码</label>
                   <input
                     type="text"
                     value={verificationCode}
                     onChange={(e) => setVerificationCode(e.target.value.slice(0, 6))}
-                    placeholder="演示码 123456"
+                    placeholder="验证码 123456"
                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#C44536] focus:ring-2 focus:ring-[#C44536]/20 transition-all"
                   />
                 </div>
@@ -102,7 +102,7 @@ export function LoginPage() {
                     disabled={phoneNumber.length !== 11 || codeSent}
                     className="px-4 py-3 bg-white/10 hover:bg-white/20 text-[#C44536] rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
-                    {codeSent ? '演示码 123456' : '获取演示码'}
+                    {codeSent ? '验证码 123456' : '获取验证码'}
                   </button>
                 </div>
               </div>
@@ -112,7 +112,7 @@ export function LoginPage() {
                 disabled={phoneNumber.length !== 11 || verificationCode.length !== 6}
                 className="w-full px-6 py-4 bg-gradient-to-r from-[#C44536] to-orange-600 text-white rounded-xl font-bold hover:shadow-[0_0_30px_rgba(196,69,54,0.5)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
               >
-                <span>进入演示</span>
+                <span>进入 AlphaMind</span>
                 <ArrowRight size={20} />
               </button>
 
@@ -133,19 +133,19 @@ export function LoginPage() {
               <div className="w-56 h-56 bg-white rounded-xl p-4 flex items-center justify-center">
                 <div className="text-center space-y-2">
                   <MessageSquare size={64} className="text-gray-400 mx-auto" />
-                  <p className="text-sm text-gray-600">演示二维码</p>
+                  <p className="text-sm text-gray-600">二维码占位</p>
                 </div>
               </div>
 
               <p className="text-sm text-gray-400 text-center">
                 这里不会调用真实微信授权
                 <br />
-                请使用弹窗演示登录完成体验
+                请使用弹窗本地登录进入
               </p>
 
               <div className="w-full pt-4 border-t border-white/10">
                 <p className="text-xs text-gray-500 text-center">
-                  演示二维码不可扫码；正式微信授权待后端接入
+                  当前二维码不可扫码；正式微信授权待后端接入
                 </p>
               </div>
             </motion.div>
