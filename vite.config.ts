@@ -154,10 +154,42 @@ function hasDegenerateAiText(content: string) {
   const text = content.trim()
   if (!text) return true
   const dCount = (text.match(/D/g) ?? []).length
-  const weirdChunks = /(D请|DD|D时|D建议|D风险|D评估|kuk|如比如|如如如|等等等等|字字字字|建议建议建议|请请请|并并并并|时时时)/.test(text)
+  const weirdChunks = /(D请|DD|D时|D建议|D风险|D评估|D\d+D|[\u4e00-\u9fa5\d]D|D[\u4e00-\u9fa5\d]|kuk|如比如|如如如|等等等等|字字字字|建议建议建议|请请请|并并并并|时时时)/i.test(text)
   const repeatedToken = /([\u4e00-\u9fa5A-Za-z])\1{5,}/.test(text)
+  const repeatedPhrase = /([\u4e00-\u9fa5]{2,4})\1{2,}/.test(text)
+  const repeatedAdviceWords = /(建议|结合|进行|评估|风险|注意|目标|需要|可以){3,}/.test(text)
   const dDensity = text.length > 80 && dCount / text.length > 0.045
-  return weirdChunks || repeatedToken || dDensity
+  return weirdChunks || repeatedToken || repeatedPhrase || repeatedAdviceWords || dDensity
+}
+
+function hasContextGrounding(content: string, context: ReturnType<typeof normalizeChatContext>) {
+  if (!context) return true
+  const text = content.replace(/\s+/g, '')
+  const contextText = [
+    context.profileSummary,
+    ...context.profileEvidence,
+    ...context.focusTopics,
+    ...context.recentAssets,
+    ...context.assetSignals,
+    ...context.scenarioNotes,
+  ].join(' ')
+
+  const requiredSignals = [
+    /稳健|保守|进取|平衡|风险分|风险画像|画像|承受能力/.test(contextText) &&
+      /稳健|保守|进取|平衡|风险分|风险画像|画像|承受能力/.test(text),
+    /(?:\d{1,3})\s*\/\s*100|(?:\d{1,3})\s*分/.test(contextText) &&
+      /(?:\d{1,3})\s*(?:\/\s*100|分)/.test(text),
+    context.recentAssets.some((item) => {
+      const compact = item.replace(/\s+/g, '')
+      const name = compact.match(/^([^（(]+)[（(]/)?.[1] || compact.slice(0, 6)
+      const symbol = compact.match(/[（(]([^）)]+)[）)]/)?.[1] || ''
+      return (name.length >= 2 && text.includes(name)) || (symbol.length >= 4 && text.includes(symbol))
+    }),
+    context.assetSignals.length > 0 && /情绪|概率|上涨|横盘|下跌|评分|波动|估值|动量|资产信号/.test(text),
+    context.scenarioNotes.length > 0 && /情景|假设|边界|约束|保守|基准|积极|风险预算/.test(text),
+  ]
+
+  return requiredSignals.some(Boolean)
 }
 
 function extractSiliconFlowError(payload: any, status: number) {
@@ -775,7 +807,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
                   error: 'Empty SiliconFlow response',
                   source: 'siliconflow',
                 })
-              } else if (hasDegenerateAiText(content)) {
+              } else if (hasDegenerateAiText(content) || !hasContextGrounding(content, chatContext)) {
                 sendSse(res, 'error', {
                   error: 'AI response quality check failed',
                   source: 'siliconflow',
@@ -829,7 +861,11 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
           let message = responsePayload?.choices?.[0]?.message
           let content = message?.content
           let usedQualityRetry = false
-          if (typeof content === 'string' && content.trim() && hasDegenerateAiText(content)) {
+          if (
+            typeof content === 'string' &&
+            content.trim() &&
+            (hasDegenerateAiText(content) || !hasContextGrounding(content, chatContext))
+          ) {
             const retry = await callFallbackStableModel()
             if (retry.response.ok) {
               responsePayload = retry.payload
@@ -852,6 +888,13 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
           if (hasDegenerateAiText(content)) {
             sendJson(res, 502, {
               error: 'AI response quality check failed',
+              source: 'siliconflow',
+            })
+            return
+          }
+          if (!hasContextGrounding(content, chatContext)) {
+            sendJson(res, 502, {
+              error: 'AI response did not use AlphaMind context',
               source: 'siliconflow',
             })
             return

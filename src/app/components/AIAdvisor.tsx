@@ -316,8 +316,10 @@ const hasDegenerateAdvisorText = (content: string) => {
   const dDensity = text.length > 80 && dCount / text.length > 0.045;
   return (
     dDensity ||
-    /(D请|DD|D时|D建议|D风险|D评估|kuk|如比如|如如如|建议建议建议|请请请|并并并并|时时时|字字字字)/.test(text) ||
-    /([\u4e00-\u9fa5A-Za-z])\1{5,}/.test(text)
+    /(D请|DD|D时|D建议|D风险|D评估|D\d+D|[\u4e00-\u9fa5\d]D|D[\u4e00-\u9fa5\d]|kuk|如比如|如如如|建议建议建议|请请请|并并并并|时时时|字字字字)/i.test(text) ||
+    /([\u4e00-\u9fa5A-Za-z])\1{5,}/.test(text) ||
+    /([\u4e00-\u9fa5]{2,4})\1{2,}/.test(text) ||
+    /(建议|结合|进行|评估|风险|注意|目标|需要|可以){3,}/.test(text)
   );
 };
 
