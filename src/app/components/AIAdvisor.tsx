@@ -737,7 +737,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
     return currentSession?.messages || [];
   });
   const [input, setInput] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzingSessionIds, setAnalyzingSessionIds] = useState<string[]>([]);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(() => {
     return typeof window !== 'undefined' && window.innerWidth >= 1024;
@@ -749,6 +749,43 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastNewChatRequestRef = useRef(newChatRequest);
+  const currentSessionIdRef = useRef(currentSessionId);
+  const analyzingSessionIdsRef = useRef<string[]>([]);
+  const isCurrentSessionAnalyzing = analyzingSessionIds.includes(currentSessionId);
+
+  const persistSessions = (nextSessions: Session[]) => {
+    try {
+      localStorage.setItem('alphamind_sessions', JSON.stringify(nextSessions));
+    } catch (e) {
+      console.error('Failed to save sessions:', e);
+    }
+  };
+
+  const setSessionAnalyzing = (sessionId: string, analyzing: boolean) => {
+    setAnalyzingSessionIds((currentIds) => {
+      const nextIds = analyzing
+        ? Array.from(new Set([...currentIds, sessionId]))
+        : currentIds.filter((id) => id !== sessionId);
+      analyzingSessionIdsRef.current = nextIds;
+      return nextIds;
+    });
+  };
+
+  const applySessionMessages = (sessionId: string, nextMessages: any[], patch: Partial<Session> = {}) => {
+    setSessions((currentSessions) => {
+      const updatedSessions = currentSessions.map((session) =>
+        session.id === sessionId
+          ? { ...session, ...patch, messages: nextMessages }
+          : session
+      );
+      persistSessions(updatedSessions);
+      return updatedSessions;
+    });
+
+    if (currentSessionIdRef.current === sessionId) {
+      setMessages(nextMessages);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -762,7 +799,11 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isAnalyzing]);
+  }, [messages, isCurrentSessionAnalyzing]);
+
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
 
   const generateSuggestions = (lastMessage: any, originalQuestion = '') => {
     const intent = lastMessage.intent ?? detectIntent(originalQuestion || lastMessage.content || '');
@@ -859,12 +900,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
     setCurrentSessionId(newSession.id);
     setMessages([]);
     setUserProfile({});
-
-    try {
-      localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
-    } catch (e) {
-      console.error('Failed to save sessions:', e);
-    }
+    persistSessions(updatedSessions);
   };
 
   useEffect(() => {
@@ -880,6 +916,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
       setCurrentSessionId(sessionId);
       setMessages(session.messages.length > 0 ? session.messages : []);
       setUserProfile(session.userProfile || {});
+      setSuggestedQuestions([]);
     }
   };
 
@@ -889,12 +926,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
     const updatedSessions = sessions.filter(s => s.id !== sessionId);
     setSessions(updatedSessions);
-
-    try {
-      localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
-    } catch (e) {
-      console.error('Failed to save sessions:', e);
-    }
+    persistSessions(updatedSessions);
 
     if (currentSessionId === sessionId) {
       const firstSession = updatedSessions[0];
@@ -915,10 +947,13 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
   };
 
   const handleSend = async (questionText?: string) => {
-    if (isAnalyzing) return;
+    const targetSessionId = currentSessionId;
+    if (analyzingSessionIdsRef.current.includes(targetSessionId)) return;
 
     const messageText = questionText || input;
     if (messageText.trim() || uploadedImage) {
+      const baseMessages = messages;
+      const baseSessions = sessions;
       const extractedInfo = extractUserInfo(messageText);
       if (Object.keys(extractedInfo).length > 0) {
         setUserProfile({ ...userProfile, ...extractedInfo });
@@ -930,33 +965,39 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
       const profileMemory = updateProfileFromMessage(messageText, normalizedSymbol);
       const chatMode = inferChatMode(messageText, intent, modePreference);
       setActiveChatMode(chatMode);
+      const messageImage = uploadedImage;
 
       const userMessage: any = {
         role: 'user',
         content: messageText || '请分析这张图片，并提取与投资、财务或页面信息相关的要点。',
-        type: uploadedImage ? 'image' : 'text',
-        imageUrl: uploadedImage,
+        type: messageImage ? 'image' : 'text',
+        imageUrl: messageImage,
         intent,
         chatMode,
         assetSymbol: normalizedSymbol,
         createdAt: Date.now(),
       };
 
-      const newMessages = [...messages, userMessage];
-      setMessages(newMessages);
+      const newMessages = [...baseMessages, userMessage];
+      applySessionMessages(targetSessionId, newMessages, {
+        title: messageText.substring(0, 12) + '...',
+        timestamp: '刚刚',
+        updatedAt: Date.now(),
+        userProfile: { ...(baseSessions.find((session) => session.id === targetSessionId)?.userProfile ?? {}), ...extractedInfo },
+      });
       setInput('');
       setUploadedImage(null);
       setSuggestedQuestions([]);
-      setIsAnalyzing(true);
+      setSessionAnalyzing(targetSessionId, true);
 
       try {
         const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile, profileMemory);
-        const chatHistory = buildChatHistoryForAi(messages, userMessage);
+        const chatHistory = buildChatHistoryForAi(baseMessages, userMessage);
         const shouldStreamDeepThinking = !['asset_xray', 'profile'].includes(intent) && chatMode === 'deep';
         const streamMessageId = `stream-${Date.now()}`;
 
         if (shouldStreamDeepThinking) {
-          setMessages([
+          applySessionMessages(targetSessionId, [
             ...newMessages,
             {
               id: streamMessageId,
@@ -986,11 +1027,22 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
         let streamingContent = '';
         const updateStreamingMessage = (patch: Record<string, unknown>) => {
-          setMessages((currentMessages) =>
-            currentMessages.map((message) =>
-              message.id === streamMessageId ? { ...message, ...patch } : message
-            )
-          );
+          setSessions((currentSessions) => {
+            let updatedMessagesForCurrentSession: any[] | null = null;
+            const updatedSessions = currentSessions.map((session) => {
+              if (session.id !== targetSessionId) return session;
+              const nextMessages = session.messages.map((message) =>
+                message.id === streamMessageId ? { ...message, ...patch } : message
+              );
+              updatedMessagesForCurrentSession = nextMessages;
+              return { ...session, messages: nextMessages, updatedAt: Date.now() };
+            });
+            persistSessions(updatedSessions);
+            if (currentSessionIdRef.current === targetSessionId && updatedMessagesForCurrentSession) {
+              setMessages(updatedMessagesForCurrentSession);
+            }
+            return updatedSessions;
+          });
         };
 
         const aiResponse = ['asset_xray', 'profile'].includes(intent)
@@ -1104,31 +1156,18 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
         }
 
         const updatedMessages = [...newMessages, analysisMessage];
-        setMessages(updatedMessages);
+        applySessionMessages(targetSessionId, updatedMessages, {
+          title: messageText.substring(0, 12) + '...',
+          timestamp: '刚刚',
+          updatedAt: Date.now(),
+          userProfile: { ...(baseSessions.find((session) => session.id === targetSessionId)?.userProfile ?? {}), ...extractedInfo },
+        });
 
-        setSuggestedQuestions(generateSuggestions(analysisMessage, messageText));
-
-        const updatedSessions = sessions.map(s =>
-          s.id === currentSessionId
-            ? {
-                ...s,
-                messages: updatedMessages,
-                title: messageText.substring(0, 12) + '...',
-                timestamp: '刚刚',
-                updatedAt: Date.now(),
-                userProfile: { ...s.userProfile, ...extractedInfo }
-              }
-            : s
-        );
-        setSessions(updatedSessions);
-
-        try {
-          localStorage.setItem('alphamind_sessions', JSON.stringify(updatedSessions));
-        } catch (e) {
-          console.error('Failed to save sessions:', e);
+        if (currentSessionIdRef.current === targetSessionId) {
+          setSuggestedQuestions(generateSuggestions(analysisMessage, messageText));
         }
       } finally {
-        setIsAnalyzing(false);
+        setSessionAnalyzing(targetSessionId, false);
       }
     }
   };
@@ -1252,7 +1291,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                         <span className="text-xs opacity-60">#{session.id}</span>
                       </div>
                       <p className="text-sm truncate pr-6">{session.title}</p>
-                      <p className="text-xs opacity-40 mt-1">更新于 {formatSessionTime(session.updatedAt ?? session.timestamp)}</p>
+                      <p className="text-xs opacity-40 mt-1">
+                        {analyzingSessionIds.includes(session.id) ? '生成中' : `更新于 ${formatSessionTime(session.updatedAt ?? session.timestamp)}`}
+                      </p>
                     </button>
 
                     {sessions.length > 1 && (
@@ -1589,7 +1630,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                   );
                 })}
 
-                {isAnalyzing && !messages.some((message) => message.isStreaming) && (
+                {isCurrentSessionAnalyzing && !messages.some((message) => message.isStreaming) && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -1616,7 +1657,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                   </motion.div>
                 )}
 
-                {suggestedQuestions.length > 0 && !isAnalyzing && (
+                {suggestedQuestions.length > 0 && !isCurrentSessionAnalyzing && (
                   <div className="flex flex-wrap gap-2">
                     <span className="text-xs am-text-tertiary w-full mb-1">💡 您可能还想问：</span>
                     {suggestedQuestions.map((q, idx) => (
@@ -1706,20 +1747,20 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                   onChange={(e) => setInput(e.target.value)}
                   onPaste={handlePasteImage}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && !isAnalyzing) {
+                    if (e.key === 'Enter' && !e.shiftKey && !isCurrentSessionAnalyzing) {
                       e.preventDefault();
                       handleSend();
                     }
                   }}
                   placeholder="输入投资问题..."
                   className="flex-1 bg-transparent am-text-primary am-placeholder focus:outline-none text-sm"
-                  disabled={isAnalyzing}
+                  disabled={isCurrentSessionAnalyzing}
                 />
               </div>
 
               <button
                 onClick={() => handleSend()}
-                disabled={isAnalyzing || (!input.trim() && !uploadedImage)}
+                disabled={isCurrentSessionAnalyzing || (!input.trim() && !uploadedImage)}
                 aria-label="发送消息"
                 title="发送消息"
                 className="p-3 am-brand-bg rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
