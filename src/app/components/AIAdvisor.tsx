@@ -270,7 +270,7 @@ const extractReasoningSummary = (content: string) => {
       .replace(/\*\*/g, '')
       .trim();
 
-  const sectionMatch = content.match(/(?:^|\n)\s*#{0,3}\s*(?:分析步骤摘要|公开推理摘要|AI 深度分析轨迹|推理摘要)[：:]?\s*\n?([\s\S]*?)(?=\n\s*#{1,3}\s|\n\s*(?:正式回答|结论|建议|风险提示|免责声明)[：:]|$)/);
+  const sectionMatch = content.match(/(?:^|\n)\s*#{0,3}\s*(?:分析步骤摘要|公开推理摘要|推理摘要)[：:]?\s*\n?([\s\S]*?)(?=\n\s*#{1,3}\s|\n\s*(?:正式回答|结论|建议|风险提示|免责声明)[：:]|$)/);
   const sectionLines = sectionMatch
     ? sectionMatch[1]
         .split(/\n+/)
@@ -298,7 +298,7 @@ const stripReasoningSummaryFromContent = (content: string) => {
 
   const withoutSummary = content
     .replace(
-      /(?:^|\n)\s*#{0,3}\s*(?:分析步骤摘要|公开推理摘要|AI 深度分析轨迹|推理摘要)[：:]?\s*\n?[\s\S]*?(?=\n\s*#{1,3}\s|\n\s*(?:正式回答|结论|建议|风险提示|免责声明)[：:]|$)/,
+      /(?:^|\n)\s*#{0,3}\s*(?:分析步骤摘要|公开推理摘要|推理摘要)[：:]?\s*\n?[\s\S]*?(?=\n\s*#{1,3}\s|\n\s*(?:正式回答|结论|建议|风险提示|免责声明)[：:]|$)/,
       '\n',
     )
     .replace(/(?:^|\n)\s*#{0,3}\s*正式回答[：:]?\s*/g, '\n')
