@@ -8,7 +8,7 @@ Set these only in server/runtime `.env.local` or an equivalent secret manager:
 
 ```env
 SILICONFLOW_API_KEY=
-SILICONFLOW_FAST_MODEL=Qwen/Qwen2.5-7B-Instruct
+SILICONFLOW_FAST_MODEL=zai-org/GLM-4.5-Air
 SILICONFLOW_DEEP_MODEL=Pro/zai-org/GLM-4.7
 SILICONFLOW_VISION_MODEL=Qwen/Qwen3-VL-8B-Instruct
 SILICONFLOW_VISION_DEEP_MODEL=Qwen/Qwen3-VL-8B-Thinking
@@ -78,6 +78,8 @@ With a server key configured, the same request should return HTTP 200 with `sour
 
 ## Latency Notes
 
-The default fast model is `Qwen/Qwen2.5-7B-Instruct` because AlphaMind's chat panel favors sub-second to low-latency product guidance. Deep analysis uses `Pro/zai-org/GLM-4.7` with thinking enabled, but the UI should frame the visible output as a public reasoning summary rather than raw hidden chain-of-thought.
+The default fast model is `zai-org/GLM-4.5-Air` because AlphaMind's chat panel needs low-latency answers that still respect user profile context. In production smoke tests it responded faster and more coherently than the previous `Qwen/Qwen2.5-7B-Instruct` default for short advisor answers. Deep analysis uses `Pro/zai-org/GLM-4.7` with thinking enabled, but the UI should frame the visible output as a public reasoning summary rather than raw hidden chain-of-thought.
+
+The proxy also runs a quality gate before returning provider output. If the fast model emits degenerate text or ignores the supplied AlphaMind profile/asset context, the server retries once with the stable deep model and only then returns a safe error for the frontend fallback path.
 
 Image uploads use `Qwen/Qwen3-VL-8B-Instruct` by default, with `Qwen/Qwen3-VL-8B-Thinking` reserved for deep mode. Keep uploaded images reasonably small because they are sent as data URLs through the server proxy.

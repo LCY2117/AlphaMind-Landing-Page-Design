@@ -476,7 +476,7 @@ function normalizeSentimentJson(input: any, model: string) {
 
 function alphaMindAssetSentimentProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
-  const fastModel = env.SILICONFLOW_SENTIMENT_MODEL || env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
+  const fastModel = env.SILICONFLOW_SENTIMENT_MODEL || env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'zai-org/GLM-4.5-Air'
 
   return {
     name: 'alphamind-asset-sentiment-proxy',
@@ -578,7 +578,7 @@ function alphaMindAssetSentimentProxy(env: Record<string, string>): Plugin {
 
 function alphaMindChatProxy(env: Record<string, string>): Plugin {
   const endpoint = env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1/chat/completions'
-  const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'Qwen/Qwen2.5-7B-Instruct'
+  const fastModel = env.SILICONFLOW_FAST_MODEL || env.SILICONFLOW_MODEL || 'zai-org/GLM-4.5-Air'
   const deepModel = env.SILICONFLOW_DEEP_MODEL || 'Pro/zai-org/GLM-4.7'
   const visionModel = env.SILICONFLOW_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct'
   const visionDeepModel = env.SILICONFLOW_VISION_DEEP_MODEL || 'Qwen/Qwen3-VL-8B-Thinking'
