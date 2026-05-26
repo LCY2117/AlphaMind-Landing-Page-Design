@@ -242,24 +242,6 @@ const formatSessionTime = (value?: number | string) => {
     : date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
 };
 
-const filterPublicReasoning = (content: string) => {
-  const blockedPatterns = [
-    /system prompt/gi,
-    /developer message/gi,
-    /你是.{0,24}(?:助手|顾问|模型)/g,
-    /不要提及.{0,80}/g,
-    /比赛|医创赛|内部项目/g,
-    /内部(?:开发|实现|提示|指令)/g,
-    /chain[- ]?of[- ]?thought/gi,
-  ];
-  return content
-    .split('\n')
-    .map((line) => blockedPatterns.reduce((acc, pattern) => acc.replace(pattern, '公开分析边界'), line))
-    .filter((line) => line.trim().length > 0)
-    .slice(0, 8)
-    .join('\n');
-};
-
 const getStableHash = (text: string) => {
   let hash = 0;
   for (let i = 0; i < text.length; i += 1) {
@@ -325,7 +307,7 @@ const stripReasoningSummaryFromContent = (content: string) => {
   return withoutSummary || content.trim();
 };
 
-const buildPublicReasoningFallback = (messageText: string, intent: string) => {
+const buildAdvisorProcessMarkdown = (messageText: string, intent: string) => {
   const intentLabel: Record<string, string> = {
     risk_assessment: '风险承受能力与波动承受边界',
     allocation: '资产配置目标、期限和再平衡约束',
@@ -340,11 +322,35 @@ const buildPublicReasoningFallback = (messageText: string, intent: string) => {
   const isShortQuestion = messageText.trim().length < 18;
 
   return [
-    `问题拆解：围绕“${topic}”先界定回答范围。`,
-    `关键假设：${isShortQuestion ? '问题信息较少，默认按通用投资学习场景处理。' : '以用户描述为主，不补造未给出的资产与收入数据。'}`,
-    '风险因素：重点检查市场波动、流动性、集中度和信息滞后。',
-    '结论边界：仅作为研究辅助，不替代个人风险测评和独立决策。',
-  ];
+    '### 投顾分析过程',
+    '',
+    `1. **需求识别**：将本次问题归类为“${topic}”，先确定适用范围。`,
+    `2. **画像匹配**：${isShortQuestion ? '问题信息较少，优先调用本地风险画像与近期关注证据。' : '以用户已给出的期限、资金和风险偏好为主，不补造缺失信息。'}`,
+    '3. **候选筛选**：按风险匹配度、流动性、波动暴露和资产分散度筛选研究对象。',
+    '4. **风险校验**：检查市场波动、集中度、费用、流动性和信息滞后，不把短期表现当作确定性收益。',
+    '5. **结论边界**：输出研究辅助视角，不替代个人风险测评、正式尽调或独立决策。',
+  ].join('\n');
+};
+
+const getVisibleAdvisorProcess = (message: any, allMessages: any[], index: number) => {
+  if (!message.reasoningContent && !message.isStreaming) return '';
+
+  const rawReasoning = typeof message.reasoningContent === 'string' ? message.reasoningContent.trim() : '';
+  const previousUserMessage = allMessages
+    .slice(0, index)
+    .reverse()
+    .find((item) => item.role === 'user');
+  const prompt = String(previousUserMessage?.content ?? message.content ?? '');
+  const intent = typeof message.intent === 'string' ? message.intent : detectIntent(prompt);
+
+  if (
+    rawReasoning.startsWith('### 投顾分析过程') &&
+    !/(system prompt|developer message|chain[- ]?of[- ]?thought|用户[：:]|角色[：:]|目标[：:]|AlphaMind\s*的\s*AI\s*投资顾问|你是.{0,24}(?:助手|顾问|模型)|不要提及|比赛|医创赛|内部(?:开发|实现|提示|指令))/i.test(rawReasoning)
+  ) {
+    return rawReasoning;
+  }
+
+  return buildAdvisorProcessMarkdown(prompt, intent);
 };
 
 const extractStockSymbol = (text: string) => {
@@ -885,7 +891,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
               intent,
               hasImageAnalysis: Boolean(userMessage.imageUrl),
               thinkingEnabled: true,
-              reasoningContent: '',
+              reasoningContent: buildAdvisorProcessMarkdown(messageText, intent),
               reasoningCollapsed: true,
               reasoningSummary: [],
               showInlineChart: false,
@@ -900,7 +906,6 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
           ]);
         }
 
-        let streamingReasoning = '';
         let streamingContent = '';
         const updateStreamingMessage = (patch: Record<string, unknown>) => {
           setMessages((currentMessages) =>
@@ -919,10 +924,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                 hasImageAnalysis: meta.hasImage,
                 thinkingEnabled: meta.thinkingEnabled,
               }),
-              onReasoningDelta: (delta) => {
-                streamingReasoning += delta;
-                updateStreamingMessage({ reasoningContent: filterPublicReasoning(streamingReasoning) });
-              },
+              onReasoningDelta: () => {},
               onContentDelta: (delta) => {
                 streamingContent += delta;
                 updateStreamingMessage({ content: streamingContent });
@@ -932,7 +934,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
         const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
         const rawResponseContent = hasLiveAi ? aiResponse.content : localResponse.content;
-        const reasoningContent = hasLiveAi && chatMode === 'deep' ? aiResponse.reasoningContent?.trim() ?? '' : '';
+        const reasoningContent = hasLiveAi && chatMode === 'deep' ? buildAdvisorProcessMarkdown(messageText, intent) : '';
         const parsedReasoningSummary = hasLiveAi && chatMode === 'deep' && !reasoningContent ? extractReasoningSummary(rawResponseContent) : [];
         const reasoningSummary = hasLiveAi && chatMode === 'deep'
           ? reasoningContent
@@ -976,7 +978,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
           intent,
           hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(userMessage.imageUrl),
           thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
-          reasoningContent: filterPublicReasoning(reasoningContent),
+          reasoningContent,
           reasoningCollapsed: true,
           reasoningSummary,
           providerError,
@@ -1231,12 +1233,15 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
               </motion.div>
             ) : (
               <div className="space-y-6">
-                {messages.map((message, index) => (
-                  <motion.div
-                    key={`message-${index}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
+                {messages.map((message, index) => {
+                  const visibleAdvisorProcess = getVisibleAdvisorProcess(message, messages, index);
+
+                  return (
+                    <motion.div
+                      key={`message-${index}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
                     {message.role === 'user' ? (
                       <div className="flex justify-end">
                         <div className="max-w-[80%] am-brand-soft rounded-2xl px-4 py-3">
@@ -1306,7 +1311,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>
 
-                                {(message.reasoningContent || message.isStreaming) && (
+                                {(visibleAdvisorProcess || message.isStreaming) && (
                                   <div className="am-card-strong border rounded-xl p-3 sm:p-4">
                                     <button
                                       type="button"
@@ -1316,8 +1321,8 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                     >
                                       <span className="flex min-w-0 items-center gap-2">
                                         <BrainCircuit size={16} className="am-brand shrink-0" />
-                                        <span className="text-sm font-medium am-text-primary">公开分析摘要</span>
-                                        <span className="text-[11px] am-text-tertiary">已过滤内部推理</span>
+                                        <span className="text-sm font-medium am-text-primary">投顾分析过程</span>
+                                        <span className="text-[11px] am-text-tertiary">公开研究步骤</span>
                                       </span>
                                       <span className="flex items-center gap-2 text-[11px] am-text-tertiary">
                                         {message.isStreaming ? '接收中' : message.reasoningCollapsed === false ? '收起' : '展开'}
@@ -1330,9 +1335,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                     {message.reasoningCollapsed === false && (
                                       <div className="mt-3 max-h-56 overflow-y-auto rounded-lg am-input-surface border am-border-subtle px-3 py-2">
                                         <div className="text-xs leading-6 am-text-secondary">
-                                          {message.reasoningContent
-                                            ? renderMessageText(message.reasoningContent)
-                                            : <span className="am-text-tertiary">已连接深度模型，正在等待可公开分析摘要...</span>}
+                                          {visibleAdvisorProcess
+                                            ? renderMessageText(visibleAdvisorProcess)
+                                            : <span className="am-text-tertiary">正在整理公开研究步骤...</span>}
                                           {message.isStreaming && (
                                             <span className="ml-1 inline-block h-3 w-1 translate-y-0.5 am-brand-bg am-thinking-cursor" />
                                           )}
@@ -1342,12 +1347,12 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                   </div>
                                 )}
 
-                                {!message.reasoningContent && message.reasoningSummary?.length > 0 && (
+                                {!visibleAdvisorProcess && message.reasoningSummary?.length > 0 && (
                                   <div className="am-card-strong border rounded-xl p-4">
                                     <div className="flex items-center gap-2 mb-3">
                                       <BrainCircuit size={16} className="am-brand" />
-                                      <h4 className="text-sm font-medium am-text-primary">AI 深度分析轨迹</h4>
-                                      <span className="text-[11px] am-text-tertiary">公开推理摘要</span>
+                                      <h4 className="text-sm font-medium am-text-primary">投顾分析过程</h4>
+                                      <span className="text-[11px] am-text-tertiary">公开研究步骤</span>
                                     </div>
                                     <div className="space-y-2">
                                       {message.reasoningSummary.map((step: string, idx: number) => (
@@ -1492,8 +1497,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                         </div>
                       </div>
                     )}
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
 
                 {isAnalyzing && !messages.some((message) => message.isStreaming) && (
                   <motion.div
@@ -1514,7 +1520,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                         </div>
                         {activeChatMode === 'deep' && (
                           <p className="text-xs am-text-tertiary">
-                            连接成功后会展示可公开分析摘要，不显示固定流程占位。
+                            连接成功后会展示公开研究步骤，不显示内部推理或提示词。
                           </p>
                         )}
                       </div>
