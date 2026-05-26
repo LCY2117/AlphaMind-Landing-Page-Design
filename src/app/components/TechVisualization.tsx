@@ -99,14 +99,18 @@ export function DataStream() {
   ];
 
   return (
-    <div className="absolute inset-0 overflow-hidden opacity-10 pointer-events-none">
+    <div
+      className="absolute inset-0 overflow-hidden pointer-events-none"
+      style={{ opacity: 'var(--am-topology-data-opacity, 0.1)' }}
+    >
       {codes.map((code, index) => (
         <motion.div
           key={index}
-          className="absolute text-[#C44536] font-mono text-[10px] whitespace-nowrap"
+          className="absolute font-mono text-[10px] whitespace-nowrap"
           style={{
             left: `${20 + (index * 15) % 80}%`,
             top: `${10 + (index * 20) % 80}%`,
+            color: 'var(--am-topology-data-color, #C44536)',
           }}
           animate={{
             opacity: [0, 0.5, 0],
@@ -129,14 +133,17 @@ export function DataStream() {
 // Hexagonal grid
 export function HexGrid() {
   return (
-    <div className="absolute inset-0 opacity-5 pointer-events-none">
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{ opacity: 'var(--am-topology-hex-opacity, 0.05)' }}
+    >
       <svg width="100%" height="100%">
         <defs>
           <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
             <polygon
               points="24.8,22 37.3,29.2 37.3,43.7 24.8,50.9 12.3,43.7 12.3,29.2"
               fill="none"
-              stroke="#C44536"
+              stroke="var(--am-topology-hex-stroke, #C44536)"
               strokeWidth="0.5"
             />
           </pattern>

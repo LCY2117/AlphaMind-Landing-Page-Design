@@ -21,8 +21,8 @@ const satellites = [
     left: 66,
     top: 18,
     size: '5.75rem',
-    color: '#38BDF8',
-    glow: 'rgba(56, 189, 248, 0.34)',
+    color: '#0284C7',
+    glow: 'rgba(2, 132, 199, 0.36)',
     path: 'M50 52 C58 40 58 25 66 18',
     delay: 0,
   },
@@ -34,8 +34,8 @@ const satellites = [
     left: 22,
     top: 70,
     size: '5.1rem',
-    color: '#F59E0B',
-    glow: 'rgba(245, 158, 11, 0.3)',
+    color: '#EA580C',
+    glow: 'rgba(234, 88, 12, 0.34)',
     path: 'M50 52 C38 58 34 68 22 70',
     delay: 0.24,
   },
@@ -47,8 +47,8 @@ const satellites = [
     left: 83,
     top: 64,
     size: '4.85rem',
-    color: '#A78BFA',
-    glow: 'rgba(167, 139, 250, 0.28)',
+    color: '#7C3AED',
+    glow: 'rgba(124, 58, 237, 0.32)',
     path: 'M50 52 C62 57 70 66 83 64',
     delay: 0.46,
   },
@@ -60,8 +60,8 @@ const satellites = [
     left: 18,
     top: 32,
     size: '4.6rem',
-    color: '#34D399',
-    glow: 'rgba(52, 211, 153, 0.26)',
+    color: '#059669',
+    glow: 'rgba(5, 150, 105, 0.3)',
     path: 'M50 52 C39 45 30 34 18 32',
     delay: 0.66,
   },
@@ -75,13 +75,29 @@ const orbitPaths = [
 
 function CognitiveTopology() {
   return (
-    <div className="relative w-full aspect-square max-w-[320px] sm:max-w-[430px] lg:max-w-[500px] mx-auto">
-      <div className="absolute inset-4 rounded-[2rem] border am-border-subtle am-card backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.08)]" />
-      <div className="absolute inset-8 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(196,69,54,0.24),rgba(56,189,248,0.07)_32%,transparent_62%)] blur-2xl" />
-      <div className="absolute inset-0 opacity-45">
+    <div className="am-cognitive-topology relative w-full aspect-square max-w-[320px] sm:max-w-[430px] lg:max-w-[500px] mx-auto">
+      <div
+        className="absolute inset-4 rounded-[2rem] border backdrop-blur-xl"
+        style={{
+          background: 'var(--am-topology-panel-bg)',
+          borderColor: 'var(--am-topology-panel-border)',
+          boxShadow: 'var(--am-topology-panel-shadow)',
+        }}
+      />
+      <div
+        className="absolute inset-8 rounded-full blur-2xl"
+        style={{ background: 'var(--am-topology-ambient)' }}
+      />
+      <div className="absolute inset-0" style={{ opacity: 'var(--am-topology-grid-opacity)' }}>
         <HexGrid />
       </div>
-      <div className="absolute inset-0 opacity-55 mix-blend-screen">
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: 'var(--am-topology-stream-opacity)',
+          mixBlendMode: 'var(--am-topology-stream-blend)' as CSSProperties['mixBlendMode'],
+        }}
+      >
         <DataStream />
       </div>
 
@@ -94,9 +110,9 @@ function CognitiveTopology() {
             <stop offset="100%" stopColor="#C44536" stopOpacity="0" />
           </radialGradient>
           <linearGradient id="dataLineWarm" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.06" />
-            <stop offset="45%" stopColor="#F97316" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#A78BFA" stopOpacity="0.08" />
+            <stop offset="0%" stopColor="var(--am-topology-line-start)" />
+            <stop offset="45%" stopColor="var(--am-topology-line-mid)" />
+            <stop offset="100%" stopColor="var(--am-topology-line-end)" />
           </linearGradient>
         </defs>
 
@@ -105,7 +121,7 @@ function CognitiveTopology() {
             key={path}
             d={path}
             fill="none"
-            stroke={index === 0 ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)'}
+            stroke={index === 0 ? 'var(--am-topology-orbit-strong)' : 'var(--am-topology-orbit-soft)'}
             strokeWidth={index === 0 ? 0.32 : 0.22}
             strokeDasharray={index === 0 ? '2.5 4.5' : '1.2 5.4'}
             pathLength={1}
@@ -140,7 +156,7 @@ function CognitiveTopology() {
               d={node.path}
               fill="none"
               stroke={node.color}
-              strokeWidth="0.82"
+              strokeWidth="0.92"
               strokeLinecap="round"
               strokeDasharray="6 86"
               style={{
@@ -156,20 +172,42 @@ function CognitiveTopology() {
       <div className="absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2">
         <div
           className="relative flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_28%,rgba(255,255,255,0.95),rgba(249,115,22,0.74)_24%,rgba(196,69,54,0.94)_58%,rgba(80,28,22,0.94)_100%)]"
-          style={{ animation: 'alphamind-core-pulse 3.2s ease-in-out infinite' }}
+          style={{
+            animation: 'alphamind-core-pulse 3.2s ease-in-out infinite',
+            background: 'var(--am-topology-core-bg)',
+          }}
         >
-          <Brain size={46} strokeWidth={1.25} className="text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.45)]" />
-          <div
-            className="absolute inset-0 rounded-full border border-white/35"
-            style={{ animation: 'alphamind-pulse-ring 2.8s ease-out infinite' }}
+          <Brain
+            size={46}
+            strokeWidth={1.35}
+            className="drop-shadow-[0_0_18px_rgba(255,255,255,0.45)]"
+            style={{ color: 'var(--am-topology-core-icon)' }}
           />
           <div
-            className="absolute inset-2 rounded-full border border-orange-200/30"
-            style={{ animation: 'alphamind-spin 12s linear infinite' }}
+            className="absolute inset-0 rounded-full border"
+            style={{
+              animation: 'alphamind-pulse-ring 2.8s ease-out infinite',
+              borderColor: 'var(--am-topology-core-ring)',
+            }}
+          />
+          <div
+            className="absolute inset-2 rounded-full border"
+            style={{
+              animation: 'alphamind-spin 12s linear infinite',
+              borderColor: 'var(--am-topology-core-inner-ring)',
+            }}
           />
           <div className="absolute -bottom-9 text-center">
-            <div className="text-xs font-medium tracking-[0.18em] text-white/90">AI CORE</div>
-            <div className="mt-1 h-px w-14 bg-gradient-to-r from-transparent via-orange-300/80 to-transparent" />
+            <div
+              className="text-xs font-semibold tracking-[0.18em]"
+              style={{ color: 'var(--am-topology-core-label)' }}
+            >
+              AI CORE
+            </div>
+            <div
+              className="mt-1 h-px w-14"
+              style={{ background: 'linear-gradient(to right, transparent, var(--am-topology-core-label-line), transparent)' }}
+            />
           </div>
         </div>
       </div>
@@ -184,13 +222,14 @@ function CognitiveTopology() {
             style={{ left: `${node.left}%`, top: `${node.top}%` }}
           >
             <div
-              className="relative flex flex-col items-center justify-center rounded-full bg-[linear-gradient(145deg,rgba(255,255,255,0.16),rgba(255,255,255,0.035))] backdrop-blur-xl"
+              className="relative flex flex-col items-center justify-center rounded-full backdrop-blur-xl"
               style={{
                 '--float-y': `${index % 2 === 0 ? -8 : 8}px`,
                 animation: `alphamind-satellite-float ${4.2 + index * 0.4}s ease-in-out ${node.delay}s infinite`,
                 width: node.size,
                 height: node.size,
-                boxShadow: `0 0 28px ${node.glow}, inset 0 0 18px rgba(255,255,255,0.1), inset 0 -14px 24px rgba(0,0,0,0.22)`,
+                background: 'var(--am-topology-satellite-bg)',
+                boxShadow: `0 0 34px ${node.glow}, var(--am-topology-satellite-shadow)`,
               } as CSSProperties}
             >
               <div
@@ -203,14 +242,29 @@ function CognitiveTopology() {
                 className="absolute inset-0 rounded-full"
                 style={{
                   border: `1px solid ${node.color}33`,
-                  outline: `1px dashed ${node.color}22`,
+                  outline: `1px dashed ${node.color}4d`,
                   outlineOffset: '6px',
                 }}
               />
-              <Icon size={24} strokeWidth={1.25} className="relative z-10 mb-1" style={{ color: node.color }} />
+              <Icon
+                size={24}
+                strokeWidth={1.35}
+                className="relative z-10 mb-1"
+                style={{
+                  color: node.color,
+                  filter: `drop-shadow(0 0 8px ${node.glow})`,
+                }}
+              />
               <div className="relative z-10 text-center leading-none">
-                <div className="text-[11px] font-medium text-white/82">{node.label}</div>
-                <div className="mt-1 text-[8px] uppercase tracking-[0.16em] text-white/38">{node.subtitle}</div>
+                <div className="text-[11px] font-semibold" style={{ color: 'var(--am-topology-satellite-label)' }}>
+                  {node.label}
+                </div>
+                <div
+                  className="mt-1 text-[8px] uppercase tracking-[0.16em]"
+                  style={{ color: 'var(--am-topology-satellite-subtitle)' }}
+                >
+                  {node.subtitle}
+                </div>
               </div>
             </div>
           </div>

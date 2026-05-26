@@ -76,6 +76,32 @@
   --am-empty-chart-fill: rgba(95, 107, 122, 0.06);
   --am-banner-bg: rgba(255, 140, 0, 0.1);
   --am-banner-border: rgba(255, 69, 0, 0.18);
+  --am-topology-panel-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(232, 239, 247, 0.78));
+  --am-topology-panel-border: rgba(56, 72, 92, 0.18);
+  --am-topology-panel-shadow: 0 24px 70px rgba(38, 51, 67, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --am-topology-ambient: radial-gradient(circle at 50% 50%, rgba(249, 115, 22, 0.3), rgba(2, 132, 199, 0.14) 34%, rgba(124, 58, 237, 0.08) 56%, transparent 70%);
+  --am-topology-grid-opacity: 0.85;
+  --am-topology-stream-opacity: 0.6;
+  --am-topology-stream-blend: multiply;
+  --am-topology-hex-opacity: 0.18;
+  --am-topology-hex-stroke: rgba(196, 69, 54, 0.55);
+  --am-topology-data-opacity: 0.18;
+  --am-topology-data-color: rgba(154, 52, 18, 0.72);
+  --am-topology-orbit-strong: rgba(46, 63, 85, 0.34);
+  --am-topology-orbit-soft: rgba(46, 63, 85, 0.2);
+  --am-topology-line-start: #0284C7;
+  --am-topology-line-mid: #F97316;
+  --am-topology-line-end: #7C3AED;
+  --am-topology-core-bg: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.98), rgba(255,140,0,0.86) 24%, rgba(255,69,0,0.96) 58%, rgba(154,52,18,0.98) 100%);
+  --am-topology-core-icon: #FFFFFF;
+  --am-topology-core-ring: rgba(255, 255, 255, 0.62);
+  --am-topology-core-inner-ring: rgba(255, 237, 213, 0.7);
+  --am-topology-core-label: rgba(100, 35, 15, 0.9);
+  --am-topology-core-label-line: rgba(249, 115, 22, 0.72);
+  --am-topology-satellite-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(231, 238, 246, 0.68));
+  --am-topology-satellite-shadow: inset 0 0 18px rgba(255,255,255,0.74), inset 0 -14px 24px rgba(64,77,95,0.13), 0 12px 26px rgba(38,51,67,0.12);
+  --am-topology-satellite-label: rgba(31, 41, 51, 0.88);
+  --am-topology-satellite-subtitle: rgba(95, 107, 122, 0.72);
 }
 
 .dark {
@@ -150,6 +176,32 @@
   --am-empty-chart-fill: rgba(255, 255, 255, 0.045);
   --am-banner-bg: rgba(196, 69, 54, 0.12);
   --am-banner-border: rgba(196, 69, 54, 0.24);
+  --am-topology-panel-bg: rgba(255, 255, 255, 0.05);
+  --am-topology-panel-border: rgba(255, 255, 255, 0.1);
+  --am-topology-panel-shadow: 0 24px 80px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08);
+  --am-topology-ambient: radial-gradient(circle at 50% 50%, rgba(196,69,54,0.24), rgba(56,189,248,0.07) 32%, transparent 62%);
+  --am-topology-grid-opacity: 0.45;
+  --am-topology-stream-opacity: 0.55;
+  --am-topology-stream-blend: screen;
+  --am-topology-hex-opacity: 0.05;
+  --am-topology-hex-stroke: #C44536;
+  --am-topology-data-opacity: 0.1;
+  --am-topology-data-color: #C44536;
+  --am-topology-orbit-strong: rgba(255,255,255,0.16);
+  --am-topology-orbit-soft: rgba(255,255,255,0.08);
+  --am-topology-line-start: rgba(56, 189, 248, 0.08);
+  --am-topology-line-mid: rgba(249, 115, 22, 0.72);
+  --am-topology-line-end: rgba(167, 139, 250, 0.12);
+  --am-topology-core-bg: radial-gradient(circle at 35% 28%,rgba(255,255,255,0.95),rgba(249,115,22,0.74) 24%,rgba(196,69,54,0.94) 58%,rgba(80,28,22,0.94) 100%);
+  --am-topology-core-icon: #FFFFFF;
+  --am-topology-core-ring: rgba(255, 255, 255, 0.35);
+  --am-topology-core-inner-ring: rgba(254, 215, 170, 0.3);
+  --am-topology-core-label: rgba(255, 255, 255, 0.9);
+  --am-topology-core-label-line: rgba(253, 186, 116, 0.8);
+  --am-topology-satellite-bg: linear-gradient(145deg,rgba(255,255,255,0.16),rgba(255,255,255,0.035));
+  --am-topology-satellite-shadow: inset 0 0 18px rgba(255,255,255,0.1), inset 0 -14px 24px rgba(0,0,0,0.22);
+  --am-topology-satellite-label: rgba(255, 255, 255, 0.82);
+  --am-topology-satellite-subtitle: rgba(255, 255, 255, 0.38);
 }
 
 @theme inline {
