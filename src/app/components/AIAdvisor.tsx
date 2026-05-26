@@ -17,9 +17,10 @@ import {
   ShieldCheck,
   BrainCircuit,
   ChevronDown,
-  Zap,
+  BookOpen,
+  BriefcaseBusiness,
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { askAlphaMindChat, askAlphaMindChatStream, type AlphaMindChatContext, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
 import { getMockAssetXRayReport, normalizeAssetSymbol } from '../services/assetXRay';
 import {
@@ -116,18 +117,18 @@ const globalNavItems = [
   { label: '对话投顾', page: 1, icon: MessageSquare },
   { label: '风险测试', page: 2, icon: Target },
   { label: '资产透视', page: 3, icon: ScanSearch },
-  { label: '核心功能', page: 4, icon: Sparkles },
+  { label: '持仓监控', page: 4, icon: BriefcaseBusiness },
+  { label: '核心功能', page: 5, icon: Sparkles },
 ];
 
 const quickQuestions = [
-  { icon: '💰', text: '如何开始投资理财？', category: 'beginner' },
-  { icon: '📊', text: '帮我评估投资风险', category: 'risk' },
-  { icon: '🎯', text: '制定退休储蓄计划', category: 'planning' },
-  { icon: '💎', text: '推荐适合我的基金', category: 'product' },
+  { icon: BookOpen, text: '用三分钟讲懂基金和 ETF 的区别', category: 'beginner', module: 'education' },
+  { icon: BrainCircuit, text: '基于我的画像给一个资产配置建议', category: 'allocation', module: 'advice' },
+  { icon: ShieldCheck, text: '帮我评估当前组合最大风险', category: 'risk', module: 'advice' },
+  { icon: ScanSearch, text: '讲讲贵州茅台适合我继续研究吗', category: 'asset', module: 'advice' },
 ];
 
-type AdvisorModePreference = 'auto' | 'fast' | 'deep';
-
+type AdvisorModule = 'advice' | 'education';
 const MAX_IMAGE_DIMENSION = 1280;
 const IMAGE_COMPRESSION_QUALITY = 0.78;
 
@@ -171,9 +172,8 @@ const detectIntent = (text: string) => {
   return 'general';
 };
 
-const inferChatMode = (text: string, intent: string, preference: AdvisorModePreference): AlphaMindChatMode => {
-  if (preference === 'fast' || preference === 'deep') return preference;
-
+const inferChatMode = (text: string, intent: string, module: AdvisorModule): AlphaMindChatMode => {
+  if (module === 'education') return 'fast';
   const complexSignals = [
     '深度',
     '详细',
@@ -199,6 +199,8 @@ const inferChatMode = (text: string, intent: string, preference: AdvisorModePref
 
   return hasComplexSignal || isLongQuestion || isComplexIntent ? 'deep' : 'fast';
 };
+
+const getAdvisorModuleLabel = (module: AdvisorModule) => module === 'education' ? '理财科普' : '投顾建议';
 
 const supportsRiskScore = (intent: string) => ['risk_assessment', 'allocation', 'retirement'].includes(intent);
 const supportsPortfolio = (intent: string) => ['allocation', 'retirement'].includes(intent);
@@ -390,6 +392,101 @@ const buildAiChatContext = (messageText: string, intent: string, profile = loadU
   };
 };
 
+const buildEducationTopicCards = (profile = loadUserProfileMemory()) => {
+  const reports = getPersonalizedResearchCandidates(profile);
+  const [primary, hedge, satellite] = reports;
+
+  return [
+    {
+      title: `${primary?.name ?? '核心资产'}为什么要看“风险收益比”`,
+      level: profile.riskLevel,
+      metric: `${primary?.probabilities.flat ?? 42}% 横盘情景`,
+      detail: `您近期关注 ${primary?.name ?? '核心资产'}，更适合先理解波动、估值和仓位，而不是直接问能不能买。`,
+    },
+    {
+      title: `${hedge?.name ?? '防御资产'}在组合里做什么`,
+      level: '防御角色',
+      metric: `${hedge?.sentiment ?? 57}/100 情绪`,
+      detail: '防御资产的重点不是追求最高收益，而是在市场波动时降低组合情绪压力。',
+    },
+    {
+      title: `${satellite?.name ?? '卫星资产'}为什么不宜重仓`,
+      level: '仓位纪律',
+      metric: `${satellite?.probabilities.down ?? 24}% 下行情景`,
+      detail: '高弹性资产可以提供机会，但需要被放进可承受的风险预算里。',
+    },
+  ];
+};
+
+const buildEducationChartData = (profile = loadUserProfileMemory()) =>
+  getPersonalizedResearchCandidates(profile).map((report) => ({
+    name: report.name.replace('华安', ''),
+    up: report.probabilities.up,
+    flat: report.probabilities.flat,
+    down: report.probabilities.down,
+    sentiment: report.sentiment,
+  }));
+
+function EducationInsightPanel({ profile = loadUserProfileMemory() }) {
+  const cards = buildEducationTopicCards(profile);
+  const chartData = buildEducationChartData(profile);
+
+  return (
+    <div className="am-card-strong border rounded-xl p-4 space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full am-brand-soft am-brand px-3 py-1 text-xs font-semibold">
+            <BookOpen size={14} />
+            AI 主动理财科普
+          </div>
+          <h4 className="mt-3 text-base font-bold am-text-primary">根据您的关注资产生成今日学习地图</h4>
+          <p className="mt-1 text-xs leading-5 am-text-secondary">
+            AlphaMind 读取本地画像和近期关注，不需要您先提问，也会主动把概念讲成可视化结构。
+          </p>
+        </div>
+        <div className="rounded-lg border am-card px-3 py-2 text-right">
+          <div className="text-[11px] am-text-tertiary">当前画像</div>
+          <div className="text-sm font-semibold am-brand">{profile.riskLevel} / {Math.round(profile.riskScore)}</div>
+        </div>
+      </div>
+
+      <div className="h-48 rounded-xl border am-card p-3">
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsBarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
+            <XAxis dataKey="name" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+            <YAxis stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'var(--am-tooltip-bg)',
+                border: '1px solid var(--am-border-subtle)',
+                borderRadius: '8px',
+                color: 'var(--am-text-primary)',
+              }}
+            />
+            <Bar dataKey="up" name="上涨情景" stackId="a" fill="#22C55E" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="flat" name="横盘情景" stackId="a" fill="#F59E0B" />
+            <Bar dataKey="down" name="下行情景" stackId="a" fill="#EF4444" radius={[0, 0, 3, 3]} />
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {cards.map((card) => (
+          <div key={card.title} className="rounded-xl border am-card p-3">
+            <div className="text-xs font-semibold am-text-primary">{card.title}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="rounded-full am-brand-soft px-2 py-0.5 text-[11px] am-brand">{card.level}</span>
+              <span className="rounded-full am-input-surface border am-border-subtle px-2 py-0.5 text-[11px] am-text-secondary">{card.metric}</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 am-text-secondary">{card.detail}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const buildAdvisorProcessMarkdown = (messageText: string, intent: string, profile = loadUserProfileMemory()) => {
   const intentLabel: Record<string, string> = {
     risk_assessment: '风险承受能力与波动承受边界',
@@ -482,7 +579,7 @@ const getVisibleMessageContent = (message: any, allMessages: any[], index: numbe
   return [
     localResponse.content,
     '',
-    '> AlphaMind 已拦截一次异常模型输出，并切换为本地画像与规则分析。建议重新发送或切换深度模式获取更稳定回答。',
+    '> AlphaMind 已拦截一次异常模型输出，并切换为本地画像与规则分析。建议重新发送或切换投顾建议模块获取更稳定回答。',
   ].join('\n');
 };
 
@@ -784,6 +881,7 @@ const renderMessageText = (content: string) => {
 };
 
 export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newChatRequest = 0 }: AIAdvisorProps) {
+  const initialProfileMemory = loadUserProfileMemory();
   const [sessions, setSessions] = useState<Session[]>(() => {
     try {
       const saved = localStorage.getItem('alphamind_sessions');
@@ -806,8 +904,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
   });
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [userProfile, setUserProfile] = useState<any>({});
-  const [modePreference, setModePreference] = useState<AdvisorModePreference>('auto');
+  const [advisorModule, setAdvisorModule] = useState<AdvisorModule>('advice');
   const [activeChatMode, setActiveChatMode] = useState<AlphaMindChatMode>('fast');
+  const [profileSnapshot, setProfileSnapshot] = useState(initialProfileMemory);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastNewChatRequestRef = useRef(newChatRequest);
@@ -866,6 +965,12 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  useEffect(() => {
+    const refreshProfileSnapshot = () => setProfileSnapshot(loadUserProfileMemory());
+    window.addEventListener('alphamind-profile-updated', refreshProfileSnapshot);
+    return () => window.removeEventListener('alphamind-profile-updated', refreshProfileSnapshot);
+  }, []);
 
   const generateSuggestions = (lastMessage: any, originalQuestion = '') => {
     const intent = lastMessage.intent ?? detectIntent(originalQuestion || lastMessage.content || '');
@@ -939,6 +1044,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
     return pickContextualQuestions([
       ...(pools[intent] ?? pools.general),
+      ...(lastMessage.advisorModule === 'education'
+        ? ['把这个概念用贵州茅台举例说明', '给我画成更简单的三步理解框架']
+        : ['能不能给出一个更保守的方案', '进入持仓监控看组合风险']),
       ...modeAwareQuestions,
       ...imageQuestions,
     ], seed);
@@ -1025,8 +1133,10 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
       const detectedSymbol = extractStockSymbol(messageText);
       const normalizedSymbol = detectedSymbol ? normalizeAssetSymbol(detectedSymbol) : undefined;
       const profileMemory = updateProfileFromMessage(messageText, normalizedSymbol);
-      const chatMode = inferChatMode(messageText, intent, modePreference);
+      const chatMode = inferChatMode(messageText, intent, advisorModule);
       setActiveChatMode(chatMode);
+      setProfileSnapshot(profileMemory);
+      const moduleLabel = getAdvisorModuleLabel(advisorModule);
       const messageImage = uploadedImage;
 
       const userMessage: any = {
@@ -1036,6 +1146,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
         imageUrl: messageImage,
         intent,
         chatMode,
+        advisorModule,
         assetSymbol: normalizedSymbol,
         createdAt: Date.now(),
       };
@@ -1055,8 +1166,14 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
       try {
         const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile, profileMemory);
         const chatHistory = buildChatHistoryForAi(baseMessages, userMessage);
-        const aiContext = buildAiChatContext(messageText, intent, profileMemory);
-        const shouldStreamDeepThinking = !['asset_xray', 'profile'].includes(intent) && chatMode === 'deep';
+        const aiContext = buildAiChatContext(
+          advisorModule === 'education'
+            ? `【理财科普】请主动结合用户画像和关注资产，用通俗但专业的方式解释：${messageText}`
+            : messageText,
+          intent,
+          profileMemory
+        );
+        const shouldStreamDeepThinking = advisorModule === 'advice' && !['asset_xray', 'profile'].includes(intent) && chatMode === 'deep';
         const streamMessageId = `stream-${Date.now()}`;
 
         if (shouldStreamDeepThinking) {
@@ -1070,6 +1187,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
               source: 'siliconflow',
               createdAt: Date.now(),
               chatMode,
+              advisorModule,
               intent,
               hasImageAnalysis: Boolean(userMessage.imageUrl),
               thinkingEnabled: true,
@@ -1149,13 +1267,13 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
           ? [
               {
                 icon: aiResponse.hasImage ? '🖼️' : chatMode === 'deep' ? '🧠' : '⚡',
-                text: `${aiResponse.hasImage ? '图像理解' : chatMode === 'deep' ? '深度思考' : '快速响应'}模式已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
+                text: `${moduleLabel}已调用硅基流动模型${aiResponse.model ? ` ${aiResponse.model}` : ''}。`,
               },
               { icon: '📡', text: '资产行情与 K 线由 QuantDinger 通道支撑，个股细节可进入资产透视查看。' },
               { icon: '🛡️', text: '回答仅用于辅助研究和学习，不构成投资建议。' },
             ]
           : localResponse.reasons;
-        const shouldShowChart = !hasLiveAi && localResponse.showInlineChart;
+        const shouldShowChart = advisorModule === 'education' || (!hasLiveAi && localResponse.showInlineChart);
         const providerSource = hasLiveAi ? 'siliconflow' : 'local';
         const providerModel = hasLiveAi ? aiResponse.model : undefined;
         const providerError = hasLiveAi ? undefined : aiResponse.error;
@@ -1172,6 +1290,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
           source: providerSource,
           model: providerModel,
           chatMode,
+          advisorModule,
           intent,
           hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(userMessage.imageUrl),
           thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : intent === 'profile',
@@ -1208,6 +1327,8 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
               ],
           assetSymbol: normalizedSymbol,
           adviceCard,
+          educationCards: advisorModule === 'education' ? buildEducationTopicCards(profileMemory) : undefined,
+          educationChartData: advisorModule === 'education' ? buildEducationChartData(profileMemory) : undefined,
         };
 
         if (analysisMessage.portfolio.length > 0) {
@@ -1411,12 +1532,19 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                       onClick={() => handleSend(q.text)}
                       className="p-4 am-card am-hover-surface rounded-xl transition-all text-left"
                     >
-                      <div className="text-2xl mb-2">{q.icon}</div>
-                      <p className="text-sm am-text-secondary">{q.text}</p>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
+                              <q.icon size={24} strokeWidth={1.7} className="mb-2 am-brand" />
+                              <p className="text-sm am-text-secondary">{q.text}</p>
+                              <p className="mt-2 text-[11px] am-text-tertiary">
+                                {q.module === 'education' ? '理财科普' : '投顾建议'}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="w-full max-w-3xl">
+                          <EducationInsightPanel profile={profileSnapshot} />
+                        </div>
+                      </motion.div>
             ) : (
               <div className="space-y-6">
                 {messages.map((message, index) => {
@@ -1478,20 +1606,18 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                       ? '资产透视入口'
                                       : message.intent === 'profile'
                                       ? '画像记忆引擎'
+                                      : message.advisorModule === 'education'
+                                      ? '理财科普'
                                       : message.source === 'siliconflow'
-                                      ? message.hasImageAnalysis
-                                        ? '硅基流动 AI · 图像理解'
-                                        : message.chatMode === 'deep'
-                                        ? '硅基流动 AI · 深度思考'
-                                        : '硅基流动 AI · 快速响应'
+                                      ? '投顾建议'
                                       : '本地规则分析'}
                                   </span>
                                   {message.source === 'siliconflow' && (
                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
                                       message.hasImageAnalysis || message.chatMode === 'deep' ? 'am-brand-soft am-brand' : 'am-card'
                                     }`}>
-                                      {message.hasImageAnalysis ? <ImageIcon size={12} /> : message.chatMode === 'deep' ? <BrainCircuit size={12} /> : <Zap size={12} />}
-                                      {message.hasImageAnalysis ? 'vision on' : message.chatMode === 'deep' ? 'thinking on' : 'thinking off'}
+                                      {message.hasImageAnalysis ? <ImageIcon size={12} /> : message.advisorModule === 'education' ? <BookOpen size={12} /> : <BrainCircuit size={12} />}
+                                      {message.hasImageAnalysis ? '图像理解' : message.advisorModule === 'education' ? '主动科普' : '画像约束'}
                                     </span>
                                   )}
                                   <span className="am-text-tertiary">
@@ -1562,29 +1688,74 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
                                 {message.showInlineChart && (
                                   <div className="am-card rounded-xl p-4">
+                                    {message.advisorModule === 'education' && (
+                                      <div className="mb-3 flex items-center gap-2">
+                                        <BookOpen size={16} className="am-brand" />
+                                        <div>
+                                          <div className="text-sm font-semibold am-text-primary">个性化科普图谱</div>
+                                          <div className="text-xs am-text-tertiary">基于近期关注资产的情景概率对比</div>
+                                        </div>
+                                      </div>
+                                    )}
                                     <ResponsiveContainer width="100%" height={150}>
-                                      <AreaChart data={marketTrendData}>
-                                        <defs>
-                                          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#C44536" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#C44536" stopOpacity={0}/>
-                                          </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
-                                        <XAxis dataKey="date" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
-                                        <YAxis stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
-                                        <Tooltip
-                                          contentStyle={{
-                                            backgroundColor: 'var(--am-tooltip-bg)',
-                                            border: '1px solid var(--am-border-subtle)',
-                                            borderRadius: '8px',
-                                            color: 'var(--am-text-primary)',
-                                          }}
-                                        />
-                                        <Area type="monotone" dataKey="value" stroke="#C44536" fillOpacity={1} fill="url(#colorValue)" />
-                                      </AreaChart>
+                                      {message.advisorModule === 'education' ? (
+                                        <RechartsBarChart data={message.educationChartData ?? buildEducationChartData()}>
+                                          <CartesianGrid strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
+                                          <XAxis dataKey="name" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+                                          <YAxis stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+                                          <Tooltip
+                                            contentStyle={{
+                                              backgroundColor: 'var(--am-tooltip-bg)',
+                                              border: '1px solid var(--am-border-subtle)',
+                                              borderRadius: '8px',
+                                              color: 'var(--am-text-primary)',
+                                            }}
+                                          />
+                                          <Bar dataKey="up" name="上涨情景" stackId="a" fill="#22C55E" />
+                                          <Bar dataKey="flat" name="横盘情景" stackId="a" fill="#F59E0B" />
+                                          <Bar dataKey="down" name="下行情景" stackId="a" fill="#EF4444" />
+                                        </RechartsBarChart>
+                                      ) : (
+                                        <AreaChart data={marketTrendData}>
+                                          <defs>
+                                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                              <stop offset="5%" stopColor="#C44536" stopOpacity={0.3}/>
+                                              <stop offset="95%" stopColor="#C44536" stopOpacity={0}/>
+                                            </linearGradient>
+                                          </defs>
+                                          <CartesianGrid strokeDasharray="3 3" stroke="var(--am-chart-grid)" />
+                                          <XAxis dataKey="date" stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+                                          <YAxis stroke="var(--am-chart-axis)" style={{ fontSize: '10px' }} />
+                                          <Tooltip
+                                            contentStyle={{
+                                              backgroundColor: 'var(--am-tooltip-bg)',
+                                              border: '1px solid var(--am-border-subtle)',
+                                              borderRadius: '8px',
+                                              color: 'var(--am-text-primary)',
+                                            }}
+                                          />
+                                          <Area type="monotone" dataKey="value" stroke="#C44536" fillOpacity={1} fill="url(#colorValue)" />
+                                        </AreaChart>
+                                      )}
                                     </ResponsiveContainer>
-                                    <p className="text-xs am-text-tertiary mt-2 text-center">市场趋势图 - 近6个月</p>
+                                    <p className="text-xs am-text-tertiary mt-2 text-center">
+                                      {message.advisorModule === 'education' ? '关注资产情景概率 - 教学视图' : '市场趋势图 - 近6个月'}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {message.advisorModule === 'education' && message.educationCards?.length > 0 && (
+                                  <div className="grid gap-3 md:grid-cols-3">
+                                    {message.educationCards.map((card: any) => (
+                                      <div key={card.title} className="rounded-xl border am-card p-3">
+                                        <div className="text-xs font-semibold am-text-primary">{card.title}</div>
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                          <span className="rounded-full am-brand-soft px-2 py-0.5 text-[11px] am-brand">{card.level}</span>
+                                          <span className="rounded-full am-input-surface border am-border-subtle px-2 py-0.5 text-[11px] am-text-secondary">{card.metric}</span>
+                                        </div>
+                                        <p className="mt-2 text-xs leading-5 am-text-secondary">{card.detail}</p>
+                                      </div>
+                                    ))}
                                   </div>
                                 )}
 
@@ -1708,10 +1879,14 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                         <div className="flex items-center gap-2 am-text-secondary">
                           <div className="w-4 h-4 border-2 border-[#C44536] border-t-transparent rounded-full am-loader-spin" />
                           <span className="text-sm">
-                            {activeChatMode === 'deep' ? '正在连接深度模型...' : '正在分析...'}
+                            {advisorModule === 'education'
+                              ? '正在生成个性化科普卡片...'
+                              : activeChatMode === 'deep'
+                              ? '正在连接投顾分析模型...'
+                              : '正在生成投顾建议...'}
                           </span>
                         </div>
-                        {activeChatMode === 'deep' && (
+                        {advisorModule === 'advice' && activeChatMode === 'deep' && (
                           <p className="text-xs am-text-tertiary">
                             连接成功后会展示画像证据链，不显示内部推理或提示词。
                           </p>
@@ -1760,18 +1935,17 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="inline-flex rounded-xl border am-border-subtle am-input-surface p-1">
                 {([
-                  { value: 'auto', label: '自动', icon: Sparkles },
-                  { value: 'fast', label: '快速', icon: Zap },
-                  { value: 'deep', label: '深度', icon: BrainCircuit },
+                  { value: 'advice', label: '投顾建议', icon: BrainCircuit },
+                  { value: 'education', label: '理财科普', icon: BookOpen },
                 ] as const).map((item) => {
                   const Icon = item.icon;
-                  const isActive = modePreference === item.value;
+                  const isActive = advisorModule === item.value;
 
                   return (
                     <button
                       key={item.value}
                       type="button"
-                      onClick={() => setModePreference(item.value)}
+                      onClick={() => setAdvisorModule(item.value)}
                       className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs transition-colors ${
                         isActive ? 'am-brand-bg am-on-brand' : 'am-text-secondary am-hover-surface'
                       }`}
@@ -1783,7 +1957,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                 })}
               </div>
               <span className="hidden text-xs am-text-tertiary sm:inline">
-                自动模式会按问题复杂度切换响应速度与深度
+                {advisorModule === 'education'
+                  ? 'AI 会主动结合关注资产生成科普图谱'
+                  : '系统会按问题复杂度自动选择合适模型深度'}
               </span>
             </div>
 
@@ -1816,7 +1992,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                       handleSend();
                     }
                   }}
-                  placeholder="输入投资问题..."
+                  placeholder={advisorModule === 'education' ? '输入想学习的理财概念...' : '输入投资问题...'}
                   className="flex-1 bg-transparent am-text-primary am-placeholder focus:outline-none text-sm"
                   disabled={isCurrentSessionAnalyzing}
                 />

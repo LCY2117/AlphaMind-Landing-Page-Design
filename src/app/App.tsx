@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { History, Home, MessageSquare, Plus, ScanSearch, Sparkles, Target } from 'lucide-react';
+import { BriefcaseBusiness, History, Home, MessageSquare, Plus, ScanSearch, Sparkles, Target } from 'lucide-react';
 import { Navigation } from './components/Navigation';
 import { HeroSection } from './components/HeroSection';
 import { FeatureCards } from './components/FeatureCards';
@@ -11,14 +11,16 @@ import { ThemeProvider } from './contexts/ThemeContext';
 const AIAdvisor = lazy(() => import('./components/AIAdvisor').then((module) => ({ default: module.AIAdvisor })));
 const RiskAssessment = lazy(() => import('./components/RiskAssessment').then((module) => ({ default: module.RiskAssessment })));
 const AssetXRay = lazy(() => import('./components/AssetXRay').then((module) => ({ default: module.AssetXRay })));
+const PortfolioMonitor = lazy(() => import('./components/PortfolioMonitor').then((module) => ({ default: module.PortfolioMonitor })));
 
-const PAGE_NAMES = ['首页', '对话投顾', '风险测试', '资产透视', '核心功能'];
+const PAGE_NAMES = ['首页', '对话投顾', '风险测试', '资产透视', '持仓监控', '核心功能'];
 const PAGE_NAV_ITEMS = [
   { label: PAGE_NAMES[0], page: 0, icon: Home },
   { label: PAGE_NAMES[1], page: 1, icon: MessageSquare },
   { label: PAGE_NAMES[2], page: 2, icon: Target },
   { label: PAGE_NAMES[3], page: 3, icon: ScanSearch },
-  { label: PAGE_NAMES[4], page: 4, icon: Sparkles },
+  { label: PAGE_NAMES[4], page: 4, icon: BriefcaseBusiness },
+  { label: PAGE_NAMES[5], page: 5, icon: Sparkles },
 ];
 
 const PAGE_TRANSITION = {
@@ -198,7 +200,8 @@ export default function App() {
         {currentPage === 0 && <HeroSection />}
         {currentPage === 2 && <RiskAssessment />}
         {currentPage === 3 && <AssetXRay requestedSymbol={assetXRaySymbol} />}
-        {currentPage === 4 && <FeatureCards />}
+        {currentPage === 4 && <PortfolioMonitor />}
+        {currentPage === 5 && <FeatureCards />}
       </PageShell>
     );
   }, [assetXRaySymbol, currentPage, handleNavigate, handleNewChat, handleOpenAssetXRay, newChatRequest]);

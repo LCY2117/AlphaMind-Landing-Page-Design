@@ -322,7 +322,7 @@ export function HeroSection() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  const event = new CustomEvent('navigate-to-page', { detail: 4 });
+                  const event = new CustomEvent('navigate-to-page', { detail: 5 });
                   window.dispatchEvent(event);
                 }}
                 className="px-6 sm:px-8 py-3 sm:py-4 border-2 am-border-brand am-brand rounded-lg font-semibold am-hover-surface transition-colors text-sm sm:text-base"

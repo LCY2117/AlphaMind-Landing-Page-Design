@@ -1,4 +1,4 @@
-import { Settings, LogIn, User, LogOut, ChevronDown, ShieldCheck, Menu, Home, MessageSquare, Target, ScanSearch, Sparkles, Plus, X } from 'lucide-react';
+import { Settings, LogIn, User, LogOut, ChevronDown, ShieldCheck, Menu, Home, MessageSquare, Target, ScanSearch, Sparkles, Plus, X, BriefcaseBusiness } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import logoImg from '../../imports/alphamind-logo.png';
@@ -10,7 +10,8 @@ const mobileNavItems = [
   { label: '对话投顾', page: 1, icon: MessageSquare },
   { label: '风险测试', page: 2, icon: Target },
   { label: '资产透视', page: 3, icon: ScanSearch },
-  { label: '核心功能', page: 4, icon: Sparkles },
+  { label: '持仓监控', page: 4, icon: BriefcaseBusiness },
+  { label: '核心功能', page: 5, icon: Sparkles },
 ];
 
 interface NavigationProps {
