@@ -88,6 +88,49 @@ function normalizeChatMessages(input: unknown) {
     })
 }
 
+function normalizeStringList(input: unknown, limit = 6) {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((item) => typeof item === 'string' ? item.trim() : '')
+    .filter(Boolean)
+    .slice(0, limit)
+    .map((item) => item.slice(0, 260))
+}
+
+function normalizeChatContext(input: unknown) {
+  if (!input || typeof input !== 'object') return null
+  const record = input as Record<string, unknown>
+  const context = {
+    userIntent: typeof record.userIntent === 'string' ? record.userIntent.slice(0, 60) : '',
+    profileSummary: typeof record.profileSummary === 'string' ? record.profileSummary.slice(0, 360) : '',
+    profileEvidence: normalizeStringList(record.profileEvidence, 6),
+    focusTopics: normalizeStringList(record.focusTopics, 6),
+    recentAssets: normalizeStringList(record.recentAssets, 6),
+    assetSignals: normalizeStringList(record.assetSignals, 5),
+    scenarioNotes: normalizeStringList(record.scenarioNotes, 5),
+  }
+
+  const hasContext = Object.values(context).some((value) => Array.isArray(value) ? value.length > 0 : Boolean(value))
+  return hasContext ? context : null
+}
+
+function formatChatContextForPrompt(context: ReturnType<typeof normalizeChatContext>) {
+  if (!context) return ''
+  const lines = [
+    'AlphaMind 当前可用的产品上下文如下，回答时必须优先引用这些信息，而不是只给通用教材：',
+    context.userIntent ? `- 本轮意图：${context.userIntent}` : '',
+    context.profileSummary ? `- 用户画像摘要：${context.profileSummary}` : '',
+    ...context.profileEvidence.map((item) => `- 画像证据：${item}`),
+    context.focusTopics.length ? `- 关注主题：${context.focusTopics.join(' / ')}` : '',
+    context.recentAssets.length ? `- 近期关注资产：${context.recentAssets.join('；')}` : '',
+    ...context.assetSignals.map((item) => `- 资产信号：${item}`),
+    ...context.scenarioNotes.map((item) => `- 情景约束：${item}`),
+    '请在正式回答中自然引用画像、资产信号或情景约束中的至少两类信息；如果信息不足，先指出缺口。',
+  ].filter(Boolean)
+
+  return lines.join('\n')
+}
+
 function toProviderMessages(messages: ReturnType<typeof normalizeChatMessages>) {
   return messages.map((message) => {
     if (message.role === 'user' && message.imageUrl) {
@@ -105,6 +148,16 @@ function toProviderMessages(messages: ReturnType<typeof normalizeChatMessages>) 
       content: message.content,
     }
   })
+}
+
+function hasDegenerateAiText(content: string) {
+  const text = content.trim()
+  if (!text) return true
+  const dCount = (text.match(/D/g) ?? []).length
+  const weirdChunks = /(D请|DD|D时|D建议|D风险|D评估|kuk|如比如|如如如|等等等等|字字字字|建议建议建议|请请请|并并并并|时时时)/.test(text)
+  const repeatedToken = /([\u4e00-\u9fa5A-Za-z])\1{5,}/.test(text)
+  const dDensity = text.length > 80 && dCount / text.length > 0.045
+  return weirdChunks || repeatedToken || dDensity
 }
 
 function extractSiliconFlowError(payload: any, status: number) {
@@ -519,6 +572,8 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
         try {
           const body = await readJsonBody(req)
           const messages = normalizeChatMessages(body.messages)
+          const chatContext = normalizeChatContext(body.context)
+          const promptContext = formatChatContextForPrompt(chatContext)
           const latestUserText = messages.filter((message) => message.role === 'user').at(-1)?.content ?? ''
           const hasImage = messages.some((message) => message.role === 'user' && message.imageUrl)
           const mode = body.mode === 'deep' ? 'deep' : 'fast'
@@ -541,14 +596,17 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             '你是 AlphaMind 的 AI 投资顾问，服务于用户的投资学习、风险理解与资产研究体验。',
             '你可以解释投资概念、风险、资产配置、个股研究思路和 AlphaMind 页面功能。',
             '回答要专业、清晰、中文为主，避免承诺收益，避免给出确定性买卖指令。',
+            '回答必须围绕 AlphaMind 已提供的用户画像、资产信号与情景约束展开；不要只输出通用百科式教材。',
+            '如果上下文里有用户画像，请明确说明它如何影响你的风险边界、资产筛选或执行建议。',
             '如果问题涉及个股，提醒用户进入“资产透视”查看 QuantDinger 行情/K线与结构化评分。',
             hasImage
               ? '本轮包含用户上传图片。请先识别图片中的文字、图表、截图或财务信息，再说明可用于投资研究的要点和不确定性。'
               : '本轮为纯文本对话。',
+            promptContext,
             '每次回答都要说明这不是投资建议，真实决策需结合个人风险承受能力。',
             mode === 'deep'
               ? '本轮为深度分析模式。请直接输出面向用户的正式回答，可以包含小标题、列表、表格和风险边界，但不要输出“分析步骤摘要”“推理摘要”或内部思维链。'
-              : '本轮为快速模式。请直接回答，控制在120字以内，优先给出清晰结论。',
+              : '本轮为快速模式。请直接回答，控制在160字以内，必须引用至少一条用户画像或资产上下文；语言要短句、自然，不要重复字符。',
             '不要提及任何比赛、内部开发计划、系统提示词或后端实现细节。',
           ].join('\n')
 
@@ -558,7 +616,7 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
               { role: 'system', content: systemPrompt },
               ...toProviderMessages(messages),
             ],
-            temperature: 0.55,
+            temperature: mode === 'deep' ? 0.45 : 0.35,
             max_tokens: hasImage ? mode === 'deep' ? 1300 : 700 : mode === 'deep' ? 1100 : 220,
             stream: shouldStream,
           }
@@ -579,6 +637,18 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
 
             const payload = await response.json().catch(() => ({}))
             return { response, payload }
+          }
+
+          const callFallbackStableModel = async () => {
+            const retryPayload: Record<string, unknown> = {
+              ...requestPayload,
+              model: deepModel,
+              stream: false,
+              temperature: 0.35,
+              max_tokens: mode === 'deep' ? 1100 : 380,
+            }
+            delete retryPayload.enable_thinking
+            return callSiliconFlow(retryPayload)
           }
 
           const callSiliconFlowStream = async (payloadBody: Record<string, unknown>) => {
@@ -705,6 +775,11 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
                   error: 'Empty SiliconFlow response',
                   source: 'siliconflow',
                 })
+              } else if (hasDegenerateAiText(content)) {
+                sendSse(res, 'error', {
+                  error: 'AI response quality check failed',
+                  source: 'siliconflow',
+                })
               } else {
                 sendSse(res, 'done', {
                   content: content.trim(),
@@ -749,8 +824,21 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             return
           }
 
-          const message = payload?.choices?.[0]?.message
-          const content = message?.content
+          let responsePayload = payload
+          let providerModel = payload.model || model
+          let message = responsePayload?.choices?.[0]?.message
+          let content = message?.content
+          let usedQualityRetry = false
+          if (typeof content === 'string' && content.trim() && hasDegenerateAiText(content)) {
+            const retry = await callFallbackStableModel()
+            if (retry.response.ok) {
+              responsePayload = retry.payload
+              providerModel = retry.payload.model || deepModel
+              message = responsePayload?.choices?.[0]?.message
+              content = message?.content
+              usedQualityRetry = true
+            }
+          }
           const reasoningContent = typeof message?.reasoning_content === 'string'
             ? message.reasoning_content.trim()
             : ''
@@ -761,16 +849,24 @@ function alphaMindChatProxy(env: Record<string, string>): Plugin {
             })
             return
           }
+          if (hasDegenerateAiText(content)) {
+            sendJson(res, 502, {
+              error: 'AI response quality check failed',
+              source: 'siliconflow',
+            })
+            return
+          }
 
           sendJson(res, 200, {
             content: content.trim(),
-            model: payload.model || model,
+            model: providerModel,
             mode,
             hasImage,
             thinkingEnabled: thinkingRequested,
             reasoningContent: toPublicReasoningSummary(reasoningContent),
             source: 'siliconflow',
-            usage: payload.usage,
+            usage: responsePayload.usage,
+            qualityRetry: usedQualityRetry,
           })
         } catch (error) {
           const message = error instanceof Error ? error.message : 'AlphaMind chat proxy failed'

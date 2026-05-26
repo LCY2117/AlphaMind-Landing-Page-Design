@@ -20,7 +20,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { askAlphaMindChat, askAlphaMindChatStream, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
+import { askAlphaMindChat, askAlphaMindChatStream, type AlphaMindChatContext, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
 import { getMockAssetXRayReport, normalizeAssetSymbol } from '../services/assetXRay';
 import {
   buildInvestmentAdviceCard,
@@ -309,6 +309,18 @@ const stripReasoningSummaryFromContent = (content: string) => {
   return withoutSummary || content.trim();
 };
 
+const hasDegenerateAdvisorText = (content: string) => {
+  const text = content.trim();
+  if (!text) return false;
+  const dCount = (text.match(/D/g) ?? []).length;
+  const dDensity = text.length > 80 && dCount / text.length > 0.045;
+  return (
+    dDensity ||
+    /(D请|DD|D时|D建议|D风险|D评估|kuk|如比如|如如如|建议建议建议|请请请|并并并并|时时时|字字字字)/.test(text) ||
+    /([\u4e00-\u9fa5A-Za-z])\1{5,}/.test(text)
+  );
+};
+
 const formatAmountForProfile = (amount?: number) => {
   if (!amount) return '暂未记录';
   if (amount >= 10000) return `${Math.round(amount / 10000)} 万元`;
@@ -346,6 +358,34 @@ const buildProfileMemoryAnswer = (profile = loadUserProfileMemory()) => {
     '- 涉及基金、个股或资产配置时，会先说明适配理由、主要风险和不确定性。',
     '- 如果你补充年龄、资金期限、亏损承受范围或测一次风险评估，这份画像会继续更新。',
   ].join('\n');
+};
+
+const buildAiChatContext = (messageText: string, intent: string, profile = loadUserProfileMemory()): AlphaMindChatContext => {
+  const candidates = getPersonalizedResearchCandidates(profile);
+  const reports = candidates.map((report) => ({
+    report,
+    volatility: report.metrics.find((item) => item.label.includes('波动'))?.value ?? '中',
+  }));
+
+  return {
+    userIntent: intent,
+    profileSummary: `${profile.riskLevel}用户，风险分 ${Math.round(profile.riskScore)}/100，当前情绪为${profile.emotionTag || '平稳'}，资金记录：${formatAmountForProfile(profile.amount)}，年龄：${profile.age ? `${profile.age}岁` : '暂未记录'}。`,
+    profileEvidence: getProfileEvidence(profile),
+    focusTopics: profile.focusTopics.slice(0, 5),
+    recentAssets: profile.recentAssets.slice(0, 5).map((item) => `${item.name}(${item.symbol})，关注${item.count}次`),
+    assetSignals: reports.map(({ report, volatility }) =>
+      `${report.name}(${report.symbol})：AI评分 ${report.metrics[0]?.value ?? '--'}，涨跌 ${report.change}，情绪 ${report.sentimentLabel}/${report.sentiment}，波动 ${volatility}，概率 上涨${report.probabilities.up}% / 横盘${report.probabilities.flat}% / 下跌${report.probabilities.down}%。`
+    ),
+    scenarioNotes: [
+      `回答必须显式引用用户画像边界：${profile.riskLevel} / ${Math.round(profile.riskScore)}/100。`,
+      intent === 'retirement'
+        ? '退休问题需要结合年龄、资金缺口、通胀、生命周期配置和现金流安全垫，不要只写通用教材。'
+        : '普通投顾问题需要结合风险画像、关注资产、候选资产信号和情景概率给出个性化解释。',
+      messageText.includes('基金') || messageText.includes('推荐')
+        ? '推荐类回答应先说明匹配逻辑与排除逻辑，再列研究候选，不要给确定买入指令。'
+        : '如用户信息不足，先说明缺口，并给出下一步应补充的信息。',
+    ],
+  };
 };
 
 const buildAdvisorProcessMarkdown = (messageText: string, intent: string, profile = loadUserProfileMemory()) => {
@@ -422,6 +462,26 @@ const getVisibleAdvisorProcess = (message: any, allMessages: any[], index: numbe
   }
 
   return buildAdvisorProcessMarkdown(prompt, intent);
+};
+
+const getVisibleMessageContent = (message: any, allMessages: any[], index: number) => {
+  const content = String(message.content ?? '');
+  if (message.role !== 'assistant' || !hasDegenerateAdvisorText(content)) return content;
+
+  const previousUserMessage = allMessages
+    .slice(0, index)
+    .reverse()
+    .find((item) => item.role === 'user');
+  const prompt = String(previousUserMessage?.content ?? '');
+  const intent = typeof message.intent === 'string' ? message.intent : detectIntent(prompt);
+  const profile = loadUserProfileMemory();
+  const localResponse = buildLocalAnalysisResponse(prompt, intent, {}, profile);
+
+  return [
+    localResponse.content,
+    '',
+    '> AlphaMind 已拦截一次异常模型输出，并切换为本地画像与规则分析。建议重新发送或切换深度模式获取更稳定回答。',
+  ].join('\n');
 };
 
 const extractStockSymbol = (text: string) => {
@@ -993,6 +1053,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
       try {
         const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile, profileMemory);
         const chatHistory = buildChatHistoryForAi(baseMessages, userMessage);
+        const aiContext = buildAiChatContext(messageText, intent, profileMemory);
         const shouldStreamDeepThinking = !['asset_xray', 'profile'].includes(intent) && chatMode === 'deep';
         const streamMessageId = `stream-${Date.now()}`;
 
@@ -1048,7 +1109,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
         const aiResponse = ['asset_xray', 'profile'].includes(intent)
           ? { content: '', source: 'fallback' as const }
           : shouldStreamDeepThinking
-          ? await askAlphaMindChatStream(chatHistory, chatMode, {
+          ? await askAlphaMindChatStream(chatHistory, chatMode, aiContext, {
               onMeta: (meta) => updateStreamingMessage({
                 model: meta.model,
                 hasImageAnalysis: meta.hasImage,
@@ -1060,7 +1121,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                 updateStreamingMessage({ content: streamingContent });
               },
             })
-          : await askAlphaMindChat(chatHistory, chatMode);
+          : await askAlphaMindChat(chatHistory, chatMode, aiContext);
 
         const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
         const rawResponseContent = hasLiveAi ? aiResponse.content : localResponse.content;
@@ -1358,6 +1419,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
               <div className="space-y-6">
                 {messages.map((message, index) => {
                   const visibleAdvisorProcess = getVisibleAdvisorProcess(message, messages, index);
+                  const visibleMessageContent = getVisibleMessageContent(message, messages, index);
 
                   return (
                     <motion.div
@@ -1398,8 +1460,8 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                             )}
 
                             <div className="space-y-2">
-                              {message.content
-                                ? renderMessageText(message.content)
+                              {visibleMessageContent
+                                ? renderMessageText(visibleMessageContent)
                                 : message.isStreaming
                                 ? <p className="text-sm am-text-tertiary">正在等待模型生成正式回答...</p>
                                 : null}

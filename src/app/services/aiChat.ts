@@ -6,6 +6,16 @@ export interface AlphaMindChatMessage {
 
 export type AlphaMindChatMode = 'fast' | 'deep';
 
+export interface AlphaMindChatContext {
+  userIntent?: string;
+  profileSummary?: string;
+  profileEvidence?: string[];
+  focusTopics?: string[];
+  recentAssets?: string[];
+  assetSignals?: string[];
+  scenarioNotes?: string[];
+}
+
 export interface AlphaMindChatResponse {
   content: string;
   source: 'siliconflow' | 'fallback';
@@ -61,6 +71,7 @@ const parseSseBlock = (block: string) => {
 export async function askAlphaMindChat(
   messages: AlphaMindChatMessage[],
   mode: AlphaMindChatMode = 'fast',
+  context?: AlphaMindChatContext,
 ): Promise<AlphaMindChatResponse> {
   const controller = new AbortController();
   const hasImage = messages.some((message) => Boolean(message.imageUrl));
@@ -73,7 +84,7 @@ export async function askAlphaMindChat(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages, mode }),
+      body: JSON.stringify({ messages, mode, context }),
       signal: controller.signal,
     });
 
@@ -111,6 +122,7 @@ export async function askAlphaMindChat(
 export async function askAlphaMindChatStream(
   messages: AlphaMindChatMessage[],
   mode: AlphaMindChatMode = 'deep',
+  context?: AlphaMindChatContext,
   handlers: AlphaMindChatStreamHandlers = {},
 ): Promise<AlphaMindChatResponse> {
   const controller = new AbortController();
@@ -131,7 +143,7 @@ export async function askAlphaMindChatStream(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ messages, mode, stream: true }),
+      body: JSON.stringify({ messages, mode, stream: true, context }),
       signal: controller.signal,
     });
 
