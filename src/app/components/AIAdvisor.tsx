@@ -162,6 +162,7 @@ const detectIntent = (text: string) => {
     (/(?:分析|看看|检测|透视|研究|x-ray|xray)/i.test(text) && hasStockSymbol) ||
     (hasStockSymbol && /(?:怎么样|能买吗|能不能买|持有|买入|卖出)/i.test(text))
   ) return 'asset_xray';
+  if (/(用户画像|画像|你.*(?:怎么看我|了解我|认为我|记得我)|我在你.*(?:心里|眼里)|我的偏好|我的风险画像|我是(?:什么|哪种|哪类).*(?:用户|投资者)|适合我.*(?:风格|类型))/.test(text)) return 'profile';
   if (lowerText.includes('风险') || lowerText.includes('波动')) return 'risk_assessment';
   if (lowerText.includes('配置') || lowerText.includes('分配')) return 'allocation';
   if (lowerText.includes('推荐') || lowerText.includes('建议')) return 'recommendation';
@@ -202,9 +203,9 @@ const inferChatMode = (text: string, intent: string, preference: AdvisorModePref
 const supportsRiskScore = (intent: string) => ['risk_assessment', 'allocation', 'retirement'].includes(intent);
 const supportsPortfolio = (intent: string) => ['allocation', 'retirement'].includes(intent);
 const supportsInlineChart = (intent: string) => ['allocation', 'retirement', 'product'].includes(intent);
-const ADVICE_CARD_INTENTS = ['risk_assessment', 'allocation', 'recommendation', 'retirement', 'product', 'asset_xray'];
+const ADVICE_CARD_INTENTS = ['risk_assessment', 'allocation', 'recommendation', 'retirement', 'product', 'asset_xray', 'profile'];
 const supportsAdviceCard = (intent: string) => ADVICE_CARD_INTENTS.includes(intent);
-const supportsDecisionExplanation = (intent: string) => ['risk_assessment', 'allocation', 'recommendation', 'retirement', 'product', 'asset_xray'].includes(intent);
+const supportsDecisionExplanation = (intent: string) => ['risk_assessment', 'allocation', 'recommendation', 'retirement', 'product', 'asset_xray', 'profile'].includes(intent);
 
 const chooseAdviceReport = (
   intent: string,
@@ -214,6 +215,7 @@ const chooseAdviceReport = (
 ) => {
   if (symbol) return getMockAssetXRayReport(symbol);
   if (!supportsAdviceCard(intent)) return undefined;
+  if (intent === 'profile') return undefined;
 
   const candidates = getPersonalizedResearchCandidates(profile);
   if (/(基金|ETF|指数|定投|宽基)/i.test(messageText)) {
@@ -307,7 +309,46 @@ const stripReasoningSummaryFromContent = (content: string) => {
   return withoutSummary || content.trim();
 };
 
-const buildAdvisorProcessMarkdown = (messageText: string, intent: string) => {
+const formatAmountForProfile = (amount?: number) => {
+  if (!amount) return '暂未记录';
+  if (amount >= 10000) return `${Math.round(amount / 10000)} 万元`;
+  return `${amount} 元`;
+};
+
+const summarizeRecentAssets = (profile = loadUserProfileMemory()) => {
+  if (!profile.recentAssets.length) return '暂无明确关注标的';
+  return profile.recentAssets
+    .slice(0, 3)
+    .map((item) => `${item.name}（${item.count}次）`)
+    .join('、');
+};
+
+const buildProfileMemoryAnswer = (profile = loadUserProfileMemory()) => {
+  const evidence = getProfileEvidence(profile);
+  const topics = profile.focusTopics.length > 0 ? profile.focusTopics.join(' / ') : '资产配置 / 风险控制';
+
+  return [
+    '我当前保存的是一份**轻量用户画像**，它不会给你贴固定标签，而是用来约束投顾回答的风险边界和解释方式。',
+    '',
+    '### 用户画像摘要',
+    `- **风险画像**：${profile.riskLevel}，风险分 ${Math.round(profile.riskScore)}/100。`,
+    `- **资金信息**：${profile.amount ? `已记录约 ${formatAmountForProfile(profile.amount)}` : '暂未记录明确可投资金额'}。`,
+    `- **年龄信息**：${profile.age ? `已记录 ${profile.age} 岁` : '暂未记录年龄'}。`,
+    `- **当前状态**：${profile.emotionTag || '平稳'}。`,
+    `- **关注主题**：${topics}。`,
+    `- **近期关注**：${summarizeRecentAssets(profile)}。`,
+    '',
+    '### 画像记忆证据',
+    ...evidence.map((item) => `- ${item}`),
+    '',
+    '### 这会怎样影响我的回答',
+    `- 我会优先把建议放在“${profile.riskLevel}”风险边界内解释，而不是只追逐短期收益。`,
+    '- 涉及基金、个股或资产配置时，会先说明适配理由、主要风险和不确定性。',
+    '- 如果你补充年龄、资金期限、亏损承受范围或测一次风险评估，这份画像会继续更新。',
+  ].join('\n');
+};
+
+const buildAdvisorProcessMarkdown = (messageText: string, intent: string, profile = loadUserProfileMemory()) => {
   const intentLabel: Record<string, string> = {
     risk_assessment: '风险承受能力与波动承受边界',
     allocation: '资产配置目标、期限和再平衡约束',
@@ -315,20 +356,48 @@ const buildAdvisorProcessMarkdown = (messageText: string, intent: string) => {
     retirement: '长期现金流、通胀和安全垫',
     product: '标的特征、估值和主要风险',
     asset_xray: '个股基本面、情绪和走势假设',
+    profile: '用户画像、记忆证据和回答边界',
     general: '问题定义、适用范围和风险提示',
   };
 
   const topic = intentLabel[intent] ?? intentLabel.general;
-  const isShortQuestion = messageText.trim().length < 18;
+  const question = messageText.trim() || '图片或页面信息分析';
+  const shortQuestion = question.length > 42 ? `${question.slice(0, 42)}...` : question;
+  const evidence = getProfileEvidence(profile).slice(0, 4);
+  const recentAssets = summarizeRecentAssets(profile);
+  const focusTopics = profile.focusTopics.slice(0, 3).join(' / ') || '资产配置 / 风险控制';
+  const intentAction: Record<string, string> = {
+    profile: '读取本地画像记忆，区分已确认事实、默认画像和近期行为证据。',
+    recommendation: `以${profile.riskLevel}画像先排除不匹配的高波动方案，再看基金/ETF的费用、流动性和分散度。`,
+    product: `先判断产品属性和风险暴露，再用${profile.riskLevel}画像校验是否适合继续研究。`,
+    allocation: `围绕${focusTopics}建立核心-卫星或防御搭配，并检查仓位集中度。`,
+    risk_assessment: '优先检查亏损承受、流动性需求、情绪状态和复盘频率。',
+    asset_xray: `把标的信号和用户画像拆开看，避免把单一资产波动误读为确定性机会。`,
+    retirement: '先估算长期现金流和安全垫，再讨论权益资产随年龄变化的比例。',
+    general: '先把问题翻译成可执行的研究框架，再补充需要用户确认的信息。',
+  };
+  const boundary = intent === 'profile'
+    ? '画像只来自本地风险测评、聊天提到的信息和近期关注记录，可随时被新信息修正。'
+    : `输出会受${profile.riskLevel}风险边界约束，不把短期表现或模型判断包装成确定性收益。`;
 
   return [
     '### 投顾分析过程',
     '',
-    `1. **需求识别**：将本次问题归类为“${topic}”，先确定适用范围。`,
-    `2. **画像匹配**：${isShortQuestion ? '问题信息较少，优先调用本地风险画像与近期关注证据。' : '以用户已给出的期限、资金和风险偏好为主，不补造缺失信息。'}`,
-    '3. **候选筛选**：按风险匹配度、流动性、波动暴露和资产分散度筛选研究对象。',
-    '4. **风险校验**：检查市场波动、集中度、费用、流动性和信息滞后，不把短期表现当作确定性收益。',
-    '5. **结论边界**：输出研究辅助视角，不替代个人风险测评、正式尽调或独立决策。',
+    `**本轮问题**：${shortQuestion}`,
+    '',
+    `**识别结果**：${topic}`,
+    '',
+    '**画像证据**',
+    ...evidence.map((item) => `- ${item}`),
+    `- 近期关注：${recentAssets}`,
+    '',
+    '**处理路径**',
+    `1. ${intentAction[intent] ?? intentAction.general}`,
+    `2. 将回答约束在“${profile.riskLevel} / 风险分 ${Math.round(profile.riskScore)}”的画像边界内。`,
+    `3. 结合关注主题（${focusTopics}）决定先讲风险、配置逻辑还是标的研究入口。`,
+    `4. 明确哪些信息是已记录画像，哪些还需要用户补充确认。`,
+    '',
+    `**输出边界**：${boundary}`,
   ].join('\n');
 };
 
@@ -345,6 +414,8 @@ const getVisibleAdvisorProcess = (message: any, allMessages: any[], index: numbe
 
   if (
     rawReasoning.startsWith('### 投顾分析过程') &&
+    rawReasoning.includes('**本轮问题**') &&
+    rawReasoning.includes('**画像证据**') &&
     !/(system prompt|developer message|chain[- ]?of[- ]?thought|用户[：:]|角色[：:]|目标[：:]|AlphaMind\s*的\s*AI\s*投资顾问|你是.{0,24}(?:助手|顾问|模型)|不要提及|比赛|医创赛|内部(?:开发|实现|提示|指令))/i.test(rawReasoning)
   ) {
     return rawReasoning;
@@ -378,12 +449,19 @@ const extractUserInfo = (text: string) => {
   return info;
 };
 
-function buildLocalAnalysisResponse(messageText: string, intent: string, userProfile: any) {
+function buildLocalAnalysisResponse(messageText: string, intent: string, userProfile: any, profileMemory = loadUserProfileMemory()) {
   const shouldShowChart = supportsInlineChart(intent);
   let responseContent = '';
   let reasons = [];
 
-  if (intent === 'asset_xray') {
+  if (intent === 'profile') {
+    responseContent = buildProfileMemoryAnswer(profileMemory);
+    reasons = [
+      { icon: '🧬', text: `已读取本地用户画像：${profileMemory.riskLevel}，风险分 ${Math.round(profileMemory.riskScore)}/100。` },
+      { icon: '🧾', text: `画像证据包含风险测评、关注主题和近期关注资产：${summarizeRecentAssets(profileMemory)}。` },
+      { icon: '🔁', text: '画像会随新对话、资产透视访问和风险测评结果继续更新。' },
+    ];
+  } else if (intent === 'asset_xray') {
     const symbol = extractStockSymbol(messageText) ?? '600519';
     const report = getMockAssetXRayReport(symbol);
     responseContent = `已识别 ${report.name}（${report.symbol}）研究请求。下方已生成结构化投顾辅助卡，也可以进入资产透视页查看 K 线、雷达评分、新闻线索和情景推演。`;
@@ -872,9 +950,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
       setIsAnalyzing(true);
 
       try {
-        const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile);
+        const localResponse = buildLocalAnalysisResponse(messageText, intent, userProfile, profileMemory);
         const chatHistory = buildChatHistoryForAi(messages, userMessage);
-        const shouldStreamDeepThinking = intent !== 'asset_xray' && chatMode === 'deep';
+        const shouldStreamDeepThinking = !['asset_xray', 'profile'].includes(intent) && chatMode === 'deep';
         const streamMessageId = `stream-${Date.now()}`;
 
         if (shouldStreamDeepThinking) {
@@ -891,8 +969,8 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
               intent,
               hasImageAnalysis: Boolean(userMessage.imageUrl),
               thinkingEnabled: true,
-              reasoningContent: buildAdvisorProcessMarkdown(messageText, intent),
-              reasoningCollapsed: true,
+              reasoningContent: buildAdvisorProcessMarkdown(messageText, intent, profileMemory),
+              reasoningCollapsed: intent !== 'profile',
               reasoningSummary: [],
               showInlineChart: false,
               showRiskScore: false,
@@ -915,7 +993,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
           );
         };
 
-        const aiResponse = intent === 'asset_xray'
+        const aiResponse = ['asset_xray', 'profile'].includes(intent)
           ? { content: '', source: 'fallback' as const }
           : shouldStreamDeepThinking
           ? await askAlphaMindChatStream(chatHistory, chatMode, {
@@ -934,7 +1012,11 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
 
         const hasLiveAi = aiResponse.source === 'siliconflow' && aiResponse.content.trim();
         const rawResponseContent = hasLiveAi ? aiResponse.content : localResponse.content;
-        const reasoningContent = hasLiveAi && chatMode === 'deep' ? buildAdvisorProcessMarkdown(messageText, intent) : '';
+        const reasoningContent = hasLiveAi && chatMode === 'deep'
+          ? buildAdvisorProcessMarkdown(messageText, intent, profileMemory)
+          : intent === 'profile'
+          ? buildAdvisorProcessMarkdown(messageText, intent, profileMemory)
+          : '';
         const parsedReasoningSummary = hasLiveAi && chatMode === 'deep' && !reasoningContent ? extractReasoningSummary(rawResponseContent) : [];
         const reasoningSummary = hasLiveAi && chatMode === 'deep'
           ? reasoningContent
@@ -977,9 +1059,9 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
           chatMode,
           intent,
           hasImageAnalysis: hasLiveAi ? aiResponse.hasImage : Boolean(userMessage.imageUrl),
-          thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : false,
+          thinkingEnabled: hasLiveAi ? aiResponse.thinkingEnabled : intent === 'profile',
           reasoningContent,
-          reasoningCollapsed: true,
+          reasoningCollapsed: intent !== 'profile',
           reasoningSummary,
           providerError,
           showInlineChart: shouldShowChart,
@@ -1289,6 +1371,8 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                   <span>
                                     {message.assetSymbol
                                       ? '资产透视入口'
+                                      : message.intent === 'profile'
+                                      ? '画像记忆引擎'
                                       : message.source === 'siliconflow'
                                       ? message.hasImageAnalysis
                                         ? '硅基流动 AI · 图像理解'
@@ -1306,7 +1390,11 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                     </span>
                                   )}
                                   <span className="am-text-tertiary">
-                                    来源：{message.source === 'siliconflow' ? message.model ?? 'SiliconFlow' : '浏览器本地规则 / 参考数据'}
+                                    来源：{message.source === 'siliconflow'
+                                      ? message.model ?? 'SiliconFlow'
+                                      : message.intent === 'profile'
+                                      ? 'AlphaMind 本地画像记忆'
+                                      : '浏览器本地规则 / 参考数据'}
                                   </span>
                                   <span className="am-text-tertiary">不构成投资建议</span>
                                 </div>
@@ -1322,7 +1410,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                       <span className="flex min-w-0 items-center gap-2">
                                         <BrainCircuit size={16} className="am-brand shrink-0" />
                                         <span className="text-sm font-medium am-text-primary">投顾分析过程</span>
-                                        <span className="text-[11px] am-text-tertiary">公开研究步骤</span>
+                                        <span className="text-[11px] am-text-tertiary">画像证据链</span>
                                       </span>
                                       <span className="flex items-center gap-2 text-[11px] am-text-tertiary">
                                         {message.isStreaming ? '接收中' : message.reasoningCollapsed === false ? '收起' : '展开'}
@@ -1337,7 +1425,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                         <div className="text-xs leading-6 am-text-secondary">
                                           {visibleAdvisorProcess
                                             ? renderMessageText(visibleAdvisorProcess)
-                                            : <span className="am-text-tertiary">正在整理公开研究步骤...</span>}
+                                            : <span className="am-text-tertiary">正在整理画像证据链...</span>}
                                           {message.isStreaming && (
                                             <span className="ml-1 inline-block h-3 w-1 translate-y-0.5 am-brand-bg am-thinking-cursor" />
                                           )}
@@ -1352,7 +1440,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                     <div className="flex items-center gap-2 mb-3">
                                       <BrainCircuit size={16} className="am-brand" />
                                       <h4 className="text-sm font-medium am-text-primary">投顾分析过程</h4>
-                                      <span className="text-[11px] am-text-tertiary">公开研究步骤</span>
+                                      <span className="text-[11px] am-text-tertiary">画像证据链</span>
                                     </div>
                                     <div className="space-y-2">
                                       {message.reasoningSummary.map((step: string, idx: number) => (
@@ -1520,7 +1608,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                         </div>
                         {activeChatMode === 'deep' && (
                           <p className="text-xs am-text-tertiary">
-                            连接成功后会展示公开研究步骤，不显示内部推理或提示词。
+                            连接成功后会展示画像证据链，不显示内部推理或提示词。
                           </p>
                         )}
                       </div>
