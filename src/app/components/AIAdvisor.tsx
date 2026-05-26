@@ -25,6 +25,7 @@ import { getMockAssetXRayReport, normalizeAssetSymbol } from '../services/assetX
 import {
   buildInvestmentAdviceCard,
   getProfileEvidence,
+  getPersonalizedResearchCandidates,
   loadUserProfileMemory,
   recordAssetInterest,
   syncRiskAssessmentToProfileMemory,
@@ -201,7 +202,26 @@ const inferChatMode = (text: string, intent: string, preference: AdvisorModePref
 const supportsRiskScore = (intent: string) => ['risk_assessment', 'allocation', 'retirement'].includes(intent);
 const supportsPortfolio = (intent: string) => ['allocation', 'retirement'].includes(intent);
 const supportsInlineChart = (intent: string) => ['allocation', 'retirement', 'product'].includes(intent);
-const supportsDecisionExplanation = (intent: string) => ['risk_assessment', 'allocation', 'retirement', 'asset_xray'].includes(intent);
+const ADVICE_CARD_INTENTS = ['risk_assessment', 'allocation', 'recommendation', 'retirement', 'product', 'asset_xray'];
+const supportsAdviceCard = (intent: string) => ADVICE_CARD_INTENTS.includes(intent);
+const supportsDecisionExplanation = (intent: string) => ['risk_assessment', 'allocation', 'recommendation', 'retirement', 'product', 'asset_xray'].includes(intent);
+
+const chooseAdviceReport = (
+  intent: string,
+  symbol: string | undefined,
+  messageText: string,
+  profile = loadUserProfileMemory(),
+) => {
+  if (symbol) return getMockAssetXRayReport(symbol);
+  if (!supportsAdviceCard(intent)) return undefined;
+
+  const candidates = getPersonalizedResearchCandidates(profile);
+  if (/(基金|ETF|指数|定投|宽基)/i.test(messageText)) {
+    return candidates.find((item) => ['518880', 'CSI300'].includes(item.symbol)) ?? candidates[0];
+  }
+
+  return candidates[0];
+};
 
 const formatMessageTime = (value?: number | string) => {
   if (typeof value === 'string' && value && !Number.isFinite(Number(value))) return value;
@@ -379,6 +399,15 @@ function buildLocalAnalysisResponse(messageText: string, intent: string, userPro
       { icon: '🎯', text: `M3预测：${userProfile.amount ? `以${(userProfile.amount / 10000).toFixed(0)}万元资金` : '您的资金'}进行配置，建议采用核心-卫星策略` },
       { icon: '📈', text: 'M4优化：科技板块当前估值合理，可作为核心配置' },
       { icon: '💡', text: 'LLM建议：定投策略可平滑市场波动，建议每月固定投入' },
+    ];
+  } else if (intent === 'recommendation' || intent === 'product') {
+    responseContent = intent === 'product'
+      ? '我会先根据您的本地画像筛选基金类型，再给出可比较的研究候选。下方卡片会引用风险画像、近期关注和资产信号。'
+      : '我会先引用您的风险画像与近期关注证据，再给出研究候选和决策分支。';
+    reasons = [
+      { icon: '🧬', text: '已读取本地风险画像、情绪状态和近期关注资产。' },
+      { icon: '🧭', text: '候选资产会按风险匹配度排序，不按单一收益预期排序。' },
+      { icon: '🛡️', text: '结果用于基金/资产研究辅助，不构成购买建议。' },
     ];
   } else if (intent === 'retirement') {
     responseContent = '退休规划需要长期视角，我为您制定了以下方案';
@@ -915,7 +944,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
         const responseContent = hasLiveAi && chatMode === 'deep'
           ? stripReasoningSummaryFromContent(rawResponseContent)
           : rawResponseContent;
-        const adviceReport = normalizedSymbol ? getMockAssetXRayReport(normalizedSymbol) : undefined;
+        const adviceReport = chooseAdviceReport(intent, normalizedSymbol, messageText, profileMemory);
         const adviceCard = adviceReport ? buildInvestmentAdviceCard(adviceReport, profileMemory) : undefined;
         const reasons = hasLiveAi
           ? [
@@ -1225,6 +1254,21 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                             <span className="text-sm">🤖</span>
                           </div>
                           <div className="flex-1 space-y-3">
+                            {message.adviceCard && (
+                              <AdviceCard
+                                card={message.adviceCard}
+                                symbol={message.assetSymbol}
+                                onOpenAssetXRay={(symbol) => {
+                                  recordAssetInterest(symbol, 'chat');
+                                  if (onOpenAssetXRay) {
+                                    onOpenAssetXRay(symbol);
+                                  } else {
+                                    onNavigate?.(3);
+                                  }
+                                }}
+                              />
+                            )}
+
                             <div className="space-y-2">
                               {message.content
                                 ? renderMessageText(message.content)
@@ -1355,21 +1399,6 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                                       📊 {message.riskLevel}
                                     </span>
                                   </div>
-                                )}
-
-                                {message.adviceCard && (
-                                  <AdviceCard
-                                    card={message.adviceCard}
-                                    symbol={message.assetSymbol}
-                                    onOpenAssetXRay={(symbol) => {
-                                      recordAssetInterest(symbol, 'chat');
-                                      if (onOpenAssetXRay) {
-                                        onOpenAssetXRay(symbol);
-                                      } else {
-                                        onNavigate?.(3);
-                                      }
-                                    }}
-                                  />
                                 )}
 
                                 {message.portfolio?.length > 0 && (
