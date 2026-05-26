@@ -411,7 +411,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     catalysts: ['交付增速修复', '储能业务毛利改善', 'FSD 商业化预期升温'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind mock provider',
+      source: 'AlphaMind provider',
       status: 'ok',
       freshnessLabel: '本地参考数据 · 非实时',
       coverage: [
@@ -451,7 +451,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     catalysts: ['数据中心订单强劲', 'AI 训练需求扩张', '供应链议价能力提升'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind mock provider',
+      source: 'AlphaMind provider',
       status: 'ok',
       freshnessLabel: '本地参考数据 · 非实时',
       coverage: [
@@ -491,7 +491,7 @@ export const MOCK_ASSET_REPORTS: AssetXRayReport[] = [
     catalysts: ['服务业务韧性', '新品周期预期', '回购支撑 EPS'],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind mock provider',
+      source: 'AlphaMind provider',
       status: 'ok',
       freshnessLabel: '本地参考数据 · 非实时',
       coverage: [
@@ -611,7 +611,7 @@ export function getMockAssetXRayReport(symbol: string, message?: string): AssetX
     newsItems: matchedReport ? buildMockNewsItems(report.symbol) : [],
     providerMeta: {
       mode: 'mock',
-      source: 'AlphaMind mock provider',
+      source: 'AlphaMind provider',
       status: unsupportedMessage ? 'fallback' : 'ok',
       message: unsupportedMessage,
       freshnessLabel: matchedReport ? '本地参考数据 · 非实时' : '未连接实时源 · 使用结构参考',

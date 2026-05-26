@@ -23,6 +23,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { askAlphaMindChat, askAlphaMindChatStream, type AlphaMindChatContext, type AlphaMindChatMessage, type AlphaMindChatMode } from '../services/aiChat';
 import { getMockAssetXRayReport, normalizeAssetSymbol } from '../services/assetXRay';
+import botLogoImg from '../../imports/alphamind-bot-logo.png';
 import {
   buildInvestmentAdviceCard,
   getProfileEvidence,
@@ -78,6 +79,16 @@ const marketTrendData = [
   { date: '5/1', value: 3580 },
   { date: '6/1', value: 3520 },
 ];
+
+function AlphaMindBotAvatar({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
+  const dimensionClass = size === 'lg' ? 'w-16 h-16 p-1.5' : 'w-8 h-8 p-0.5 flex-shrink-0';
+
+  return (
+    <div className={`${dimensionClass} rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center shadow-[0_0_20px_rgba(196,69,54,0.2)]`}>
+      <img src={botLogoImg} alt="AlphaMind AI" className="h-full w-full rounded-full object-cover bg-white/90" />
+    </div>
+  );
+}
 
 interface Session {
   id: string;
@@ -1517,9 +1528,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8"
               >
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center">
-                  <span className="text-3xl">🤖</span>
-                </div>
+                <AlphaMindBotAvatar size="lg" />
                 <div>
                   <h2 className="text-2xl font-bold am-text-primary mb-2">{getSmartGreeting()}！我是 AlphaMind AI</h2>
                   <p className="am-text-secondary">您的专属智能投资顾问</p>
@@ -1570,9 +1579,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                     ) : (
                       <div className="space-y-4">
                         <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm">🤖</span>
-                          </div>
+                          <AlphaMindBotAvatar />
                           <div className="flex-1 space-y-3">
                             {message.adviceCard && (
                               <AdviceCard
@@ -1871,9 +1878,7 @@ export function AIAdvisor({ currentPage = 1, onNavigate, onOpenAssetXRay, newCha
                     animate={{ opacity: 1 }}
                     className="flex items-start gap-3"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C44536] to-orange-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm">🤖</span>
-                    </div>
+                    <AlphaMindBotAvatar />
                     <div className="flex-1">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 am-text-secondary">
