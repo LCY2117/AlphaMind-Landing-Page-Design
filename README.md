@@ -5,6 +5,28 @@
 
 [线上体验](https://alphamind.mddcommunity.top) · [GitHub 仓库](https://github.com/LCY2117/AlphaMind-Landing-Page-Design)
 
+## Docker / 迁移运行
+
+```bash
+cp .env.example .env.local
+# 编辑 .env.local，填入服务端运行所需 API Key 和代理配置
+docker compose up -d --build
+```
+
+默认服务监听服务器本机：
+
+```text
+http://127.0.0.1:3001
+```
+
+公网访问建议继续通过 1Panel/OpenResty 反向代理。当前 AlphaMind 与 QuantDinger 的耦合点是 `/api/quantdinger/` 代理边界，迁移时应保持该路径指向 QuantDinger 前端/API 的稳定上游。
+
+停止容器：
+
+```bash
+docker compose down
+```
+
 ## 项目定位
 
 AlphaMind 是一个面向个人投资者的智能投研工作台，目标不是制造确定性预测，也不是替用户做交易决策，而是把投资过程中最容易被割裂的几件事重新组织成一条连续链路：
