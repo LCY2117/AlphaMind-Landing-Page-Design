@@ -30,7 +30,7 @@ export function StockTicker() {
       <div className="relative flex items-center">
         <div className="relative z-10 shrink-0 self-stretch flex items-center border-r am-border-subtle am-nav-surface px-3 sm:px-4">
           <span className="rounded-full am-banner border px-2.5 py-1 text-xs font-semibold am-brand whitespace-nowrap">
-            参考行情 · 非实时
+            参考行情
           </span>
         </div>
         {/* Scrolling Container */}
